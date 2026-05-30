@@ -1,0 +1,23 @@
+:root.amoled {
+  --color-bg-base: #000000;
+  --color-bg-surface: #0a0a0a;
+  --color-bg-elevated: #171717;
+  
+  --color-primary: #3b82f6;
+  --color-primary-hover: #60a5fa;
+  --color-on-primary: #ffffff;
+  
+  --color-secondary: #a78bfa;
+  --color-accent: #fbbf24;
+  
+  --color-text-main: #f9fafb;
+  --color-text-muted: #9ca3af;
+  --color-text-faint: #4b5563;
+  
+  --color-border: #262626;
+  --color-border-subtle: #171717;
+  
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+}
