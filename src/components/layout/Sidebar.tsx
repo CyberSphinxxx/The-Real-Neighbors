@@ -15,36 +15,46 @@ export const Sidebar: React.FC = () => {
   ];
 
   return (
-    <div className="flex flex-col h-full justify-between py-5 px-3">
+    <div className="flex flex-col h-full justify-between py-6 px-4">
       {/* App name */}
       <div>
-        <div className="mb-7 px-3">
+        <div className="mb-8 px-2">
           <h1
-            className="flex items-center gap-2 font-heading font-bold text-primary leading-tight"
-            style={{ fontSize: '1.25rem', letterSpacing: '-0.01em' }}
+            className="font-heading font-bold text-primary"
+            style={{ fontSize: '1.4rem', letterSpacing: '-0.02em' }}
           >
-            <span className="text-xl select-none">🏘️</span>
             The Real Neighbors
           </h1>
         </div>
 
         {/* Nav items */}
-        <nav className="flex flex-col gap-1">
+        <nav className="flex flex-col gap-2">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg font-medium text-sm transition-all duration-150 ${
+                `group flex items-center gap-4 px-2 py-2.5 rounded-xl transition-all duration-300 ${
                   isActive
-                    ? 'text-primary bg-surface border-l-[3px] border-primary pl-[calc(0.75rem-3px)]'
-                    : 'text-muted hover:bg-surface hover:text-main border-l-[3px] border-transparent pl-[calc(0.75rem-3px)]'
+                    ? 'text-primary font-semibold'
+                    : 'text-muted hover:text-main'
                 }`
               }
             >
-              <item.icon className="w-5 h-5 flex-shrink-0" />
-              {item.name}
+              {({ isActive }) => (
+                <>
+                  <item.icon 
+                    className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${
+                      isActive 
+                        ? 'scale-110 drop-shadow-[0_2px_4px_rgba(var(--color-primary-rgb),0.3)]' 
+                        : 'group-hover:scale-110 group-hover:text-primary/70'
+                    }`} 
+                    strokeWidth={isActive ? 2.5 : 2} 
+                  />
+                  <span className="text-[16px] tracking-wide">{item.name}</span>
+                </>
+              )}
             </NavLink>
           ))}
         </nav>

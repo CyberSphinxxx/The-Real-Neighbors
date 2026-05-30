@@ -37,15 +37,15 @@ export const usePresence = () => {
         userRef.set(isOfflineForDatabase).then(() => {
           // The promise resolves when the onDisconnect state has been sent to server,
           // then we can safely set ourselves online.
-          set(userStatusDatabaseRef, isOnlineForDatabase);
-        });
+          set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
+        }).catch(console.error);
       }
     });
 
     return () => {
       unsubscribe();
-      // Set to offline when unmounting
-      set(userStatusDatabaseRef, isOfflineForDatabase);
+      // We rely on onDisconnect to handle offline status when the user actually disconnects,
+      // preventing React StrictMode from incorrectly setting offline on component remount.
     };
   }, [user]);
 };
