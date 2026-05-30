@@ -3,6 +3,8 @@ import { Outlet } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
 import { MobileNav } from './MobileNav';
+import { BirthdayWidget } from '../birthdays/BirthdayWidget';
+import { EventWidget } from '../events/EventWidget';
 
 export const AppShell: React.FC = () => {
   return (
@@ -26,14 +28,8 @@ export const AppShell: React.FC = () => {
 
       {/* Desktop Right Sidebar Placeholder */}
       <aside className="hidden lg:flex flex-col w-[280px] flex-shrink-0 bg-surface border-l border-border-subtle h-full p-4 overflow-y-auto">
-        <div className="mb-6 p-4 rounded-lg bg-base border border-border-subtle shadow-sm">
-          <h3 className="font-heading font-semibold text-main mb-2">Birthdays</h3>
-          <p className="text-sm text-muted">Placeholder for birthday widget</p>
-        </div>
-        <div className="p-4 rounded-lg bg-base border border-border-subtle shadow-sm">
-          <h3 className="font-heading font-semibold text-main mb-2">Next Event</h3>
-          <p className="text-sm text-muted">Placeholder for event widget</p>
-        </div>
+        <BirthdayWidget />
+        <EventWidget />
       </aside>
 
       {/* Mobile Bottom Navigation */}
