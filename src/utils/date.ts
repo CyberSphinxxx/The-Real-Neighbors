@@ -24,3 +24,37 @@ export function formatTimeAgo(timestamp: string | number | Date): string {
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: date.getFullYear() !== now.getFullYear() ? 'numeric' : undefined });
 }
+
+export function getDaysUntilBirthday(birthdate: string): number {
+  if (!birthdate) return 999;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const [, month, day] = birthdate.split('-').map(Number);
+  let nextBday = new Date(today.getFullYear(), month - 1, day);
+  if (nextBday.getTime() < today.getTime()) {
+    nextBday.setFullYear(today.getFullYear() + 1);
+  }
+  const diffTime = Math.abs(nextBday.getTime() - today.getTime());
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+export function calculateAgeTurning(birthdate: string): number {
+  if (!birthdate) return 0;
+  const [year, month, day] = birthdate.split('-').map(Number);
+  const today = new Date();
+  let nextBday = new Date(today.getFullYear(), month - 1, day);
+  if (nextBday.getTime() < today.setHours(0, 0, 0, 0)) {
+    return today.getFullYear() + 1 - year;
+  }
+  return today.getFullYear() - year;
+}
+
+export function isBirthdayToday(birthdate: string): boolean {
+  if (!birthdate) return false;
+  const [, month, day] = birthdate.split('-');
+  const today = new Date();
+  const currentMonth = String(today.getMonth() + 1).padStart(2, '0');
+  const currentDay = String(today.getDate()).padStart(2, '0');
+  return month === currentMonth && day === currentDay;
+}
+
