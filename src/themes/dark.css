@@ -20,4 +20,12 @@
   --color-danger: #f87171;
   --color-success: #34d399;
   --color-warning: #fbbf24;
+
+  /* Avatar palette */
+  --avatar-color-0: #3b82f6;
+  --avatar-color-1: #a78bfa;
+  --avatar-color-2: #fbbf24;
+  --avatar-color-3: #34d399;
+  --avatar-color-4: #f87171;
+  --avatar-color-5: #f472b6;
 }
