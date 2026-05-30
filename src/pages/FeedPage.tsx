@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { PostComposer } from '../components/feed/PostComposer';
 import { PostCard } from '../components/feed/PostCard';
+import { PostSkeleton } from '../components/feed/PostSkeleton';
 import { subscribeToCollection } from '../lib/firestore';
 import { orderBy } from 'firebase/firestore';
 import type { Post } from '../types';
-import { Loader2 } from 'lucide-react';
 
 export const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
@@ -43,9 +43,10 @@ export const FeedPage: React.FC = () => {
 
       <div className="space-y-6">
         {isLoading ? (
-          <div className="flex flex-col items-center justify-center py-12 text-muted">
-            <Loader2 className="w-8 h-8 animate-spin mb-4" />
-            <p>Loading posts...</p>
+          <div className="w-full max-w-2xl mt-8">
+            <PostSkeleton />
+            <PostSkeleton />
+            <PostSkeleton />
           </div>
         ) : sortedPosts.length === 0 ? (
           <div className="bg-surface rounded-2xl p-12 text-center border border-border-subtle shadow-sm">
