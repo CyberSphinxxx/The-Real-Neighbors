@@ -20,6 +20,7 @@ export interface Post {
   comments: Comment[];
   createdAt: string | number | Date;
   isPinned: boolean;
+  editHistory?: { content: string; editedAt: number }[];
 }
 
 export interface Comment {
