@@ -8,6 +8,7 @@ export interface User {
   role: 'admin' | 'member';
   joinedAt: string | number | Date;
   showAge?: boolean;
+  subreddits?: string[];
 }
 
 export interface Post {
@@ -16,6 +17,9 @@ export interface Post {
   content: string;
   linkUrl?: string;
   linkMeta?: any;
+  vibeTag?: { emoji: string; label: string; color: string };
+  bgColor?: string;
+  imageUrl?: string;
   reactions: Record<string, string[]>;
   comments: Comment[];
   createdAt: string | number | Date;
@@ -105,4 +109,20 @@ export interface YoutubeQueueItem {
   thumbnailUrl: string;
   addedBy: string;
   createdAt: number;
+}
+
+export interface RedditPost {
+  id: string;
+  title: string;
+  author: string;
+  subreddit: string;
+  selftext?: string;
+  url: string;
+  is_video: boolean;
+  is_reddit_media_domain: boolean;
+  thumbnail?: string;
+  score: number;
+  num_comments: number;
+  created_utc: number;
+  permalink: string;
 }
