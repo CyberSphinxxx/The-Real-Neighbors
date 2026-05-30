@@ -6,6 +6,7 @@ import { Calendar, Palmtree, Gamepad2, Plane, Monitor, MessageSquare, Trash2, Ch
 import { EventNotes } from './EventNotes';
 import { CreateEventModal } from './CreateEventModal';
 import toast from 'react-hot-toast';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { Link } from 'react-router-dom';
 
 interface Props {
@@ -54,8 +55,17 @@ export const EventCard: React.FC<Props> = ({ event }) => {
     }
   };
 
+  const { confirm } = useConfirm();
+
   const handleDelete = async () => {
-    if (confirm('Are you sure you want to delete this event?')) {
+    const isConfirmed = await confirm({
+      title: 'Cancel Event',
+      message: 'Are you sure you want to cancel this event?',
+      isDanger: true,
+      confirmText: 'Cancel Event'
+    });
+
+    if (isConfirmed) {
       try {
         await deleteDoc('events', event.id);
         toast.success('Event deleted');
