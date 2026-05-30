@@ -75,9 +75,13 @@ export const BirthdayWidget: React.FC = () => {
               {/* Generated-color avatar */}
               <div
                 className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
-                style={{ background: getAvatarColor(user.displayName) }}
+                style={{ background: user.avatarUrl ? undefined : getAvatarColor(user.displayName) }}
               >
-                {user.displayName.charAt(0).toUpperCase()}
+                {user.avatarUrl ? (
+                  <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  user.displayName.charAt(0).toUpperCase()
+                )}
               </div>
 
               <div className="flex-1 min-w-0">
