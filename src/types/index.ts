@@ -95,3 +95,13 @@ export interface EventNote {
   createdAt: number;
 }
 
+
+export interface YoutubeQueueItem {
+  id: string;
+  url: string;
+  videoId: string;
+  title: string;
+  thumbnailUrl: string;
+  addedBy: string;
+  createdAt: number;
+}
