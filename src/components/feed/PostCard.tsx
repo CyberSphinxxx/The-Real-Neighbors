@@ -4,7 +4,7 @@ import { getDoc, updateDoc } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { CommentSection } from './CommentSection';
 import type { Post, User } from '../../types';
-import { MessageCircle, Pin, MoreHorizontal, Trash2, Edit2, X, Loader2 } from 'lucide-react';
+import { MessageCircle, Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye } from 'lucide-react';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -12,17 +12,17 @@ import toast from 'react-hot-toast';
 
 interface PostCardProps {
   post: Post;
+  onOpenPost?: (post: Post) => void;
 }
 
 const REACTIONS = [
   { emoji: '👍', label: 'Like' },
-  { emoji: '😂', label: 'Lol' },
-  { emoji: '😮', label: 'Grabe' },
-  { emoji: '💀', label: 'Patay' },
-  { emoji: '🔥', label: 'Fire' },
+  { emoji: '😂', label: 'Haha' },
+  { emoji: '😮', label: 'Wow' },
+  { emoji: '😢', label: 'Sad' },
 ];
 
-export const PostCard: React.FC<PostCardProps> = ({ post }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
   const { user } = useAuthStore();
   const { onlineUsers } = useOnlineUsers();
   const [author, setAuthor] = useState<User | null>(null);
@@ -34,6 +34,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const [editContent, setEditContent] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
   const [showHistoryModal, setShowHistoryModal] = useState(false);
+  const [imageError, setImageError] = useState(false);
+  
   const menuRef = useRef<HTMLDivElement>(null);
   const { confirm } = useConfirm();
 
@@ -179,19 +181,33 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
   const canDelete = user?.id === post.authorId || isAdmin;
   const canEdit = user?.id === post.authorId;
 
+  // Derive styles from new features
+  const hasBg = !!post.bgColor;
+  const textClass = hasBg ? 'text-white' : 'text-main';
+  const faintTextClass = hasBg ? 'text-white/70' : 'text-faint';
+  const mutedTextClass = hasBg ? 'text-white/80' : 'text-muted';
+
   return (
     <div
-      className="rounded-2xl p-5 transition-all duration-200"
+      className={`rounded-2xl p-5 transition-all duration-200 ${hasBg && onOpenPost ? 'cursor-pointer' : ''}`}
       style={{
-        background: 'var(--color-bg-surface)',
-        border: post.isPinned
+        background: post.bgColor || 'var(--color-bg-surface)',
+        border: post.isPinned && !hasBg
           ? '1px solid var(--color-primary)'
-          : '1px solid var(--color-border-subtle)',
+          : hasBg ? '1px solid transparent' : '1px solid var(--color-border-subtle)',
         boxShadow: isHovered ? 'var(--shadow-md)' : 'var(--shadow-sm)',
         transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
+      onClick={(e) => {
+        if (hasBg && onOpenPost) {
+          const target = e.target as HTMLElement;
+          if (!target.closest('button') && !target.closest('a')) {
+            onOpenPost(post);
+          }
+        }
+      }}
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
@@ -199,47 +215,66 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
           {/* Avatar with hash color */}
           <div className="relative">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0"
-              style={{ background: avatarBg }}
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-sm"
+              style={{ background: author?.avatarUrl ? undefined : avatarBg }}
             >
-              {author ? author.displayName.charAt(0).toUpperCase() : '?'}
+              {author?.avatarUrl ? (
+                <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                author ? author.displayName.charAt(0).toUpperCase() : '?'
+              )}
             </div>
             {isAuthorOnline && (
               <div
                 className="absolute bottom-0 right-0 w-3 h-3 rounded-full animate-pulse z-10"
                 style={{
                   background: 'var(--color-success)',
-                  border: '2px solid var(--color-bg-surface)',
+                  border: `2px solid ${hasBg ? 'transparent' : 'var(--color-bg-surface)'}`,
                 }}
               />
             )}
           </div>
 
           <div>
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-main text-sm">
+            <div className="flex items-center gap-2 flex-wrap">
+              <h3 className={`font-semibold text-sm ${textClass}`}>
                 {author ? author.displayName : 'Loading...'}
               </h3>
+              
+              {/* Vibe Tag Badge */}
+              {post.vibeTag && (
+                <span 
+                  className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full"
+                  style={{
+                    color: hasBg ? '#fff' : post.vibeTag.color,
+                    background: hasBg ? 'rgba(255,255,255,0.2)' : `color-mix(in srgb, ${post.vibeTag.color} 15%, transparent)`,
+                    border: hasBg ? '1px solid rgba(255,255,255,0.3)' : `1px solid color-mix(in srgb, ${post.vibeTag.color} 30%, transparent)`,
+                  }}
+                >
+                  <span className="text-xs">{post.vibeTag.emoji}</span> {post.vibeTag.label}
+                </span>
+              )}
+
               {post.isPinned && (
                 <span
                   className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded"
                   style={{
-                    color: 'var(--color-primary)',
-                    background: 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+                    color: hasBg ? '#fff' : 'var(--color-primary)',
+                    background: hasBg ? 'rgba(255,255,255,0.2)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
                   }}
                 >
                   <Pin size={10} /> Pinned
                 </span>
               )}
             </div>
-            <div className="flex items-center gap-1.5 text-xs text-faint">
+            <div className={`flex items-center gap-1.5 text-xs ${faintTextClass}`}>
               <span>{formatTimeAgo(post.createdAt)}</span>
               {post.editHistory && post.editHistory.length > 0 && (
                 <>
                   <span>&middot;</span>
                   <button 
                     onClick={() => setShowHistoryModal(true)}
-                    className="hover:underline hover:text-main transition-colors font-medium cursor-pointer"
+                    className={`hover:underline transition-colors font-medium cursor-pointer ${hasBg ? 'hover:text-white' : 'hover:text-main'}`}
                   >
                     Edited
                   </button>
@@ -255,7 +290,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
             <button
               onClick={handleTogglePin}
               className={`p-2 rounded-full transition-colors ${
-                post.isPinned ? 'text-primary bg-primary/10 hover:bg-primary/20' : 'text-muted hover:bg-base'
+                post.isPinned 
+                  ? (hasBg ? 'text-white bg-white/20' : 'text-primary bg-primary/10 hover:bg-primary/20')
+                  : (hasBg ? 'text-white/70 hover:bg-white/10' : 'text-muted hover:bg-base')
               }`}
               title={post.isPinned ? 'Unpin post' : 'Pin post'}
             >
@@ -267,7 +304,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className="p-2 rounded-full text-muted hover:text-main hover:bg-surface transition-colors"
+                className={`p-2 rounded-full transition-colors ${
+                  hasBg ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-muted hover:text-main hover:bg-surface'
+                }`}
                 title="Post options"
               >
                 <MoreHorizontal size={16} />
@@ -275,6 +314,13 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
               
               {showMenu && (
                 <div className="absolute right-0 mt-1 w-40 bg-surface border border-border-subtle rounded-xl shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+                  <button
+                    onClick={() => { setShowMenu(false); onOpenPost?.(post); }}
+                    className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-main hover:bg-base transition-colors border-b border-border-subtle"
+                  >
+                    <Eye size={16} />
+                    View Post
+                  </button>
                   {canEdit && (
                     <button
                       onClick={handleEditInit}
@@ -329,11 +375,24 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         </div>
       ) : (
         <p
-          className="text-main whitespace-pre-wrap break-words mb-4"
+          className={`whitespace-pre-wrap break-words mb-4 ${textClass}`}
           style={{ fontSize: '1rem', lineHeight: '1.65' }}
         >
           {post.content}
         </p>
+      )}
+
+      {/* Image Attachment */}
+      {post.imageUrl && !imageError && (
+        <div className="mb-4">
+          <img 
+            src={post.imageUrl} 
+            alt="Post attachment" 
+            className="w-full max-h-[400px] object-cover rounded-lg cursor-pointer hover:opacity-95 transition-opacity"
+            onClick={() => onOpenPost?.(post)}
+            onError={() => setImageError(true)}
+          />
+        </div>
       )}
 
       {/* Link Preview */}
@@ -341,18 +400,25 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         <div
           className="block mb-4 rounded-xl overflow-hidden group transition-colors"
           style={{
-            border: '1px solid var(--color-border-subtle)',
-            background: 'var(--color-bg-base)',
+            border: hasBg ? '1px solid rgba(255,255,255,0.2)' : '1px solid var(--color-border-subtle)',
+            background: hasBg ? 'rgba(0,0,0,0.2)' : 'var(--color-bg-base)',
           }}
         >
           {post.linkMeta.youtubeId ? (
-            <div className="w-full relative pt-[56.25%]">
-              <iframe
-                src={`https://www.youtube.com/embed/${post.linkMeta.youtubeId}`}
-                className="absolute top-0 left-0 w-full h-full border-0"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowFullScreen
+            <div 
+              className="w-full relative pt-[56.25%] bg-black group cursor-pointer"
+              onClick={() => onOpenPost?.(post)}
+            >
+              <img 
+                src={post.linkMeta.image || `https://img.youtube.com/vi/${post.linkMeta.youtubeId}/hqdefault.jpg`} 
+                alt="Video thumbnail" 
+                className="absolute top-0 left-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
               />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-primary transition-colors shadow-lg">
+                   <Play className="text-white ml-1" size={32} />
+                </div>
+              </div>
             </div>
           ) : (
             <a
@@ -371,11 +437,11 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 </div>
               )}
               <div className="p-4">
-                <h4 className="text-sm font-semibold text-main truncate group-hover:text-primary transition-colors">
+                <h4 className={`text-sm font-semibold truncate transition-colors ${hasBg ? 'text-white group-hover:text-white/80' : 'text-main group-hover:text-primary'}`}>
                   {post.linkMeta.title}
                 </h4>
-                <p className="text-xs text-muted line-clamp-2 mt-1">{post.linkMeta.description}</p>
-                <p className="text-[10px] text-faint mt-2 uppercase tracking-wide truncate">
+                <p className={`text-xs line-clamp-2 mt-1 ${mutedTextClass}`}>{post.linkMeta.description}</p>
+                <p className={`text-[10px] mt-2 uppercase tracking-wide truncate ${faintTextClass}`}>
                   {new URL(post.linkMeta.url).hostname}
                 </p>
               </div>
@@ -384,10 +450,10 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
         </div>
       )}
 
-      {/* Reaction Bar — no visible divider, just spacing */}
+      {/* Reaction Bar */}
       <div className="flex items-center justify-between mt-3 pt-1">
         {/* Reaction pills */}
-        <div className="flex items-center gap-1.5 overflow-x-auto pb-0.5 flex-wrap">
+        <div className="flex items-center gap-1.5 flex-wrap py-1 -my-1">
           {REACTIONS.map((r) => {
             const count = post.reactions?.[r.emoji]?.length || 0;
             const hasReacted = post.reactions?.[r.emoji]?.includes(user?.id || '');
@@ -401,12 +467,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
                   minHeight: '36px',
                   padding: '0 0.75rem',
                   background: hasReacted
-                    ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)'
-                    : 'var(--color-bg-surface)',
+                    ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 12%, transparent)')
+                    : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
                   border: hasReacted
-                    ? '1px solid var(--color-primary)'
-                    : '1px solid var(--color-border)',
-                  color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
+                    : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
+                  color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)'),
                 }}
                 title={r.label}
               >
@@ -414,7 +480,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
                 {count > 0 && (
                   <span
                     className="text-sm font-medium"
-                    style={{ color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-main)' }}
+                    style={{ color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-main)') }}
                   >
                     {count}
                   </span>
@@ -432,12 +498,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
             minHeight: '36px',
             padding: '0 0.75rem',
             background: showComments
-              ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)'
+              ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)')
               : 'transparent',
             border: showComments
-              ? '1px solid var(--color-primary)'
-              : '1px solid var(--color-border)',
-            color: showComments ? 'var(--color-primary)' : 'var(--color-text-muted)',
+              ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
+              : (hasBg ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--color-border)'),
+            color: hasBg ? '#fff' : (showComments ? 'var(--color-primary)' : 'var(--color-text-muted)'),
           }}
         >
           <MessageCircle size={15} />
@@ -447,7 +513,9 @@ export const PostCard: React.FC<PostCardProps> = ({ post }) => {
 
       {/* Comments Section */}
       {showComments && (
-        <CommentSection postId={post.id} />
+        <div className={`mt-4 ${hasBg ? 'bg-black/20 p-4 rounded-xl' : ''}`}>
+          <CommentSection postId={post.id} />
+        </div>
       )}
 
       {/* Edit History Modal */}
