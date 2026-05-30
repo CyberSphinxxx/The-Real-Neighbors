@@ -4,6 +4,7 @@ import { getDaysUntilBirthday, isBirthdayToday } from '../../utils/date';
 import type { User } from '../../types';
 import { Cake } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { getAvatarColor } from '../../utils/avatarColor';
 
 export const BirthdayWidget: React.FC = () => {
   const [upcoming, setUpcoming] = useState<User[]>([]);
@@ -11,7 +12,7 @@ export const BirthdayWidget: React.FC = () => {
   useEffect(() => {
     const unsubscribe = subscribeToCollection<User>('users', (users) => {
       const withBirthdays = users.filter(u => !!u.birthdate);
-      const sorted = withBirthdays.sort((a, b) => 
+      const sorted = withBirthdays.sort((a, b) =>
         getDaysUntilBirthday(a.birthdate!) - getDaysUntilBirthday(b.birthdate!)
       );
       setUpcoming(sorted.slice(0, 3));
@@ -23,47 +24,84 @@ export const BirthdayWidget: React.FC = () => {
   if (upcoming.length === 0) return null;
 
   return (
-    <div className="mb-6 p-4 rounded-xl bg-base border border-border-subtle shadow-sm flex flex-col">
+    <div
+      className="rounded-xl p-4 flex flex-col"
+      style={{
+        background: 'var(--color-bg-surface)',
+        border: '1px solid var(--color-border)',
+        boxShadow: 'var(--shadow-sm)',
+      }}
+    >
+      {/* Widget header */}
       <div className="flex items-center justify-between mb-3">
-        <h3 className="font-heading font-semibold text-main flex items-center gap-2">
-          <Cake size={18} className="text-primary" /> Birthdays
-        </h3>
-        <Link to="/birthdays" className="text-xs text-primary hover:underline">See all</Link>
+        <span
+          className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1.5"
+          style={{ color: 'var(--color-text-muted)' }}
+        >
+          <Cake size={13} />
+          Birthdays
+        </span>
+        <Link
+          to="/birthdays"
+          className="text-sm font-medium transition-colors hover:underline"
+          style={{ color: 'var(--color-primary)' }}
+        >
+          See all
+        </Link>
       </div>
 
-      <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2.5">
         {upcoming.map(user => {
           const days = getDaysUntilBirthday(user.birthdate!);
           const isToday = isBirthdayToday(user.birthdate!);
           const isSoon = days > 0 && days <= 7;
 
-          // Format date like "June 15"
-          const dateStr = new Date(user.birthdate!).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+          const dateStr = new Date(user.birthdate!).toLocaleDateString(undefined, {
+            month: 'short',
+            day: 'numeric',
+          });
 
           return (
-            <div 
-              key={user.id} 
-              className={`flex items-center gap-3 p-2 rounded-lg transition-colors ${
-                isToday ? 'bg-primary/10 border border-primary/20' : 'hover:bg-surface'
-              }`}
+            <div
+              key={user.id}
+              className="flex items-center gap-3 p-2 rounded-lg transition-colors"
+              style={{
+                background: isToday
+                  ? 'color-mix(in srgb, var(--color-primary) 8%, transparent)'
+                  : undefined,
+                border: isToday ? '1px solid color-mix(in srgb, var(--color-primary) 20%, transparent)' : '1px solid transparent',
+              }}
             >
-              <div className="w-10 h-10 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-sm flex-shrink-0">
+              {/* Generated-color avatar */}
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+                style={{ background: getAvatarColor(user.displayName) }}
+              >
                 {user.displayName.charAt(0).toUpperCase()}
               </div>
+
               <div className="flex-1 min-w-0">
-                <p className={`text-sm font-semibold truncate ${isToday ? 'text-primary' : 'text-main'}`}>
+                <p
+                  className="text-sm font-medium truncate"
+                  style={{ color: isToday ? 'var(--color-primary)' : 'var(--color-text-main)' }}
+                >
                   {user.displayName}
                 </p>
-                <div className="flex items-center gap-2 text-xs">
+                <div className="flex items-center gap-1.5 text-xs mt-0.5">
                   {isToday ? (
-                    <span className="text-primary font-bold animate-pulse">🎂 Happy Birthday!</span>
+                    <span
+                      className="font-bold animate-pulse"
+                      style={{ color: 'var(--color-primary)' }}
+                    >
+                      🎂 Happy Birthday!
+                    </span>
                   ) : (
                     <>
-                      <span className={isSoon ? 'text-warning font-medium' : 'text-muted'}>
+                      <span style={{ color: isSoon ? 'var(--color-warning)' : 'var(--color-text-muted)', fontWeight: isSoon ? 500 : 400 }}>
                         {days === 1 ? 'Tomorrow' : `In ${days} days`}
                       </span>
-                      <span className="text-faint">•</span>
-                      <span className="text-faint">{dateStr}</span>
+                      <span style={{ color: 'var(--color-text-faint)' }}>·</span>
+                      <span style={{ color: 'var(--color-text-faint)' }}>{dateStr}</span>
                     </>
                   )}
                 </div>
