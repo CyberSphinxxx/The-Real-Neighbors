@@ -10,6 +10,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 import { getAvatarColor } from '../utils/avatarColor';
 import type { Post, WatchlistEntry } from '../types';
 import { PostCard } from '../components/feed/PostCard';
+import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { Link } from 'react-router-dom';
 
 export const ProfilePage: React.FC = () => {
@@ -25,6 +26,19 @@ export const ProfilePage: React.FC = () => {
   // Data State
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [myWatchlist, setMyWatchlist] = useState<WatchlistEntry[]>([]);
+  const [openPost, setOpenPost] = useState<Post | null>(null);
+
+  const handlePrev = () => {
+    if (!openPost) return;
+    const idx = myPosts.findIndex(p => p.id === openPost.id);
+    if (idx > 0) setOpenPost(myPosts[idx - 1]);
+  };
+
+  const handleNext = () => {
+    if (!openPost) return;
+    const idx = myPosts.findIndex(p => p.id === openPost.id);
+    if (idx !== -1 && idx < myPosts.length - 1) setOpenPost(myPosts[idx + 1]);
+  };
   
   // Settings State
   const [theme, setTheme] = useState<'default' | 'dark' | 'amoled'>('default');
@@ -265,7 +279,7 @@ export const ProfilePage: React.FC = () => {
               </div>
             ) : (
               myPosts.map(post => (
-                <PostCard key={post.id} post={post} />
+                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} />
               ))
             )}
           </div>
@@ -396,6 +410,16 @@ export const ProfilePage: React.FC = () => {
         )}
         
       </div>
+
+      {/* Post Detail Modal */}
+      {openPost && (
+        <PostDetailModal
+          post={openPost}
+          onClose={() => setOpenPost(null)}
+          onPrev={myPosts.findIndex(p => p.id === openPost.id) > 0 ? handlePrev : undefined}
+          onNext={myPosts.findIndex(p => p.id === openPost.id) < myPosts.length - 1 ? handleNext : undefined}
+        />
+      )}
     </div>
   );
 };
