@@ -32,13 +32,10 @@ export const usePresence = () => {
 
     const unsubscribe = onValue(connectedRef, (snap) => {
       if (snap.val() === true) {
-        // We're connected (or reconnected)!
-        const userRef = onDisconnect(userStatusDatabaseRef);
-        userRef.set(isOfflineForDatabase).then(() => {
-          // The promise resolves when the onDisconnect state has been sent to server,
-          // then we can safely set ourselves online.
-          set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
-        }).catch(console.error);
+        // 1. Set onDisconnect handler (fire and forget - doesn't need to be awaited)
+        onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).catch(console.error);
+        // 2. Immediately write online status - don't wait for onDisconnect ACK
+        set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
       }
     });
 

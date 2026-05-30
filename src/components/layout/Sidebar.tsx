@@ -3,9 +3,14 @@ import { NavLink } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
+import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuthStore();
+  const { onlineUsers } = useOnlineUsers();
+  
+  const isOnline = user ? onlineUsers.some(u => u.uid === user.id) : false;
+
   const navItems = [
     { name: 'Feed', path: '/', icon: Home },
     { name: 'Watchlist', path: '/watchlist', icon: Tv },
@@ -92,13 +97,15 @@ export const Sidebar: React.FC = () => {
                   user.displayName.charAt(0).toUpperCase()
                 )}
               </div>
-              <div
-                className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full animate-pulse z-10"
-                style={{
-                  background: 'var(--color-success)',
-                  border: '2px solid var(--color-bg-surface)',
-                }}
-              />
+              {isOnline && (
+                <div
+                  className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full animate-pulse z-10"
+                  style={{
+                    background: 'var(--color-success)',
+                    border: '2px solid var(--color-bg-surface)',
+                  }}
+                />
+              )}
             </div>
 
             <div className="min-w-0 flex-1">
