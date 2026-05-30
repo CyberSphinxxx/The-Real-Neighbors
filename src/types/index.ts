@@ -7,6 +7,7 @@ export interface User {
   accentColor?: string;
   role: 'admin' | 'member';
   joinedAt: string | number | Date;
+  showAge?: boolean;
 }
 
 export interface Post {
@@ -56,7 +57,7 @@ export interface Event {
   title: string;
   description: string;
   date: string | number | Date;
-  type: 'hangout' | 'gaming' | 'trip' | 'online';
+  type: 'hangout' | 'gaming' | 'trip' | 'online' | string;
   rsvps: Record<string, 'going' | 'maybe' | 'cant'>;
   createdBy: string;
   notes?: string;
@@ -73,3 +74,24 @@ export interface SavedLink {
   votes: string[];
   createdAt: string | number | Date;
 }
+
+export interface BirthdayMessage {
+  authorId: string;
+  content: string;
+  createdAt: number;
+}
+
+export interface BirthdayMessageBoard {
+  id: string;
+  year: number;
+  messages: BirthdayMessage[];
+}
+
+
+export interface EventNote {
+  id: string;
+  authorId: string;
+  content: string;
+  createdAt: number;
+}
+
