@@ -30,11 +30,11 @@ service cloud.firestore {
     // 3. posts
     //    - Any authenticated user can read all posts.
     //    - Users can create their own.
-    //    - Users can update/delete only their own.
+    //    - Users can update/delete their own, or admin.
     match /posts/{postId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
     }
     
     // 4. watchlists
@@ -78,11 +78,12 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.addedBy == request.auth.uid);
     }
     
-    // 8. comments (assuming subcollection or top-level)
-    match /comments/{commentId} {
+    // 8. comments (nested under posts)
+    match /posts/{postId}/comments/{commentId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+      allow update: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
+      allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin() || get(/databases/$(database)/documents/posts/$(postId)).data.authorId == request.auth.uid);
     }
   }
 }
