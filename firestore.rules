@@ -56,16 +56,29 @@ service cloud.firestore {
       allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.createdBy == request.auth.uid);
     }
     
-    // 6. savedLinks
+    // 6. links (Link Saver)
     //    - Any authenticated user can read and create.
-    //    - Creators can delete their own.
-    match /savedLinks/{linkId} {
+    //    - Any authenticated user can update (for upvotes).
+    //    - Creators or admins can delete.
+    match /links/{linkId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated() && request.resource.data.savedBy == request.auth.uid;
-      allow update, delete: if isAuthenticated() && resource.data.savedBy == request.auth.uid;
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated();
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.savedBy == request.auth.uid);
     }
     
-    // 7. comments (assuming subcollection or top-level)
+    // 7. youtubeQueue (Watch Together)
+    //    - Any authenticated user can read and create.
+    //    - Admins or creators can delete (dequeue or remove).
+    //    - Admins can update (reorder).
+    match /youtubeQueue/{queueId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated();
+      allow update: if isAuthenticated() && isAdmin();
+      allow delete: if isAuthenticated() && (isAdmin() || resource.data.addedBy == request.auth.uid);
+    }
+    
+    // 8. comments (assuming subcollection or top-level)
     match /comments/{commentId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
