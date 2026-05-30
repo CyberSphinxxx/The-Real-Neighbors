@@ -7,6 +7,9 @@ import LoginPage from './pages/LoginPage';
 import BirthdaysPage from './pages/BirthdaysPage';
 import EventsPage from './pages/EventsPage';
 import EventDetailPage from './pages/EventDetailPage';
+import WatchlistPage from './pages/WatchlistPage';
+import LinksPage from './pages/LinksPage';
+import ProfilePage from './pages/ProfilePage';
 
 function App() {
   return (
@@ -20,11 +23,12 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={<FeedPage />} />
-          <Route path="watchlist" element={<div className="p-4">Watchlist Placeholder</div>} />
+          <Route path="watchlist" element={<WatchlistPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:id" element={<EventDetailPage />} />
           <Route path="birthdays" element={<BirthdaysPage />} />
-          <Route path="links" element={<div className="p-4">Links Placeholder</div>} />
+          <Route path="links" element={<LinksPage />} />
+          <Route path="profile" element={<ProfilePage />} />
         </Route>
       </Routes>
       <Toaster position="bottom-center" />
