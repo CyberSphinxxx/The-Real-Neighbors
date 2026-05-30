@@ -3,9 +3,13 @@ export interface LinkMetadata {
   title: string;
   description: string;
   image?: string;
+  youtubeId?: string;
 }
 
 export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null> {
+  const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
+  const youtubeId = ytMatch ? ytMatch[1] : undefined;
+
   try {
     // Basic URL validation
     new URL(url);
@@ -14,10 +18,10 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
     const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
     const response = await fetch(proxyUrl);
     
-    if (!response.ok) return null;
+    if (!response.ok) throw new Error('Proxy fetch failed');
     
     const data = await response.json();
-    if (!data.contents) return null;
+    if (!data.contents) throw new Error('No contents');
 
     // Parse the HTML
     const parser = new DOMParser();
@@ -36,9 +40,18 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
       url,
       title: title.trim(),
       description: description.trim(),
-      image: image || undefined
+      image: image || undefined,
+      youtubeId
     };
   } catch (error) {
+    if (youtubeId) {
+      return {
+        url,
+        title: 'YouTube Video',
+        description: '',
+        youtubeId
+      };
+    }
     console.error("Failed to fetch link preview:", error);
     return null;
   }
