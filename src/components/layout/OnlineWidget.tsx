@@ -29,10 +29,14 @@ export const OnlineWidget: React.FC = () => {
           <div key={u.uid} className="flex items-center gap-3">
             <div className="relative">
               <div
-                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm"
-                style={{ background: u.avatarColor || 'var(--color-primary)' }}
+                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm flex-shrink-0"
+                style={{ background: u.avatarUrl ? undefined : u.avatarColor || 'var(--color-primary)' }}
               >
-                {u.displayName.charAt(0).toUpperCase()}
+                {u.avatarUrl ? (
+                  <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                ) : (
+                  u.displayName.charAt(0).toUpperCase()
+                )}
               </div>
               <div
                 className="absolute bottom-0 right-0 w-2.5 h-2.5 rounded-full animate-pulse"
@@ -61,10 +65,14 @@ export const OnlineWidget: React.FC = () => {
         {offlineUsers.map((u) => (
           <div key={u.uid} className="flex items-center gap-3">
             <div
-              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm grayscale opacity-50"
-              style={{ background: u.avatarColor || 'var(--color-primary)' }}
+              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm grayscale opacity-50 flex-shrink-0"
+              style={{ background: u.avatarUrl ? undefined : u.avatarColor || 'var(--color-primary)' }}
             >
-              {u.displayName.charAt(0).toUpperCase()}
+              {u.avatarUrl ? (
+                <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+              ) : (
+                u.displayName.charAt(0).toUpperCase()
+              )}
             </div>
             <div className="flex flex-col">
               <span className="text-sm text-muted">{u.displayName}</span>
