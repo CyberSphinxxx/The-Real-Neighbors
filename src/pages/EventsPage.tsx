@@ -1,0 +1,117 @@
+import React, { useState, useEffect, useMemo } from 'react';
+import { subscribeToCollection } from '../lib/firestore';
+import type { Event } from '../types';
+import { EventCard } from '../components/events/EventCard';
+import { CreateEventModal } from '../components/events/CreateEventModal';
+import { SharedCalendar } from '../components/calendar/SharedCalendar';
+import { Calendar, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
+
+export const EventsPage: React.FC = () => {
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  const [showModal, setShowModal] = useState(false);
+  const [showPast, setShowPast] = useState(false);
+
+  useEffect(() => {
+    const unsub = subscribeToCollection<Event>('events', (data) => {
+      setEvents(data);
+      setIsLoading(false);
+    });
+    return () => unsub();
+  }, []);
+
+  const { upcoming, past } = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayMs = today.getTime();
+
+    const up: Event[] = [];
+    const pa: Event[] = [];
+
+    events.forEach(e => {
+      const eventTime = typeof e.date === 'string' ? new Date(e.date).getTime() : typeof e.date === 'number' ? e.date : 0;
+      if (eventTime >= todayMs) up.push(e);
+      else pa.push(e);
+    });
+
+    // Sort upcoming ascending (closest first)
+    up.sort((a, b) => {
+      const timeA = typeof a.date === 'string' ? new Date(a.date).getTime() : typeof a.date === 'number' ? a.date : 0;
+      const timeB = typeof b.date === 'string' ? new Date(b.date).getTime() : typeof b.date === 'number' ? b.date : 0;
+      return timeA - timeB;
+    });
+
+    // Sort past descending (most recent first)
+    pa.sort((a, b) => {
+      const timeA = typeof a.date === 'string' ? new Date(a.date).getTime() : typeof a.date === 'number' ? a.date : 0;
+      const timeB = typeof b.date === 'string' ? new Date(b.date).getTime() : typeof b.date === 'number' ? b.date : 0;
+      return timeB - timeA;
+    });
+
+    return { upcoming: up, past: pa };
+  }, [events]);
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-20">
+        <Loader2 className="w-8 h-8 animate-spin text-muted" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="max-w-2xl mx-auto py-6 pb-24 relative min-h-screen">
+      <div className="mb-8">
+        <h1 className="text-2xl font-heading font-bold text-main tracking-tight flex items-center gap-3">
+          <Calendar className="text-primary" /> Upcoming Events
+        </h1>
+        <p className="text-sm text-muted mt-1">Plan hangouts, trips, and gaming sessions.</p>
+      </div>
+
+      <SharedCalendar />
+
+      <div className="space-y-6">
+        {upcoming.length === 0 ? (
+          <div className="text-center py-12 bg-surface border border-border-subtle rounded-2xl border-dashed">
+            <Calendar size={48} className="mx-auto text-muted mb-4 opacity-50" />
+            <h3 className="text-lg font-semibold text-main mb-1">No upcoming events</h3>
+            <p className="text-sm text-muted">Why not plan something fun?</p>
+          </div>
+        ) : (
+          upcoming.map(event => <EventCard key={event.id} event={event} />)
+        )}
+      </div>
+
+      {past.length > 0 && (
+        <div className="mt-12">
+          <button 
+            onClick={() => setShowPast(!showPast)}
+            className="flex items-center gap-2 text-sm font-semibold text-muted hover:text-main transition-colors mb-4"
+          >
+            {showPast ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+            Past Events ({past.length})
+          </button>
+          
+          {showPast && (
+            <div className="space-y-6 opacity-75">
+              {past.map(event => <EventCard key={event.id} event={event} />)}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* FAB (Floating Action Button) */}
+      <button
+        onClick={() => setShowModal(true)}
+        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-40 flex items-center gap-2 px-5 py-4 rounded-full bg-primary text-on-primary font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 hover:bg-primary-hover transition-all"
+      >
+        <Plus size={20} />
+        <span className="hidden sm:inline">New Event</span>
+      </button>
+
+      {showModal && <CreateEventModal onClose={() => setShowModal(false)} />}
+    </div>
+  );
+};
+
+export default EventsPage;
