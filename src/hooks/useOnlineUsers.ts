@@ -9,6 +9,7 @@ export interface PresenceUser {
   uid: string;
   displayName: string;
   avatarColor: string;
+  avatarUrl?: string;
   online: boolean;
   lastSeen: number | null;
 }
@@ -29,6 +30,7 @@ export const useOnlineUsers = () => {
           uid: u.id,
           displayName: u.displayName,
           avatarColor: getAvatarColor(u.displayName),
+          avatarUrl: u.avatarUrl,
           online: false,
           lastSeen: null
         });
