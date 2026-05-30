@@ -1,0 +1,75 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+  
+    // Helper Functions
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    function isAdmin() {
+      return isAuthenticated() && exists(/databases/$(database)/documents/users/$(request.auth.uid)) && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin';
+    }
+
+    // 1. allowedEmails: 
+    //    - Users can read their own email document during login auth check.
+    //    - Admins can read all and write.
+    match /allowedEmails/{email} {
+      allow read: if isAuthenticated() && (request.auth.token.email == email || isAdmin());
+      allow write: if isAdmin();
+    }
+    
+    // 2. users
+    //    - Any authenticated user can read profiles.
+    //    - Users can create/update only their own profile.
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // 3. posts
+    //    - Any authenticated user can read all posts.
+    //    - Users can create their own.
+    //    - Users can update/delete only their own.
+    match /posts/{postId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+    
+    // 4. watchlists
+    //    - Any authenticated user can read.
+    //    - Users can create/update/delete only their own entries.
+    match /watchlists/{watchId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.userId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.userId == request.auth.uid;
+    }
+    
+    // 5. events
+    //    - Any authenticated user can read.
+    //    - Admins can create/update/delete.
+    //    - Creators can create/update/delete their own events.
+    match /events/{eventId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && (isAdmin() || request.resource.data.createdBy == request.auth.uid);
+      allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.createdBy == request.auth.uid);
+    }
+    
+    // 6. savedLinks
+    //    - Any authenticated user can read and create.
+    //    - Creators can delete their own.
+    match /savedLinks/{linkId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.savedBy == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.savedBy == request.auth.uid;
+    }
+    
+    // 7. comments (assuming subcollection or top-level)
+    match /comments/{commentId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+    }
+  }
+}
