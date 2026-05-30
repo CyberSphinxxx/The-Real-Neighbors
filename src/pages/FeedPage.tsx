@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { PostComposer } from '../components/feed/PostComposer';
 import { PostCard } from '../components/feed/PostCard';
 import { PostSkeleton } from '../components/feed/PostSkeleton';
@@ -9,6 +9,7 @@ import type { Post } from '../types';
 export const FeedPage: React.FC = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const composerRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     // Subscribe to posts collection, ordering by creation time descending
@@ -31,35 +32,74 @@ export const FeedPage: React.FC = () => {
     return [...pinned, ...unpinned];
   }, [posts]);
 
+  const handleFocusComposer = () => {
+    composerRef.current?.focus();
+    composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
   return (
-    <div className="max-w-2xl mx-auto py-6 px-4 sm:px-6 lg:px-8">
-      {/* Page Header (optional, usually Feed doesn't need a huge header if AppShell has one, but good for context) */}
-      <div className="mb-6">
-        <h1 className="text-2xl font-heading font-bold text-main tracking-tight">Feed</h1>
-        <p className="text-sm text-muted">See what your neighbors are up to.</p>
+    <div>
+      {/* Page Header */}
+      <div
+        className="mb-6 pb-5"
+        style={{ borderBottom: '1px solid var(--color-border-subtle)' }}
+      >
+        <h1
+          className="font-heading font-bold text-main"
+          style={{ fontSize: '2rem', lineHeight: 1.2, letterSpacing: '-0.02em' }}
+        >
+          What's Up 👀
+        </h1>
+        <p className="text-muted text-sm mt-1" style={{ fontStyle: 'italic' }}>
+          See what your neighbors are up to.
+        </p>
       </div>
 
-      <PostComposer />
+      {/* Composer */}
+      <PostComposer composerRef={composerRef} />
 
-      <div className="space-y-6">
+      {/* Feed */}
+      <div className="mt-6 flex flex-col gap-4">
         {isLoading ? (
-          <div className="w-full max-w-2xl mt-8">
+          <>
             <PostSkeleton />
             <PostSkeleton />
             <PostSkeleton />
-          </div>
+          </>
         ) : sortedPosts.length === 0 ? (
-          <div className="bg-surface rounded-2xl p-12 text-center border border-border-subtle shadow-sm">
-            <div className="w-16 h-16 bg-base rounded-full flex items-center justify-center mx-auto mb-4 text-3xl">
-              👋
+          /* ── Empty State ── */
+          <div className="flex flex-col items-center justify-center py-16 px-6 text-center">
+            <div
+              className="text-6xl mb-5 select-none"
+              style={{ lineHeight: 1 }}
+            >
+              🏘️
             </div>
-            <h3 className="text-lg font-semibold text-main mb-2">No posts yet</h3>
-            <p className="text-muted">Break the silence! Be the first to share something with the group.</p>
+            <h3
+              className="font-heading font-bold text-main mb-2"
+              style={{ fontSize: '1.35rem' }}
+            >
+              No posts yet!
+            </h3>
+            <p className="text-muted text-sm mb-6 max-w-xs">
+              Be the first to share something with the group.
+            </p>
+            <button
+              onClick={handleFocusComposer}
+              className="px-5 py-2.5 rounded-full text-sm font-semibold transition-all duration-150 hover:scale-105 active:scale-95"
+              style={{
+                background: 'var(--color-primary)',
+                color: 'var(--color-on-primary)',
+                boxShadow: 'var(--shadow-sm)',
+              }}
+            >
+              Write a post
+            </button>
           </div>
         ) : (
-          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-4">
             {sortedPosts.map((post) => (
-              <PostCard key={post.id} post={post} commentCount={0} />
+              <PostCard key={post.id} post={post} />
             ))}
           </div>
         )}
