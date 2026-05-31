@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { X, Plus, Loader2 } from 'lucide-react';
+import { X, Loader2 } from 'lucide-react';
 import { updateDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 

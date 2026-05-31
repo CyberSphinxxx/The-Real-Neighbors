@@ -4,7 +4,7 @@ import { useAuthStore } from '../../stores/authStore';
 import { getDoc, updateDoc, subscribeToCollection, addDoc } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { X, ChevronLeft, ChevronRight, Send, Loader2 } from 'lucide-react';
-import type { Post, User, Comment, RedditPost } from '../../types';
+import type { User, Comment } from '../../types';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { orderBy } from 'firebase/firestore';
 
@@ -87,7 +87,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     try {
       const newReactions = { ...post.reactions };
       Object.keys(newReactions).forEach(key => {
-        newReactions[key] = newReactions[key].filter(uid => uid !== user.id);
+        newReactions[key] = newReactions[key].filter((uid: string) => uid !== user.id);
       });
       const hadReaction = post.reactions[emoji]?.includes(user.id);
       if (!hadReaction) {
@@ -415,7 +415,6 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                 {/* Reactions Bar */}
                 <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-wrap">
                   {REACTIONS.map((r) => {
-                    const count = post.reactions?.[r.emoji]?.length || 0;
                     const hasReacted = post.reactions?.[r.emoji]?.includes(user?.id || '');
                     return (
                       <button

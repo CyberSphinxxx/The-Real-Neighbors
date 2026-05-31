@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { updateDoc } from '../../lib/firestore';
 import type { RedditPost } from '../../types';
