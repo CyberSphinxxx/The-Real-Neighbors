@@ -1,0 +1,31 @@
+:root.sunset {
+  --color-bg-base: #451a03; /* Amber 950 */
+  --color-bg-surface: #78350f; /* Amber 900 */
+  --color-bg-elevated: #92400e; /* Amber 800 */
+  
+  --color-primary: #fb923c; /* Orange 400 */
+  --color-primary-hover: #f97316; /* Orange 500 */
+  --color-on-primary: #431407;
+  
+  --color-secondary: #f472b6; /* Pink 400 */
+  --color-accent: #fbbf24; /* Amber 400 */
+  
+  --color-text-main: #fffbeb;
+  --color-text-muted: #fcd34d;
+  --color-text-faint: #fbbf24;
+  
+  --color-border: #b45309;
+  --color-border-subtle: #78350f;
+  
+  --color-danger: #ef4444;
+  --color-success: #34d399;
+  --color-warning: #fcd34d;
+
+  /* Avatar palette */
+  --avatar-color-0: #fb923c;
+  --avatar-color-1: #f472b6;
+  --avatar-color-2: #fbbf24;
+  --avatar-color-3: #38bdf8;
+  --avatar-color-4: #34d399;
+  --avatar-color-5: #a78bfa;
+}
