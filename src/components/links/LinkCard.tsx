@@ -55,7 +55,7 @@ export const LinkCard: React.FC<Props> = ({ link, usersMap, onDelete, onUpvote }
               rel="noopener noreferrer"
               className="flex items-center gap-2 group/link"
             >
-              <img src={faviconUrl} alt="" className="w-5 h-5 rounded-sm bg-white" />
+              <img loading="lazy" decoding="async" src={faviconUrl} alt="" className="w-5 h-5 rounded-sm bg-white" />
               <h3 className="font-bold text-lg text-main group-hover/link:text-primary transition-colors leading-tight line-clamp-1">
                 {link.title}
               </h3>

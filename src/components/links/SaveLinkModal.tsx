@@ -1,3 +1,4 @@
+import { useLinksStore } from '../../stores/linksStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { addDoc } from '../../lib/firestore';
@@ -72,7 +73,8 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
       }
 
       await addDoc('links', payload as any);
-      toast.success('Link saved successfully!');
+      useLinksStore.getState().invalidate();
+        toast.success('Link saved successfully!');
       onClose();
     } catch (err) {
       console.error(err);

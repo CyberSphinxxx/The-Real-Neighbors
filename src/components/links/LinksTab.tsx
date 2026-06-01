@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection, deleteDoc, updateDoc } from '../../lib/firestore';
+import { useLinksStore } from '../../stores/linksStore';
+const CACHE_TTL = 2 * 60 * 1000;
 import type { User, SavedLink } from '../../types';
 import { LinkCard } from './LinkCard';
 import { SaveLinkModal } from './SaveLinkModal';
@@ -11,7 +13,7 @@ import { useConfirm } from '../../contexts/ConfirmContext';
 
 export const LinksTab: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const [links, setLinks] = useState<SavedLink[]>([]);
+  const { links, fetchedAt, setLinks } = useLinksStore();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   
@@ -20,14 +22,28 @@ export const LinksTab: React.FC = () => {
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
 
   useEffect(() => {
-    const unsubLinks = subscribeToCollection<SavedLink>('links', (data) => {
-      setLinks(data);
-      setIsLoading(false);
-    });
+    const fetchLinks = async () => {
+      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const snap = await getDocs(collection(db, 'links'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as SavedLink));
+        setLinks(data);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch links', err);
+        setIsLoading(false);
+      }
+    };
+    fetchLinks();
+    
     const unsubUsers = subscribeToCollection<User>('users', setUsers);
 
     return () => {
-      unsubLinks();
       unsubUsers();
     };
   }, []);
@@ -75,6 +91,7 @@ export const LinksTab: React.FC = () => {
     if (isConfirmed) {
       try {
         await deleteDoc('links', id);
+        useLinksStore.getState().invalidate();
         toast.success('Link deleted');
       } catch (err) {
         console.error(err);

@@ -1,3 +1,4 @@
+import { useLinksStore } from '../../stores/linksStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { addDoc } from '../../lib/firestore';
@@ -91,7 +92,8 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
       };
 
       await addDoc('youtubeQueue', payload as any);
-      toast.success('Added to queue!');
+      useLinksStore.getState().invalidate();
+        toast.success('Added to queue!');
       onClose();
     } catch (err) {
       console.error(err);
@@ -142,7 +144,7 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
 
           {previewData && !isFetching && (
             <div className="animate-in fade-in slide-in-from-bottom-2 bg-surface border border-border-subtle rounded-xl p-3 flex items-start gap-3">
-              <img src={previewData.thumbnailUrl} alt="" className="w-24 aspect-video object-cover rounded bg-base" />
+              <img loading="lazy" decoding="async" src={previewData.thumbnailUrl} alt="" className="w-24 aspect-video object-cover rounded bg-base" />
               <div className="flex-1 min-w-0 pt-1">
                 <div className="text-xs font-bold text-muted uppercase tracking-wider mb-1">Preview</div>
                 <div className="font-semibold text-main line-clamp-2 leading-tight">{previewData.title}</div>

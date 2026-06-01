@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useLinksStore } from '../../stores/linksStore';
+const CACHE_TTL = 2 * 60 * 1000;
 import type { User, YoutubeQueueItem } from '../../types';
 import { YoutubePlayer } from './YoutubePlayer';
 import { YoutubeQueue } from './YoutubeQueue';
@@ -7,23 +9,35 @@ import { AddVideoModal } from './AddVideoModal';
 import { Plus, PlaySquare, Loader2 } from 'lucide-react';
 
 export const WatchTogetherTab: React.FC = () => {
-  const [queue, setQueue] = useState<YoutubeQueueItem[]>([]);
+  const { queue, fetchedAt, setQueue } = useLinksStore();
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
 
   useEffect(() => {
-    const unsubQueue = subscribeToCollection<YoutubeQueueItem>('youtubeQueue', (data) => {
-      // Sort by createdAt ascending
-      const sorted = [...data].sort((a, b) => a.createdAt - b.createdAt);
-      setQueue(sorted);
-      setIsLoading(false);
-    });
+    const fetchQueue = async () => {
+      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const snap = await getDocs(collection(db, 'youtubeQueue'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as YoutubeQueueItem));
+        const sorted = data.sort((a, b) => a.createdAt - b.createdAt);
+        setQueue(sorted);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch queue', err);
+        setIsLoading(false);
+      }
+    };
+    fetchQueue();
     
     const unsubUsers = subscribeToCollection<User>('users', setUsers);
 
     return () => {
-      unsubQueue();
       unsubUsers();
     };
   }, []);

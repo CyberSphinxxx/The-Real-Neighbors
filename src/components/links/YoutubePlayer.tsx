@@ -1,3 +1,4 @@
+import { useLinksStore } from '../../stores/linksStore';
 import React from 'react';
 import type { YoutubeQueueItem } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,6 +18,7 @@ export const YoutubePlayer: React.FC<Props> = ({ currentVideo }) => {
     if (!currentVideo) return;
     try {
       await deleteDoc('youtubeQueue', currentVideo.id);
+        useLinksStore.getState().invalidate();
       toast.success('Skipped to next video');
     } catch (err) {
       console.error(err);

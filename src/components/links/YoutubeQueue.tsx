@@ -1,3 +1,4 @@
+import { useLinksStore } from '../../stores/linksStore';
 import React, { useState } from 'react';
 import type { YoutubeQueueItem } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
@@ -20,6 +21,7 @@ export const YoutubeQueue: React.FC<Props> = ({ queue, usersMap }) => {
     if (user?.id !== item.addedBy && !isAdmin) return;
     try {
       await deleteDoc('youtubeQueue', item.id);
+        useLinksStore.getState().invalidate();
       toast.success('Removed from queue');
     } catch (err) {
       console.error(err);
@@ -114,7 +116,7 @@ export const YoutubeQueue: React.FC<Props> = ({ queue, usersMap }) => {
                 </div>
               )}
 
-              <img src={item.thumbnailUrl} alt="" className="w-16 h-9 object-cover rounded bg-base" />
+              <img loading="lazy" decoding="async" src={item.thumbnailUrl} alt="" className="w-16 h-9 object-cover rounded bg-base" />
               
               <div className="flex-1 min-w-0">
                 <div className="font-semibold text-sm text-main line-clamp-1">{item.title}</div>
