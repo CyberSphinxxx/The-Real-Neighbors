@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { getDoc, updateDoc } from '../../lib/firestore';
+import { getDoc, updateDoc, subscribeToCollection } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { CommentSection } from './CommentSection';
 import type { Post, User } from '../../types';
-import { MessageCircle, Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye, Bookmark } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast';
 interface PostCardProps {
   post: Post;
   onOpenPost?: (post: Post) => void;
+  allUsers?: User[];
 }
 
 const REACTIONS = [
@@ -22,7 +24,7 @@ const REACTIONS = [
   { emoji: '😢', label: 'Sad' },
 ];
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
+export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }) => {
   const { user } = useAuthStore();
   const { onlineUsers } = useOnlineUsers();
   const [author, setAuthor] = useState<User | null>(null);
@@ -37,7 +39,100 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
   const [imageError, setImageError] = useState(false);
   
   const menuRef = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLDivElement>(null);
   const { confirm } = useConfirm();
+
+  const [timeLeftStr, setTimeLeftStr] = useState<string>('');
+  const [isExpiringSoon, setIsExpiringSoon] = useState(false);
+  const [isExpiredLocally, setIsExpiredLocally] = useState(false);
+  const [shouldUnmount, setShouldUnmount] = useState(false);
+
+  useEffect(() => {
+    if (!post.expiresAt) return;
+    const updateTimer = () => {
+      const now = Date.now();
+      const diff = post.expiresAt! - now;
+      if (diff <= 0) {
+        setIsExpiredLocally(true);
+        return;
+      }
+      setIsExpiringSoon(diff < 60 * 60 * 1000);
+      
+      if (user && user.id === post.authorId) {
+        if (diff <= 30 * 60 * 1000) {
+          const notifiedKey = `expiry_notified_${post.id}`;
+          if (!localStorage.getItem(notifiedKey)) {
+            localStorage.setItem(notifiedKey, 'true');
+            import('../../lib/notifications').then(({ writeNotification }) => {
+              writeNotification(user.id, {
+                type: 'expiry',
+                fromUid: 'system',
+                fromName: 'System',
+                fromAvatarColor: 'var(--color-bg-elevated)',
+                postId: post.id,
+                message: `Your timed post is expiring in 30 minutes`,
+                preview: post.content.trim().slice(0, 60),
+              }, 'expiry');
+            });
+          }
+        }
+      }
+      
+      const d = Math.floor(diff / (1000 * 60 * 60 * 24));
+      const h = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
+      const m = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      
+      let str = '⏱️ ';
+      if (d > 0) str += `${d}d ${h}h`;
+      else if (h > 0) str += `${h}h ${m}m`;
+      else str += `${m}m`;
+      
+      setTimeLeftStr(str);
+    };
+    updateTimer();
+    const interval = setInterval(updateTimer, 60000);
+    return () => clearInterval(interval);
+  }, [post.expiresAt]);
+
+  useEffect(() => {
+    if (isExpiredLocally) {
+      const t = setTimeout(() => setShouldUnmount(true), 1000);
+      return () => clearTimeout(t);
+    }
+  }, [isExpiredLocally]);
+
+  const hasSeen = user && post.seenBy?.includes(user.id);
+
+  useEffect(() => {
+    if (!user || user.id === post.authorId) return;
+    if (hasSeen) return;
+
+    let timeout: ReturnType<typeof setTimeout>;
+    
+    const observer = new IntersectionObserver((entries) => {
+      entries.forEach(entry => {
+        if (entry.isIntersecting) {
+          timeout = setTimeout(() => {
+            import('firebase/firestore').then(({ arrayUnion }) => {
+              updateDoc('posts', [post.id], {
+                seenBy: arrayUnion(user.id)
+              }).catch(console.error);
+            });
+            observer.disconnect();
+          }, 1000);
+        } else {
+          clearTimeout(timeout);
+        }
+      });
+    }, { threshold: 0.5 });
+    
+    if (cardRef.current) observer.observe(cardRef.current);
+    
+    return () => {
+      clearTimeout(timeout);
+      observer.disconnect();
+    };
+  }, [user?.id, post.authorId, hasSeen, post.id]);
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -51,6 +146,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
+  const [commentCount, setCommentCount] = useState(0);
+
   useEffect(() => {
     let isMounted = true;
     const fetchAuthor = async () => {
@@ -58,8 +155,20 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
       if (isMounted) setAuthor(u);
     };
     fetchAuthor();
-    return () => { isMounted = false; };
-  }, [post.authorId]);
+    
+    // Subscribe to comments subcollection for accurate real-time count
+    const unsubscribeComments = subscribeToCollection<Comment>(
+      `posts/${post.id}/comments`,
+      (data) => {
+        if (isMounted) setCommentCount(data.length);
+      }
+    );
+    
+    return () => { 
+      isMounted = false; 
+      unsubscribeComments();
+    };
+  }, [post.authorId, post.id]);
 
   const isAdmin = user?.role === 'admin';
   const avatarBg = author ? getAvatarColor(author.displayName) : 'var(--color-primary)';
@@ -102,6 +211,20 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
       if (!hadReaction) {
         if (!newReactions[emoji]) newReactions[emoji] = [];
         newReactions[emoji].push(user.id);
+        
+        if (post.authorId !== user.id) {
+          import('../../lib/notifications').then(({ writeNotification }) => {
+            writeNotification(post.authorId, {
+              type: 'reaction',
+              fromUid: user.id,
+              fromName: user.displayName,
+              fromAvatarColor: user.accentColor || '#3b82f6',
+              postId: post.id,
+              message: `${user.displayName} reacted ${emoji} to your post`,
+              preview: post.content.trim().slice(0, 60),
+            }, 'reactions');
+          });
+        }
       }
 
       Object.keys(newReactions).forEach(key => {
@@ -166,10 +289,12 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
       const newHistory = post.editHistory ? [...post.editHistory, historyEntry] : [historyEntry];
       await updateDoc('posts', [post.id], { 
         content: editContent.trim(), 
-        editHistory: newHistory 
+        editHistory: newHistory,
+        isEdited: true,
+        editedAt: Date.now()
       });
       setIsEditing(false);
-      toast.success('Post updated');
+      toast.success('Post updated ✏️');
     } catch (error) {
       console.error('Failed to update post:', error);
       toast.error('Failed to update post');
@@ -181,21 +306,91 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
   const canDelete = user?.id === post.authorId || isAdmin;
   const canEdit = user?.id === post.authorId;
 
+  const handleToggleBookmark = () => {
+    if (!user) return;
+    const isSaved = user.savedPosts?.includes(post.id);
+    const newSaved = isSaved 
+      ? (user.savedPosts || []).filter(id => id !== post.id)
+      : [...(user.savedPosts || []), post.id];
+
+    // Optimistic update
+    useAuthStore.getState().setUser({ ...user, savedPosts: newSaved });
+    
+    // Fire and forget
+    import('firebase/firestore').then(({ arrayUnion, arrayRemove }) => {
+      updateDoc('users', [user.id], {
+        savedPosts: isSaved ? arrayRemove(post.id) : arrayUnion(post.id)
+      }).catch((err) => {
+        console.error(err);
+        useAuthStore.getState().setUser({ ...user, savedPosts: user.savedPosts });
+      });
+    });
+
+    if (isSaved) {
+      toast.success('Post unsaved');
+    } else {
+      toast.success('Post saved 🔖');
+    }
+  };
+
+  const renderContentWithMentions = (content: string, users?: User[]) => {
+    if (!users || !content) return content;
+    const tokens = content.split(/(\s+)/);
+    return tokens.map((token, i) => {
+      if (token.startsWith('@') && token.length > 1) {
+        const name = token.slice(1);
+        if (users.some(u => u.displayName === name)) {
+          return (
+            <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {token}
+            </span>
+          );
+        }
+      }
+      return token;
+    });
+  };
+
   // Derive styles from new features
   const hasBg = !!post.bgColor;
   const textClass = hasBg ? 'text-white' : 'text-main';
   const faintTextClass = hasBg ? 'text-white/70' : 'text-faint';
   const mutedTextClass = hasBg ? 'text-white/80' : 'text-muted';
 
+  if (shouldUnmount) return null;
+
+  let seenByText = '';
+  let seenByNames = '';
+  if (post.seenBy && post.seenBy.length > 0) {
+    if (allUsers && allUsers.length > 1) {
+      const totalMembersExcludingAuthor = allUsers.length - 1;
+      if (post.seenBy.length >= totalMembersExcludingAuthor) {
+        seenByText = '👁️ Seen by everyone';
+      } else {
+        seenByText = `👁️ Seen by ${post.seenBy.length}`;
+      }
+      seenByNames = post.seenBy.map(uid => allUsers.find(u => u.id === uid)?.displayName || 'Unknown').join(', ');
+    } else {
+      seenByText = `👁️ Seen by ${post.seenBy.length}`;
+    }
+  }
+
+  const isTimed = !!post.expiresAt;
+
   return (
     <div
-      className={`rounded-2xl p-5 transition-all duration-200 ${hasBg && onOpenPost ? 'cursor-pointer' : ''}`}
+      ref={cardRef}
+      className={`relative rounded-2xl p-5 transition-all duration-200 ${hasBg && onOpenPost ? 'cursor-pointer' : ''} ${isExpiredLocally ? 'opacity-0 duration-1000' : 'opacity-100'}`}
       style={{
-        background: post.bgColor || 'var(--color-bg-surface)',
-        border: post.isPinned && !hasBg
-          ? '1px solid var(--color-primary)'
-          : hasBg ? '1px solid transparent' : '1px solid var(--color-border-subtle)',
-        boxShadow: isHovered ? 'var(--shadow-md)' : 'var(--shadow-sm)',
+        background: isTimed ? 'color-mix(in srgb, var(--color-warning) 3%, var(--color-bg-surface))' : (post.bgColor || 'var(--color-bg-surface)'),
+        border: hasBg ? '1px solid transparent' : (isTimed ? '1px dashed color-mix(in srgb, var(--color-warning) 60%, transparent)' : '1px solid var(--color-border-subtle)'),
+        borderLeft: post.isPinned && !hasBg ? '3px solid var(--color-primary)' : undefined,
+        borderTop: post.isPinned && !hasBg ? '1px solid color-mix(in srgb, var(--color-primary) 40%, transparent)' : undefined,
+        boxShadow: isHovered 
+          ? 'var(--shadow-md)' 
+          : post.isPinned && !hasBg 
+            ? '0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent), var(--shadow-sm)'
+            : 'var(--shadow-sm)',
         transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
       }}
       onMouseEnter={() => setIsHovered(true)}
@@ -241,6 +436,18 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
                 {author ? author.displayName : 'Loading...'}
               </h3>
               
+              {post.isPinned && (
+                <span
+                  className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full"
+                  style={{
+                    color: hasBg ? '#fff' : 'var(--color-primary)',
+                    background: hasBg ? 'rgba(255,255,255,0.2)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
+                  }}
+                >
+                  <Pin size={10} /> Pinned
+                </span>
+              )}
+
               {/* Vibe Tag Badge */}
               {post.vibeTag && (
                 <span 
@@ -254,45 +461,58 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
                   <span className="text-xs">{post.vibeTag.emoji}</span> {post.vibeTag.label}
                 </span>
               )}
-
-              {post.isPinned && (
-                <span
-                  className="flex items-center gap-1 text-[10px] uppercase font-bold tracking-wider px-1.5 py-0.5 rounded"
-                  style={{
-                    color: hasBg ? '#fff' : 'var(--color-primary)',
-                    background: hasBg ? 'rgba(255,255,255,0.2)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)',
-                  }}
-                >
-                  <Pin size={10} /> Pinned
-                </span>
-              )}
             </div>
             <div className={`flex items-center gap-1.5 text-xs ${faintTextClass}`}>
-              <span>{formatTimeAgo(post.createdAt)}</span>
-              {post.editHistory && post.editHistory.length > 0 && (
+              <span className="font-mono">{formatTimeAgo(post.createdAt)}</span>
+              {isTimed && timeLeftStr && (
                 <>
                   <span>&middot;</span>
-                  <button 
-                    onClick={() => setShowHistoryModal(true)}
-                    className={`hover:underline transition-colors font-medium cursor-pointer ${hasBg ? 'hover:text-white' : 'hover:text-main'}`}
+                  <span 
+                    className={`font-semibold ${isExpiringSoon ? 'text-danger animate-pulse' : 'text-warning'}`}
                   >
-                    Edited
-                  </button>
+                    {timeLeftStr}
+                  </span>
+                </>
+              )}
+              {post.isEdited && post.editedAt && (
+                <>
+                  <span>&middot;</span>
+                  <span 
+                    className={`italic text-[10px] cursor-help`}
+                    title={`Edited ${new Date(post.editedAt).toLocaleString()}`}
+                  >
+                    edited
+                  </span>
                 </>
               )}
             </div>
           </div>
         </div>
         
-        {/* Right side actions */}
-        <div className="flex items-center gap-1 relative z-10" ref={menuRef}>
+        <div className="absolute top-3 right-3 flex items-center gap-1 z-10" ref={menuRef}>
+          {user && (
+            <button
+              onClick={handleToggleBookmark}
+              className={`p-1 w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+                hasBg ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-muted hover:bg-elevated'
+              }`}
+              title={user.savedPosts?.includes(post.id) ? "Unsave post" : "Save post"}
+            >
+              <Bookmark 
+                size={16} 
+                className={user.savedPosts?.includes(post.id) ? "fill-primary text-primary" : ""} 
+                style={user.savedPosts?.includes(post.id) ? { color: 'var(--color-primary)' } : undefined} 
+              />
+            </button>
+          )}
+
           {isAdmin && (
             <button
               onClick={handleTogglePin}
-              className={`p-2 rounded-full transition-colors ${
+              className={`p-2 w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
                 post.isPinned 
                   ? (hasBg ? 'text-white bg-white/20' : 'text-primary bg-primary/10 hover:bg-primary/20')
-                  : (hasBg ? 'text-white/70 hover:bg-white/10' : 'text-muted hover:bg-base')
+                  : (hasBg ? 'text-white/70 hover:bg-white/10' : 'text-muted hover:bg-elevated')
               }`}
               title={post.isPinned ? 'Unpin post' : 'Pin post'}
             >
@@ -304,8 +524,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
             <div className="relative">
               <button
                 onClick={() => setShowMenu(!showMenu)}
-                className={`p-2 rounded-full transition-colors ${
-                  hasBg ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-muted hover:text-main hover:bg-surface'
+                className={`p-2 w-8 h-8 flex items-center justify-center rounded-md transition-colors ${
+                  hasBg ? 'text-white/70 hover:text-white hover:bg-white/10' : 'text-muted hover:text-main hover:bg-elevated'
                 }`}
                 title="Post options"
               >
@@ -378,7 +598,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
           className={`whitespace-pre-wrap break-words mb-4 ${textClass}`}
           style={{ fontSize: '1rem', lineHeight: '1.65' }}
         >
-          {post.content}
+          {renderContentWithMentions(post.content, allUsers)}
         </p>
       )}
 
@@ -453,39 +673,59 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
       {/* Reaction Bar */}
       <div className="flex items-center justify-between mt-3 pt-1">
         {/* Reaction pills */}
-        <div className="flex items-center gap-1.5 flex-wrap py-1 -my-1">
+        <div className="flex items-center gap-2 flex-wrap">
           {REACTIONS.map((r) => {
-            const count = post.reactions?.[r.emoji]?.length || 0;
-            const hasReacted = post.reactions?.[r.emoji]?.includes(user?.id || '');
+            const reactors = post.reactions?.[r.emoji] || [];
+            const count = reactors.length;
+            const hasReacted = reactors.includes(user?.id || '');
+
+            let reactorNamesString = '';
+            if (count > 0 && allUsers) {
+              const names = reactors.map(uid => allUsers.find(u => u.id === uid)?.displayName || 'Unknown');
+              if (names.length > 3) {
+                reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
+              } else {
+                reactorNamesString = names.join(', ');
+              }
+            }
 
             return (
-              <button
+              <Tooltip
                 key={r.emoji}
-                onClick={() => handleToggleReaction(r.emoji)}
-                className="flex items-center gap-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-110 active:scale-95"
-                style={{
-                  minHeight: '36px',
-                  padding: '0 0.75rem',
-                  background: hasReacted
-                    ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 12%, transparent)')
-                    : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
-                  border: hasReacted
-                    ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
-                    : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
-                  color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)'),
-                }}
-                title={r.label}
+                disabled={count === 0}
+                content={
+                  <>
+                    <div className="text-lg mb-1 leading-none">{r.emoji}</div>
+                    <div className="whitespace-pre-wrap">{reactorNamesString}</div>
+                  </>
+                }
               >
-                <span>{r.emoji}</span>
-                {count > 0 && (
-                  <span
-                    className="text-sm font-medium"
-                    style={{ color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-main)') }}
-                  >
-                    {count}
-                  </span>
-                )}
-              </button>
+                <button
+                  onClick={() => handleToggleReaction(r.emoji)}
+                  className="flex items-center gap-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-110 active:scale-95"
+                  style={{
+                    minHeight: '36px',
+                    padding: '0 0.75rem',
+                    background: hasReacted
+                      ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 12%, transparent)')
+                      : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
+                    border: hasReacted
+                      ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
+                      : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
+                    color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)'),
+                  }}
+                >
+                  <span>{r.emoji}</span>
+                  {count > 0 && (
+                    <span
+                      className="text-sm font-medium"
+                      style={{ color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-main)') }}
+                    >
+                      {count}
+                    </span>
+                  )}
+                </button>
+              </Tooltip>
             );
           })}
         </div>
@@ -493,28 +733,38 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost }) => {
         {/* Comments pill — right aligned */}
         <button
           onClick={() => setShowComments(!showComments)}
-          className="flex items-center gap-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-105 flex-shrink-0 ml-2"
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-105 flex-shrink-0"
           style={{
             minHeight: '36px',
-            padding: '0 0.75rem',
             background: showComments
               ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)')
-              : 'transparent',
+              : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
             border: showComments
               ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
-              : (hasBg ? '1px solid rgba(255,255,255,0.3)' : '1px solid var(--color-border)'),
+              : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
             color: hasBg ? '#fff' : (showComments ? 'var(--color-primary)' : 'var(--color-text-muted)'),
           }}
         >
-          <MessageCircle size={15} />
-          <span className="hidden sm:inline text-sm">Comments</span>
+          <span>💬 {commentCount === 0 ? 'Comment' : commentCount}</span>
         </button>
+      </div>
+
+      {/* Views Counter */}
+      <div className={`min-h-[24px]`}>
+        {seenByText && (
+          <div 
+            className={`text-xs text-right pt-2 ${faintTextClass} cursor-help`}
+            title={seenByNames}
+          >
+            {seenByText}
+          </div>
+        )}
       </div>
 
       {/* Comments Section */}
       {showComments && (
         <div className={`mt-4 ${hasBg ? 'bg-black/20 p-4 rounded-xl' : ''}`}>
-          <CommentSection postId={post.id} />
+          <CommentSection postId={post.id} allUsers={allUsers} />
         </div>
       )}
 

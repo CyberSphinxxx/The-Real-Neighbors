@@ -3,8 +3,10 @@ import ReactDOM from 'react-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { getDoc, updateDoc, subscribeToCollection, addDoc } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
-import { X, ChevronLeft, ChevronRight, Send, Loader2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Send, Loader2, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { Tooltip } from '../ui/Tooltip';
 import type { User, Comment } from '../../types';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { orderBy } from 'firebase/firestore';
 
@@ -14,6 +16,7 @@ interface PostDetailModalProps {
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
+  allUsers?: User[];
 }
 
 const REACTIONS = [
@@ -23,15 +26,93 @@ const REACTIONS = [
   { emoji: '😢', label: 'Sad' },
 ];
 
-export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isRedditPost, onClose, onPrev, onNext }) => {
+export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isRedditPost, onClose, onPrev, onNext, allUsers }) => {
   const { user } = useAuthStore();
+  const { confirm } = useConfirm();
   const [author, setAuthor] = useState<User | null>(null);
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isUpdatingReaction, setIsUpdatingReaction] = useState(false);
+  const [showMenu, setShowMenu] = useState(false);
+  const [isEditing, setIsEditing] = useState(false);
+  const [editContent, setEditContent] = useState('');
+  const [isSavingEdit, setIsSavingEdit] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   
   const commentsEndRef = useRef<HTMLDivElement>(null);
+  
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [mentionFilter, setMentionFilter] = useState('');
+  const [mentionCursorPos, setMentionCursorPos] = useState<number | null>(null);
+  const [mentionSelectedIndex, setMentionSelectedIndex] = useState(0);
+
+  const filteredMentions = React.useMemo(() => {
+    if (!allUsers) return [];
+    return allUsers.filter(u => u.displayName.toLowerCase().startsWith(mentionFilter.toLowerCase()));
+  }, [allUsers, mentionFilter]);
+
+  const insertMention = (userToMention: User) => {
+    if (mentionCursorPos === null) return;
+    const textBeforeMention = newComment.slice(0, mentionCursorPos - mentionFilter.length - 1);
+    const textAfterMention = newComment.slice(mentionCursorPos);
+    const newContent = `${textBeforeMention}@${userToMention.displayName} ${textAfterMention}`;
+    setNewComment(newContent);
+    setShowMentionPicker(false);
+    
+    setTimeout(() => {
+      const input = inputRef.current;
+      if (input) {
+        input.focus();
+        const newPos = textBeforeMention.length + userToMention.displayName.length + 2;
+        input.setSelectionRange(newPos, newPos);
+      }
+    }, 0);
+  };
+
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    setNewComment(val);
+
+    const cursorPos = e.target.selectionStart;
+    const textBeforeCursor = val.slice(0, cursorPos ?? undefined);
+    const match = textBeforeCursor.match(/@([a-zA-Z0-9_]*)$/);
+    if (match) {
+      setShowMentionPicker(true);
+      setMentionFilter(match[1]);
+      setMentionCursorPos(cursorPos);
+      setMentionSelectedIndex(0);
+    } else {
+      setShowMentionPicker(false);
+    }
+  };
+
+  const handleInputKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (showMentionPicker) {
+      if (e.key === 'ArrowDown') {
+        e.preventDefault();
+        setMentionSelectedIndex(prev => Math.min(prev + 1, filteredMentions.length - 1));
+      } else if (e.key === 'ArrowUp') {
+        e.preventDefault();
+        setMentionSelectedIndex(prev => Math.max(prev - 1, 0));
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (filteredMentions[mentionSelectedIndex]) {
+          insertMention(filteredMentions[mentionSelectedIndex]);
+        }
+      } else if (e.key === 'Escape') {
+        e.preventDefault();
+        setShowMentionPicker(false);
+      }
+      return;
+    }
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleCommentSubmit();
+    }
+  };
 
   // Lock body scroll
   useEffect(() => {
@@ -63,6 +144,30 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     fetchAuthor();
     return () => { isMounted = false; };
   }, [post.authorId, isRedditPost]);
+
+  const hasSeen = user && post.seenBy?.includes(user.id);
+
+  // Real-time comments (wait, this is actually view tracking, not comments)
+  useEffect(() => {
+    if (isRedditPost || !user || user.id === post.authorId) return;
+    if (hasSeen) return;
+    const timeout = setTimeout(() => {
+      import('firebase/firestore').then(({ arrayUnion }) => {
+        updateDoc('posts', [post.id], { seenBy: arrayUnion(user.id) }).catch(console.error);
+      });
+    }, 1000);
+    return () => clearTimeout(timeout);
+  }, [user?.id, post.authorId, hasSeen, post.id, isRedditPost]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowMenu(false);
+      }
+    };
+    if (showMenu) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [showMenu]);
 
   // Real-time comments
   useEffect(() => {
@@ -118,6 +223,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
       const collectionPath = isRedditPost ? `redditPosts/${post.id}/comments` : `posts/${post.id}/comments`;
       await addDoc<Omit<Comment, 'id'>>(collectionPath, commentObj as any);
       setNewComment('');
+      setShowMentionPicker(false);
     } catch (error) {
       console.error('Failed to post comment', error);
     } finally {
@@ -139,6 +245,102 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     .join('  ');
 
   const avatarBg = author ? getAvatarColor(author.displayName) : 'var(--color-primary)';
+  
+  const isAdmin = user?.role === 'admin';
+  const canDelete = !isRedditPost && (user?.id === post.authorId || isAdmin);
+  const canEdit = !isRedditPost && user?.id === post.authorId;
+
+  const handleDelete = async () => {
+    setShowMenu(false);
+    const isConfirmed = await confirm({
+      title: 'Delete this post?',
+      message: "This can't be undone.",
+      isDanger: true,
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    if (isConfirmed) {
+      try {
+        const { collection, query, getDocs, deleteDoc: firestoreDeleteDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const commentsRef = collection(db, 'posts', post.id, 'comments');
+        const commentsSnap = await getDocs(query(commentsRef));
+        await Promise.all(commentsSnap.docs.map(d => firestoreDeleteDoc(d.ref)));
+        await firestoreDeleteDoc(doc(db, 'posts', post.id));
+        import('react-hot-toast').then(({ default: toast }) => toast.success('Post deleted.'));
+        onClose();
+      } catch (error) {
+        console.error(error);
+        import('react-hot-toast').then(({ default: toast }) => toast.error('Failed to delete post.'));
+      }
+    }
+  };
+
+  const handleEditInit = () => {
+    setShowMenu(false);
+    setEditContent(post.content);
+    setIsEditing(true);
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editContent.trim()) return;
+    if (editContent.trim() === post.content) {
+      setIsEditing(false);
+      return;
+    }
+    setIsSavingEdit(true);
+    try {
+      const historyEntry = { content: post.content, editedAt: Date.now() };
+      const newHistory = post.editHistory ? [...post.editHistory, historyEntry] : [historyEntry];
+      await updateDoc('posts', [post.id], { 
+        content: editContent.trim(), 
+        editHistory: newHistory,
+        isEdited: true,
+        editedAt: Date.now()
+      });
+      setIsEditing(false);
+      import('react-hot-toast').then(({ default: toast }) => toast.success('Post updated ✏️'));
+    } catch (error) {
+      console.error(error);
+      import('react-hot-toast').then(({ default: toast }) => toast.error('Failed to update post'));
+    } finally {
+      setIsSavingEdit(false);
+    }
+  };
+
+  let seenByText = '';
+  let seenByNames = '';
+  if (!isRedditPost && post.seenBy && post.seenBy.length > 0) {
+    if (allUsers && allUsers.length > 1) {
+      const totalMembersExcludingAuthor = allUsers.length - 1;
+      if (post.seenBy.length >= totalMembersExcludingAuthor) {
+        seenByText = '👁️ Seen by everyone';
+      } else {
+        seenByText = `👁️ Seen by ${post.seenBy.length}`;
+      }
+      seenByNames = post.seenBy.map((uid: string) => allUsers.find(u => u.id === uid)?.displayName || 'Unknown').join(', ');
+    } else {
+      seenByText = `👁️ Seen by ${post.seenBy.length}`;
+    }
+  }
+
+  const renderContentWithMentions = (content: string, users?: User[]) => {
+    if (!users || !content) return content;
+    const tokens = content.split(/(\s+)/);
+    return tokens.map((token, i) => {
+      if (token.startsWith('@') && token.length > 1) {
+        const name = token.slice(1);
+        if (users.some(u => u.displayName === name)) {
+          return (
+            <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
+              {token}
+            </span>
+          );
+        }
+      }
+      return token;
+    });
+  };
 
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center">
@@ -204,7 +406,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           {hasBg && !isImage && !isYoutube && (
             <div className="text-center p-8 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
               <p className="text-white text-3xl md:text-4xl font-heading font-bold max-w-[480px] break-words" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
-                {post.content}
+                {renderContentWithMentions(post.content, allUsers)}
               </p>
               {post.vibeTag && (
                 <div className="mt-6">
@@ -252,7 +454,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                 </div>
               </div>
               <p className="text-xl md:text-2xl text-main whitespace-pre-wrap break-words leading-relaxed">
-                {post.content}
+                {renderContentWithMentions(post.content, allUsers)}
               </p>
               {post.vibeTag && (
                 <div className="mt-6">
@@ -334,19 +536,59 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                       </span>
                     )}
                   </div>
-                  <p className="text-faint text-xs">{formatTimeAgo(post.createdAt)}</p>
+                  <p className="text-faint text-xs flex items-center">
+                    {formatTimeAgo(post.createdAt)}
+                    {post.isEdited && post.editedAt && (
+                      <>
+                        <span className="mx-1">&middot;</span>
+                        <span className="italic text-[10px] cursor-help" title={`Edited ${new Date(post.editedAt).toLocaleString()}`}>edited</span>
+                      </>
+                    )}
+                  </p>
                 </div>
               </div>
             )}
-            <button
-              onClick={onClose}
-              className="p-2 rounded-full text-muted hover:text-main transition-colors flex-shrink-0"
-              style={{ background: 'var(--color-bg-base)' }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-elevated)')}
-              onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-bg-base)')}
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1">
+              {canDelete && (
+                <div className="relative" ref={menuRef}>
+                  <button
+                    onClick={() => setShowMenu(!showMenu)}
+                    className="p-2 w-8 h-8 flex items-center justify-center rounded-full text-muted hover:text-main hover:bg-base transition-colors"
+                  >
+                    <MoreHorizontal size={16} />
+                  </button>
+                  {showMenu && (
+                    <div className="absolute right-0 mt-1 w-40 bg-surface border border-border-subtle rounded-xl shadow-lg overflow-hidden animate-in fade-in zoom-in-95 duration-100 z-50">
+                      {canEdit && (
+                        <button
+                          onClick={handleEditInit}
+                          className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-main hover:bg-base transition-colors border-b border-border-subtle"
+                        >
+                          <Edit2 size={16} />
+                          Edit Post
+                        </button>
+                      )}
+                      <button
+                        onClick={handleDelete}
+                        className="w-full flex items-center gap-2 px-4 py-2.5 text-sm font-semibold text-danger hover:bg-danger/10 transition-colors"
+                      >
+                        <Trash2 size={16} />
+                        Delete Post
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+              <button
+                onClick={onClose}
+                className="p-2 rounded-full text-muted hover:text-main transition-colors flex-shrink-0"
+                style={{ background: 'var(--color-bg-base)' }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = 'var(--color-bg-elevated)')}
+                onMouseLeave={(e) => (e.currentTarget.style.background = 'var(--color-bg-base)')}
+              >
+                <X size={18} />
+              </button>
+            </div>
           </div>
 
           {/* Top Section (post content + reactions) */}
@@ -401,35 +643,92 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                         </span>
                       )}
                     </div>
-                    <p className="text-muted text-xs">{formatTimeAgo(post.createdAt)}</p>
+                    <p className="text-muted text-xs flex items-center">
+                      {formatTimeAgo(post.createdAt)}
+                      {post.isEdited && post.editedAt && (
+                        <>
+                          <span className="mx-1">&middot;</span>
+                          <span className="italic text-[10px] cursor-help" title={`Edited ${new Date(post.editedAt).toLocaleString()}`}>edited</span>
+                        </>
+                      )}
+                    </p>
                   </div>
                 </div>
 
-                {/* Post Text (if not plain text) */}
-                {post.content && !isPlainText && !hasBg && (
-                   <p className="text-sm text-main whitespace-pre-wrap break-words mb-4 line-clamp-4 hover:line-clamp-none cursor-pointer">
-                     {post.content}
-                   </p>
+                {isEditing ? (
+                  <div className="mb-4 animate-in fade-in duration-200">
+                    <textarea
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                      className="w-full bg-base border border-primary/50 focus:border-primary rounded-xl px-3 py-2 text-main resize-none outline-none transition-colors text-sm"
+                      style={{ minHeight: '80px', lineHeight: '1.5' }}
+                      autoFocus
+                    />
+                    <div className="flex justify-end gap-2 mt-2">
+                      <button
+                        onClick={() => setIsEditing(false)}
+                        className="px-3 py-1 text-xs font-semibold text-muted hover:bg-base rounded-lg transition-colors"
+                      >
+                        Cancel
+                      </button>
+                      <button
+                        onClick={handleSaveEdit}
+                        disabled={isSavingEdit || !editContent.trim()}
+                        className="flex items-center gap-1 px-3 py-1 bg-primary text-on-primary text-xs font-bold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
+                      >
+                        {isSavingEdit && <Loader2 size={12} className="animate-spin" />}
+                        Save
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  post.content && !isPlainText && !hasBg && (
+                    <p className="text-sm text-main whitespace-pre-wrap break-words mb-4 line-clamp-4 hover:line-clamp-none cursor-pointer">
+                      {renderContentWithMentions(post.content, allUsers)}
+                    </p>
+                  )
                 )}
 
-                {/* Reactions Bar */}
                 <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-wrap">
                   {REACTIONS.map((r) => {
-                    const hasReacted = post.reactions?.[r.emoji]?.includes(user?.id || '');
+                    const reactors = post.reactions?.[r.emoji] || [];
+                    const count = reactors.length;
+                    const hasReacted = reactors.includes(user?.id || '');
+
+                    let reactorNamesString = '';
+                    if (count > 0 && allUsers) {
+                      const names = reactors.map((uid: string) => allUsers.find(u => u.id === uid)?.displayName || 'Unknown');
+                      if (names.length > 3) {
+                        reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
+                      } else {
+                        reactorNamesString = names.join(', ');
+                      }
+                    }
+
                     return (
-                      <button
+                      <Tooltip
                         key={r.emoji}
-                        onClick={() => handleToggleReaction(r.emoji)}
-                        className="flex items-center gap-1 rounded-full font-medium text-xs transition-transform active:scale-95"
-                        style={{
-                          padding: '0.25rem 0.5rem',
-                          background: hasReacted ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-bg-base)',
-                          border: hasReacted ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                          color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                        }}
+                        disabled={count === 0}
+                        content={
+                          <>
+                            <div className="text-lg mb-1 leading-none">{r.emoji}</div>
+                            <div className="whitespace-pre-wrap">{reactorNamesString}</div>
+                          </>
+                        }
                       >
-                        <span>{r.emoji}</span>
-                      </button>
+                        <button
+                          onClick={() => handleToggleReaction(r.emoji)}
+                          className="flex items-center gap-1 rounded-full font-medium text-xs transition-transform active:scale-95"
+                          style={{
+                            padding: '0.25rem 0.5rem',
+                            background: hasReacted ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-bg-base)',
+                            border: hasReacted ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                            color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                          }}
+                        >
+                          <span>{r.emoji}</span>
+                        </button>
+                      </Tooltip>
                     );
                   })}
                 </div>
@@ -439,6 +738,13 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                     {reactionSummary}
                   </p>
                 )}
+                <div className="min-h-[24px]">
+                  {seenByText && (
+                    <div className={`text-xs text-right pt-2 text-faint cursor-help`} title={seenByNames}>
+                      {seenByText}
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -452,7 +758,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               <p className="text-center text-sm text-faint my-auto">No comments yet. Say something! 💬</p>
             ) : (
               comments.map(comment => (
-                <ModalCommentItem key={comment.id} comment={comment} />
+                <ModalCommentItem key={comment.id} comment={comment} allUsers={allUsers} />
               ))
             )}
             <div ref={commentsEndRef} />
@@ -471,11 +777,38 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               )}
             </div>
             <div className="flex-1 relative">
+              {showMentionPicker && filteredMentions.length > 0 && (
+                <div 
+                  className="absolute bottom-full mb-2 left-0 z-50 rounded-xl shadow-lg border max-h-[150px] overflow-y-auto custom-scrollbar"
+                  style={{
+                    background: 'var(--color-bg-elevated)',
+                    borderColor: 'var(--color-border-default)',
+                    minWidth: '200px'
+                  }}
+                >
+                  {filteredMentions.map((mu, i) => (
+                    <div 
+                      key={mu.id}
+                      onClick={() => insertMention(mu)}
+                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${i === mentionSelectedIndex ? 'bg-surface' : 'hover:bg-surface'}`}
+                      style={{
+                        background: i === mentionSelectedIndex ? 'var(--color-bg-surface)' : 'transparent'
+                      }}
+                    >
+                      <div className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-white text-[9px] shadow-sm flex-shrink-0 bg-primary">
+                        {mu.displayName.charAt(0).toUpperCase()}
+                      </div>
+                      <span className="text-xs font-medium text-main">{mu.displayName}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
               <input
+                ref={inputRef}
                 type="text"
                 value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyDown={(e) => { if(e.key === 'Enter') handleCommentSubmit(); }}
+                onChange={handleInputChange}
+                onKeyDown={handleInputKeyDown}
                 placeholder="Write a comment..."
                 className="w-full bg-elevated border border-default rounded-full pl-4 pr-10 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
               />
@@ -499,7 +832,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
 
 
 // Sub-component for individual comments inside the modal
-const ModalCommentItem: React.FC<{ comment: Comment }> = ({ comment }) => {
+const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ comment, allUsers }) => {
   const [author, setAuthor] = useState<User | null>(null);
   useEffect(() => {
     let isMounted = true;
@@ -526,7 +859,25 @@ const ModalCommentItem: React.FC<{ comment: Comment }> = ({ comment }) => {
           <span className="font-medium text-sm text-main truncate">{author ? author.displayName : 'Loading...'}</span>
           <span className="text-[10px] text-faint flex-shrink-0">&middot; {formatTimeAgo(comment.createdAt)}</span>
         </div>
-        <p className="text-sm text-main whitespace-pre-wrap break-words">{comment.content}</p>
+        <p className="text-sm text-main whitespace-pre-wrap break-words">
+          {(() => {
+            if (!allUsers || !comment.content) return comment.content;
+            const tokens = comment.content.split(/(\s+)/);
+            return tokens.map((token, i) => {
+              if (token.startsWith('@') && token.length > 1) {
+                const name = token.slice(1);
+                if (allUsers.some(u => u.displayName === name)) {
+                  return (
+                    <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
+                      {token}
+                    </span>
+                  );
+                }
+              }
+              return token;
+            });
+          })()}
+        </p>
       </div>
     </div>
   );
