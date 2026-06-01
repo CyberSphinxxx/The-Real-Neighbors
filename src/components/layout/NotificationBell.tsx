@@ -190,10 +190,10 @@ export const NotificationBell: React.FC = () => {
       <button 
         ref={bellRef}
         onClick={() => setIsOpen(!isOpen)}
-        className="p-2 rounded-md text-muted hover:bg-elevated hover:text-main transition-colors relative"
+        className="w-8 h-8 flex items-center justify-center rounded-md text-muted hover:bg-elevated hover:text-main transition-colors relative flex-shrink-0"
         title="Notifications"
       >
-        <Bell size={20} />
+        <Bell size={18} />
         {unreadCount > 0 && (
           <span className="absolute top-1 right-1 bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-surface shadow-sm">
             {unreadCount > 9 ? '9+' : unreadCount}
@@ -204,10 +204,10 @@ export const NotificationBell: React.FC = () => {
       {isOpen && (
         <div 
           ref={panelRef}
-          className="absolute right-0 mt-2 w-[380px] bg-surface rounded-2xl border border-default shadow-lg flex flex-col z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          className="absolute right-0 mt-2 w-[380px] bg-surface rounded-2xl border border-border-subtle shadow-lg flex flex-col z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
           style={{ maxHeight: '480px' }}
         >
-          <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle shrink-0">
             <h2 className="font-semibold text-base text-main">Notifications</h2>
             <div className="flex items-center gap-3">
               {unreadCount > 0 && (
