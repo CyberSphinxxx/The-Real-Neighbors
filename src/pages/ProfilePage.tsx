@@ -2,7 +2,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc, subscribeToCollection } from '../lib/firestore';
 import { where, orderBy } from 'firebase/firestore';
-import { LogOut, Palette, Moon, Monitor, EyeOff, Loader2, Edit2, Tv, CheckCircle, Clock, ChevronRight, Bell } from 'lucide-react';
+import { Loader2, Edit2, Tv, CheckCircle, Clock, ChevronRight, Palette } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
@@ -15,7 +15,7 @@ import { Link } from 'react-router-dom';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'posts' | 'watchlist' | 'settings' | 'saved'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'watchlist' | 'saved'>('posts');
   
   // Edit Profile State
   const [isEditing, setIsEditing] = useState(false);
@@ -77,20 +77,8 @@ export const ProfilePage: React.FC = () => {
     if (idx !== -1 && idx < myPosts.length - 1) setOpenPost(myPosts[idx + 1]);
   };
   
-  // Settings State
-  const [theme, setTheme] = useState<'default' | 'dark' | 'amoled'>('default');
-  const [showAge, setShowAge] = useState(true);
-  
   const { confirm } = useConfirm();
 
-  useEffect(() => {
-    if (user) {
-      // Avoid calling setState in effect if possible, but safe here with correct deps or skipping it.
-      // Alternatively, we just read from user object directly in UI.
-      const savedTheme = localStorage.getItem('theme') || 'default';
-      setTheme(savedTheme as any);
-    }
-  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -147,48 +135,6 @@ export const ProfilePage: React.FC = () => {
     }
   };
 
-  const handleThemeChange = (newTheme: 'default' | 'dark' | 'amoled') => {
-    setTheme(newTheme);
-    localStorage.setItem('theme', newTheme);
-    document.documentElement.classList.remove('dark', 'amoled');
-    if (newTheme !== 'default') {
-      document.documentElement.classList.add(newTheme);
-    }
-  };
-
-  const handleToggleAge = async () => {
-    if (!user) return;
-    const newValue = !showAge;
-    setShowAge(newValue);
-    try {
-      await updateDoc('users', [user.id], { showAge: newValue });
-    } catch (err) {
-      console.error(err);
-      setShowAge(!newValue); // revert
-      toast.error('Failed to update privacy settings');
-    }
-  };
-
-  const handleToggleNotificationPref = async (key: string, currentValue: boolean) => {
-    if (!user) return;
-    const currentPrefs = user.notificationPrefs || {};
-    // Default is true if not set
-    const newValue = currentValue === undefined ? false : !currentValue;
-    
-    const newPrefs = { ...currentPrefs, [key]: newValue };
-    
-    // Optimistic update
-    useAuthStore.getState().setUser({ ...user, notificationPrefs: newPrefs });
-    
-    try {
-      await updateDoc('users', [user.id], { notificationPrefs: newPrefs });
-    } catch (err) {
-      console.error(err);
-      // Revert on fail
-      useAuthStore.getState().setUser({ ...user, notificationPrefs: currentPrefs });
-      toast.error('Failed to update notification settings');
-    }
-  };
 
   const handleSignOut = async () => {
     const isConfirmed = await confirm({
@@ -295,12 +241,20 @@ export const ProfilePage: React.FC = () => {
           
           {/* Edit Button Toggle */}
           {!isEditing && (
-            <button 
-              onClick={handleEditInit}
-              className="mt-2 sm:mt-0 px-4 py-2 rounded-xl text-sm font-semibold flex items-center gap-2 transition-colors border border-border-subtle hover:bg-base text-main"
-            >
-              <Edit2 size={15} /> Edit Profile
-            </button>
+            <div className="flex flex-col gap-2 mt-2 sm:mt-0">
+              <button 
+                onClick={handleEditInit}
+                className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors border border-border-subtle hover:bg-base text-main"
+              >
+                <Edit2 size={15} /> Edit Profile
+              </button>
+              <Link
+                to="/settings"
+                className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-muted hover:text-main hover:bg-base"
+              >
+                ⚙️ Settings
+              </Link>
+            </div>
           )}
         </div>
       </div>
@@ -310,7 +264,6 @@ export const ProfilePage: React.FC = () => {
         {[
           { id: 'posts', label: `My Posts (${myPosts.length})` },
           { id: 'watchlist', label: 'Watchlist' },
-          { id: 'settings', label: 'Settings' },
           { id: 'saved', label: `🔖 Saved (${user.savedPosts?.length || 0})` }
         ].map(tab => (
           <button
@@ -408,124 +361,16 @@ export const ProfilePage: React.FC = () => {
           </div>
         )}
 
-        {/* SETTINGS TAB */}
-        {activeTab === 'settings' && (
-          <div className="space-y-5">
-            {/* Appearance */}
-            <div className="bg-surface rounded-2xl border border-border-subtle p-5">
-              <h3 className="font-heading font-bold text-main mb-4 flex items-center gap-2">
-                <Monitor size={18} className="text-primary" /> Appearance
-              </h3>
-              
-              <div className="space-y-5">
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                  <button
-                    onClick={() => handleThemeChange('default')}
-                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-bold transition-all ${
-                      theme === 'default' ? 'border-primary bg-primary/5 text-primary' : 'border-border-subtle text-muted hover:border-border hover:text-main'
-                    }`}
-                  >
-                    <Monitor size={16} /> Light
-                  </button>
-                  <button
-                    onClick={() => handleThemeChange('dark')}
-                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-bold transition-all ${
-                      theme === 'dark' ? 'border-primary bg-primary/5 text-primary' : 'border-border-subtle text-muted hover:border-border hover:text-main'
-                    }`}
-                  >
-                    <Moon size={16} /> Dark
-                  </button>
-                  <button
-                    onClick={() => handleThemeChange('amoled')}
-                    className={`flex items-center justify-center gap-2 p-2.5 rounded-xl border font-bold transition-all bg-black ${
-                      theme === 'amoled' ? 'border-primary text-primary' : 'border-border-subtle text-white/70 hover:border-border hover:text-white'
-                    }`}
-                  >
-                    AMOLED
-                  </button>
-                </div>
+      </div>
 
-                <div className="flex items-center justify-between pt-4 border-t border-border-subtle">
-                  <div>
-                    <label className="text-sm font-semibold text-main flex items-center gap-2">
-                      <EyeOff size={16} /> Privacy
-                    </label>
-                    <p className="text-xs text-muted mt-1">Show my exact age on birthdays</p>
-                  </div>
-                  <label className="flex items-center cursor-pointer">
-                    <div className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${showAge ? 'bg-primary' : 'bg-border'}`}>
-                      <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${showAge ? 'translate-x-5' : 'translate-x-0'}`} />
-                    </div>
-                    <input type="checkbox" className="hidden" checked={showAge} onChange={handleToggleAge} />
-                  </label>
-                </div>
-              </div>
-            </div>
-
-            {/* Notifications */}
-            <div className="bg-surface rounded-2xl border border-border-subtle p-5">
-              <h3 className="font-heading font-bold text-main mb-4 flex items-center gap-2">
-                <Bell size={18} className="text-primary" /> Notifications
-              </h3>
-              
-              <div className="space-y-4">
-                {[
-                  { key: 'posts', label: 'New posts from friends' },
-                  { key: 'reactions', label: 'Reactions on my posts' },
-                  { key: 'comments', label: 'Comments on my posts' },
-                  { key: 'mentions', label: 'Mentions' },
-                  { key: 'events', label: 'New events' },
-                  { key: 'event_reminders', label: 'Event reminders' },
-                  { key: 'birthdays', label: 'Birthdays' },
-                  { key: 'polls', label: 'Poll created' },
-                  { key: 'streak', label: 'Streak at risk' },
-                  { key: 'expiry', label: 'Post expiry warning' },
-                ].map((pref) => {
-                  const currentValue = user.notificationPrefs?.[pref.key] ?? true;
-                  return (
-                    <div key={pref.key} className="flex items-center justify-between">
-                      <span className="text-sm font-medium text-main">{pref.label}</span>
-                      <label className="flex items-center cursor-pointer">
-                        <div className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${currentValue ? 'bg-primary' : 'bg-border'}`}>
-                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${currentValue ? 'translate-x-5' : 'translate-x-0'}`} />
-                        </div>
-                        <input 
-                          type="checkbox" 
-                          className="hidden" 
-                          checked={currentValue} 
-                          onChange={() => handleToggleNotificationPref(pref.key, currentValue)} 
-                        />
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-
-            {/* Danger Zone */}
-            <div className="bg-surface rounded-2xl border p-5" style={{ borderColor: 'color-mix(in srgb, var(--color-danger) 20%, var(--color-border-subtle))' }}>
-              <h3 className="font-heading font-bold text-danger mb-2 flex items-center gap-2">
-                <LogOut size={18} /> Danger Zone
-              </h3>
-              <p className="text-xs text-muted mb-4">You will need to sign back in to access your account.</p>
-              
-              <button
-                onClick={handleSignOut}
-                className="w-full sm:w-auto px-5 py-2 rounded-xl text-sm font-bold transition-colors border"
-                style={{
-                  color: 'var(--color-danger)',
-                  borderColor: 'var(--color-danger)',
-                  background: 'transparent'
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = 'color-mix(in srgb, var(--color-danger) 10%, transparent)')}
-                onMouseLeave={(e) => (e.currentTarget.style.background = 'transparent')}
-              >
-                Sign Out
-              </button>
-            </div>
-          </div>
-        )}
-        
+      {/* Standalone Sign Out */}
+      <div className="mt-8 text-center">
+        <button
+          onClick={handleSignOut}
+          className="px-6 py-2.5 rounded-xl text-sm font-bold transition-colors border border-danger/30 text-danger hover:bg-danger/10"
+        >
+          Sign Out
+        </button>
       </div>
 
       {/* Post Detail Modal */}
