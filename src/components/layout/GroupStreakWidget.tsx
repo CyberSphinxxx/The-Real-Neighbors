@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { subscribeToCollection } from '../../lib/firestore';
+import { Flame } from 'lucide-react';
 
 interface StreakData {
   id?: string;
@@ -49,20 +50,21 @@ const GroupStreakWidgetComponent: React.FC = () => {
       className="bg-surface rounded-xl shadow-sm p-4"
       style={{ border: '1px solid var(--color-border-subtle)' }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-[10px] font-bold text-muted uppercase tracking-widest">
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted flex items-center">
+          <Flame size={14} className="mr-1.5" />
           Group Streak
         </h3>
       </div>
 
-      <div className="flex flex-col items-center justify-center text-center">
+      <div className="flex flex-col items-center justify-center text-center py-1">
         {!streak || currentStreak === 0 ? (
           <>
-            <span className="text-4xl mb-2">💀</span>
-            <div className="font-heading font-bold text-lg text-main mb-1">
+            <span className="text-2xl mb-1.5">💀</span>
+            <div className="text-sm font-medium text-muted mb-0.5">
               No streak yet
             </div>
-            <p className="text-sm text-muted">Post something to start one!</p>
+            <p className="text-xs text-faint">Post something to start one!</p>
           </>
         ) : isBroken ? (
           <>
