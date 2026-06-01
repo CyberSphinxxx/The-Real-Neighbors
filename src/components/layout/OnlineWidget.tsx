@@ -1,5 +1,6 @@
 import React from 'react';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
+import { Wifi } from 'lucide-react';
 import { formatTimeAgo } from '../../utils/date';
 
 const OnlineWidgetComponent: React.FC = () => {
@@ -13,9 +14,10 @@ const OnlineWidgetComponent: React.FC = () => {
         border: '1px solid var(--color-border-subtle)',
       }}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <h3 className="text-xs font-bold text-muted uppercase tracking-wider">
-          WHO'S ONLINE
+      <div className="flex items-center gap-2 mb-3">
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-muted flex items-center">
+          <Wifi size={14} className="mr-1.5" />
+          Who's Online
         </h3>
         <div
           className="w-2 h-2 rounded-full animate-pulse"
@@ -76,9 +78,11 @@ const OnlineWidgetComponent: React.FC = () => {
             </div>
             <div className="flex flex-col">
               <span className="text-sm text-muted">{u.displayName}</span>
-              <span className="text-xs text-faint">
-                {u.lastSeen ? `Last seen ${formatTimeAgo(u.lastSeen)}` : 'Offline'}
-              </span>
+              {u.privacyPrefs?.showLastSeen !== false && (
+                <span className="text-xs text-faint">
+                  {u.lastSeen ? `Last seen ${formatTimeAgo(u.lastSeen)}` : 'Offline'}
+                </span>
+              )}
             </div>
           </div>
         ))}
