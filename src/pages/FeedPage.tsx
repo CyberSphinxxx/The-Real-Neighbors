@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-
+import { useLocation } from 'react-router-dom';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import { PostComposer } from '../components/feed/PostComposer';
 import { PostCard } from '../components/feed/PostCard';
@@ -8,9 +8,10 @@ import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { ExploreTab } from '../components/feed/ExploreTab';
 import { subscribeToCollection } from '../lib/firestore';
 import { Users } from 'lucide-react';
-import { NotificationBell } from '../components/layout/NotificationBell';
 import { getAvatarColor } from '../utils/avatarColor';
 import { useAuthStore } from '../stores/authStore';
+import { useFeedTabStore } from '../stores/feedTabStore';
+import { usePostStore } from '../stores/postStore';
 import type { Post, User, RedditPost } from '../types';
 
 const FILTER_TYPES = ['All', 'Videos', 'Images', 'Colored', 'Links'];
@@ -48,7 +49,9 @@ const RARE_SPLASHES = [
 ];
 
 export const FeedPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'our_feed' | 'explore'>('our_feed');
+  const location = useLocation();
+  const { activeTab } = useFeedTabStore();
+  const { upsertPosts } = usePostStore();
 
   const [rawPosts, setRawPosts] = useState<Post[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
@@ -66,6 +69,19 @@ export const FeedPage: React.FC = () => {
   const renderedPostIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(false);
   const { user } = useAuthStore();
+
+  // Open composer if navigated here with openComposer state
+  useEffect(() => {
+    if ((location.state as any)?.openComposer) {
+      // Small delay to let the page render first
+      setTimeout(() => {
+        composerRef.current?.focus();
+        composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }, 200);
+      // Clear the state so it doesn't re-trigger on re-renders
+      window.history.replaceState({}, '');
+    }
+  }, []);
 
   useEffect(() => {
     if (user?.subreddits) {
@@ -91,6 +107,9 @@ export const FeedPage: React.FC = () => {
 
   useEffect(() => {
     if (rawPosts.length === 0) return;
+
+    // Sync into global post store for search
+    upsertPosts(rawPosts);
 
     if (!initialLoadRef.current) {
       setPosts(rawPosts);
@@ -365,42 +384,8 @@ export const FeedPage: React.FC = () => {
 
   return (
     <div className="relative">
-      {/* Fixed Page Header */}
-      <div 
-        className="fixed top-0 left-0 right-0 md:left-[240px] lg:right-[300px] z-50 flex justify-center backdrop-blur-md" 
-        style={{ 
-          background: 'color-mix(in srgb, var(--color-bg-base) 95%, transparent)', 
-          borderBottom: '1px solid var(--color-border-subtle)' 
-        }}
-      >
-        <div className="flex items-center justify-end w-full max-w-[680px] h-[48px] px-4 md:px-6 relative">
-          {/* CENTER: Tab Switcher */}
-          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 flex items-center h-full">
-            <button
-              onClick={() => setActiveTab('our_feed')}
-              className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'our_feed' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
-              }`}
-            >
-              Our Feed
-            </button>
-            <button
-              onClick={() => setActiveTab('explore')}
-              className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
-                activeTab === 'explore' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
-              }`}
-            >
-              Explore
-            </button>
-          </div>
-
-          {/* RIGHT: Bell Icon */}
-          <NotificationBell />
-        </div>
-      </div>
-
-      {/* Scrollable Content Container */}
-      <div className="-mt-6 pt-[48px]">
+      {/* Content Container — global Header handles the fixed bar */}
+      <div>
       {/* New Posts Pill */}
       {pendingNewPostsCount > 0 && (
         <div className="sticky top-[60px] z-30 flex justify-center w-full pointer-events-none mb-2 -mt-4">
