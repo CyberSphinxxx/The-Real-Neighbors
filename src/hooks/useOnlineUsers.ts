@@ -12,6 +12,10 @@ export interface PresenceUser {
   avatarUrl?: string;
   online: boolean;
   lastSeen: number | null;
+  privacyPrefs?: {
+    showOnlineStatus?: boolean;
+    showLastSeen?: boolean;
+  };
 }
 
 export const useOnlineUsers = () => {
@@ -32,7 +36,8 @@ export const useOnlineUsers = () => {
           avatarColor: getAvatarColor(u.displayName),
           avatarUrl: u.avatarUrl,
           online: false,
-          lastSeen: null
+          lastSeen: null,
+          privacyPrefs: u.privacyPrefs
         });
       });
 
@@ -49,9 +54,9 @@ export const useOnlineUsers = () => {
       });
 
       const allUsers = Array.from(allUsersMap.values());
-      const online = allUsers.filter((u) => u.online);
+      const online = allUsers.filter((u) => u.online && u.privacyPrefs?.showOnlineStatus !== false);
       const offline = allUsers
-        .filter((u) => !u.online)
+        .filter((u) => !u.online || u.privacyPrefs?.showOnlineStatus === false)
         .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
 
       setOnlineUsers(online);
