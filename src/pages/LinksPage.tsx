@@ -9,8 +9,8 @@ export const LinksPage: React.FC = () => {
   return (
     <div className="max-w-7xl mx-auto py-6">
       <div className="mb-8">
-        <h1 className="text-2xl font-heading font-bold text-main tracking-tight flex items-center gap-3">
-          <LinkIcon className="text-primary" /> Hub
+        <h1 className="font-heading font-bold text-2xl text-main flex items-center gap-2">
+          <LinkIcon size={18} /> Links
         </h1>
         <p className="text-sm text-muted mt-1">Save links and watch videos together.</p>
       </div>
