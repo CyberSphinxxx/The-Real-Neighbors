@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight } from 'lucide-react';
+import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -29,7 +29,7 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     if (!user) return;
     const path = location.pathname.substring(1);
-    if (['events', 'birthdays', 'watchlist', 'links'].includes(path)) {
+    if (['events', 'birthdays', 'watchlist', 'links', 'settings'].includes(path)) {
       setLastVisited(prev => {
         const next = { ...prev, [path]: new Date().toISOString() };
         localStorage.setItem(`lastVisited_${user.id}`, JSON.stringify(next));
@@ -93,6 +93,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Events', path: '/events', id: 'events', icon: Calendar },
     { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
     { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
+    { name: 'Settings', path: '/settings', id: 'settings', icon: Settings },
   ];
 
   const hasUnread = (id: string) => {
@@ -118,47 +119,47 @@ export const Sidebar: React.FC = () => {
   return (
     <div className="flex flex-col h-full justify-between py-6 px-4">
       {/* App name */}
-      <div>
-        <div className="mb-8 px-2">
-          <h1
-            className="font-heading font-bold text-primary"
-            style={{ fontSize: '1.4rem', letterSpacing: '-0.02em' }}
-          >
-            The Real Neighbors
-          </h1>
-        </div>
-
-        {/* Nav items */}
-        <nav className="flex flex-col gap-2">
+      {/* Nav items */}
+      <div className="pt-4">
+        <nav className="flex flex-col gap-1.5">
           {navItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
               end={item.path === '/'}
               className={({ isActive }) =>
-                `group flex items-center gap-4 px-2 py-2.5 rounded-xl transition-all duration-300 ${
+                `group relative flex items-center gap-3 w-full transition-all duration-150 py-2.5 pr-3 pl-4 ${
                   isActive
-                    ? 'text-primary font-semibold'
-                    : 'text-muted hover:text-main'
+                    ? 'bg-primary/10 text-primary font-semibold rounded-r-lg'
+                    : 'text-muted font-normal hover:bg-elevated hover:text-main rounded-lg'
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className="relative">
+                  {isActive && (
+                    <div 
+                      className="absolute left-0 top-0 bottom-0 w-1" 
+                      style={{ 
+                        background: 'var(--color-primary)',
+                        borderRadius: '0 2px 2px 0' 
+                      }} 
+                    />
+                  )}
+                  <div className="relative flex-shrink-0 flex items-center justify-center">
                     <item.icon 
-                      className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${
+                      className={`w-[18px] h-[18px] transition-colors ${
                         isActive 
-                          ? 'scale-110 drop-shadow-[0_2px_4px_rgba(var(--color-primary-rgb),0.3)]' 
-                          : 'group-hover:scale-110 group-hover:text-primary/70'
+                          ? 'text-primary' 
+                          : 'text-muted group-hover:text-main'
                       }`} 
-                      strokeWidth={isActive ? 2.5 : 2} 
+                      strokeWidth={isActive ? 2 : 1.8} 
                     />
                     {!isActive && hasUnread(item.id) && (
-                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-surface" />
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-surface" />
                     )}
                   </div>
-                  <span className="text-[16px] tracking-wide">{item.name}</span>
+                  <span className="text-sm">{item.name}</span>
                 </>
               )}
             </NavLink>
@@ -168,28 +169,19 @@ export const Sidebar: React.FC = () => {
 
       {/* User card at bottom */}
       {user && (
-        <div
-          className="mt-auto pt-4"
-          style={{ borderTop: '1px solid var(--color-border-subtle)' }}
-        >
+        <div className="mt-auto pt-3 border-t border-border-subtle">
           <NavLink
             to="/profile"
-            className={({ isActive }) =>
-              `group flex items-center gap-3 p-2.5 rounded-xl transition-colors ${
-                isActive ? 'bg-surface' : 'hover:bg-surface'
-              }`
-            }
+            className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-elevated transition-colors w-full"
           >
-            {/* Avatar with primary ring */}
-            <div className="relative">
+            {/* Avatar */}
+            <div className="relative flex-shrink-0">
               <div
-                className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white overflow-hidden flex-shrink-0"
+                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white overflow-hidden"
                 style={{
                   background: user.avatarUrl
                     ? undefined
                     : getAvatarColor(user.displayName),
-                  outline: '2px solid var(--color-primary)',
-                  outlineOffset: '2px',
                 }}
               >
                 {user.avatarUrl ? (
@@ -200,7 +192,7 @@ export const Sidebar: React.FC = () => {
               </div>
               {isOnline && (
                 <div
-                  className="absolute -bottom-1 -right-1 w-3.5 h-3.5 rounded-full animate-pulse z-10"
+                  className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full animate-pulse z-10"
                   style={{
                     background: 'var(--color-success)',
                     border: '2px solid var(--color-bg-surface)',
@@ -210,22 +202,15 @@ export const Sidebar: React.FC = () => {
             </div>
 
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-main line-clamp-1">
+              <p className="text-sm font-medium text-main line-clamp-1">
                 {user.displayName}
               </p>
-              {/* Member badge pill */}
-              <span
-                className="inline-flex items-center px-2 py-0.5 rounded-full text-[10px] font-semibold uppercase tracking-wider"
-                style={{
-                  background: 'var(--color-primary)',
-                  color: 'var(--color-on-primary)',
-                  opacity: 0.85,
-                }}
-              >
+              <p className="text-xs text-faint line-clamp-1">
                 {user.role === 'admin' ? 'Admin' : 'Member'}
-              </span>
+              </p>
             </div>
-            <ChevronRight size={16} className="text-muted group-hover:text-main transition-colors flex-shrink-0" />
+            
+            <ChevronRight size={14} className="text-faint group-hover:text-main transition-colors flex-shrink-0" />
           </NavLink>
         </div>
       )}
