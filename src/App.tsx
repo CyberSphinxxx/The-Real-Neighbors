@@ -3,18 +3,21 @@ import { Toaster } from 'react-hot-toast';
 import { AppShell } from './components/layout/AppShell';
 import { ProtectedRoute } from './components/layout/ProtectedRoute';
 import FeedPage from './pages/FeedPage';
-import LoginPage from './pages/LoginPage';
-import BirthdaysPage from './pages/BirthdaysPage';
-import EventsPage from './pages/EventsPage';
-import EventDetailPage from './pages/EventDetailPage';
-import WatchlistPage from './pages/WatchlistPage';
-import LinksPage from './pages/LinksPage';
-import ProfilePage from './pages/ProfilePage';
+import React, { Suspense } from 'react';
+import { PageSkeleton } from './components/ui/PageSkeleton';
+
+const LoginPage = React.lazy(() => import('./pages/LoginPage'));
+const BirthdaysPage = React.lazy(() => import('./pages/BirthdaysPage'));
+const EventsPage = React.lazy(() => import('./pages/EventsPage'));
+const EventDetailPage = React.lazy(() => import('./pages/EventDetailPage'));
+const WatchlistPage = React.lazy(() => import('./pages/WatchlistPage'));
+const LinksPage = React.lazy(() => import('./pages/LinksPage'));
+const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 
 function App() {
   return (
     <Router>
-      <Routes>
+      <Suspense fallback={<PageSkeleton />}><Routes>
         <Route path="/login" element={<LoginPage />} />
         
         <Route path="/" element={
@@ -30,7 +33,7 @@ function App() {
           <Route path="links" element={<LinksPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
-      </Routes>
+      </Routes></Suspense>
       <Toaster position="bottom-center" />
     </Router>
   );

@@ -225,7 +225,7 @@ export const ProfilePage: React.FC = () => {
             style={{ background: getAvatarColor(user.displayName) }}
           >
             {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt="" className="w-full h-full rounded-full object-cover" />
+              <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
               user.displayName.charAt(0).toUpperCase()
             )}
