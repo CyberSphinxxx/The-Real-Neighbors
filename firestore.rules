@@ -66,6 +66,12 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated() && (isAdmin() || request.resource.data.createdBy == request.auth.uid);
       allow update, delete: if isAuthenticated() && (isAdmin() || resource.data.createdBy == request.auth.uid);
+      
+      // Event notes subcollection
+      match /notes/{noteId} {
+        allow read: if isAuthenticated();
+        allow create, update, delete: if isAuthenticated();
+      }
     }
     
     // 6. links (Link Saver)
@@ -126,6 +132,12 @@ service cloud.firestore {
       // but for now we allow authenticated users to update it.
       allow update: if isAuthenticated();
       allow delete: if isAdmin();
+    }
+
+    // 12. birthdayMessages
+    match /birthdayMessages/{boardId} {
+      allow read: if isAuthenticated();
+      allow write: if isAuthenticated();
     }
   }
 }
