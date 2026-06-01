@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
-import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings } from 'lucide-react';
+import { NavLink, Link, useLocation } from 'react-router-dom';
+import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings, UserCircle } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -93,6 +93,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Events', path: '/events', id: 'events', icon: Calendar },
     { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
     { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
+    { name: 'My Profile', path: `/profile/${user?.handle || user?.id || ''}`, id: 'profile', icon: UserCircle },
     { name: 'Settings', path: '/settings', id: 'settings', icon: Settings },
   ];
 
@@ -170,8 +171,8 @@ export const Sidebar: React.FC = () => {
       {/* User card at bottom */}
       {user && (
         <div className="mt-auto pt-3 border-t border-border-subtle">
-          <NavLink
-            to="/profile"
+          <Link 
+            to={`/profile/${user.handle || user.id}`}
             className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-elevated transition-colors w-full"
           >
             {/* Avatar */}
@@ -211,7 +212,7 @@ export const Sidebar: React.FC = () => {
             </div>
             
             <ChevronRight size={14} className="text-faint group-hover:text-main transition-colors flex-shrink-0" />
-          </NavLink>
+          </Link>
         </div>
       )}
     </div>
