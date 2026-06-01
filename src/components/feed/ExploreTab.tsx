@@ -26,11 +26,12 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
   const [afterTokens, setAfterTokens] = useState<Record<string, string>>({}); // subreddit -> after
 
   // Initialize subreddits
-  const subreddits = user?.subreddits || [];
+  const subreddits = user?.subreddits?.length ? user.subreddits : DEFAULT_SUBREDDITS;
   
   useEffect(() => {
     if (user && (!user.subreddits || user.subreddits.length === 0)) {
       updateDoc('users', [user.id], { subreddits: DEFAULT_SUBREDDITS });
+      useAuthStore.getState().setUser({ ...user, subreddits: DEFAULT_SUBREDDITS });
     }
   }, [user]);
 
