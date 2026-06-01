@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { orderBy } from 'firebase/firestore';
+
+import { useVirtualizer } from '@tanstack/react-virtual';
 import { PostComposer } from '../components/feed/PostComposer';
 import { PostCard } from '../components/feed/PostCard';
 import { PostSkeleton } from '../components/feed/PostSkeleton';
@@ -9,6 +10,7 @@ import { subscribeToCollection } from '../lib/firestore';
 import { Users } from 'lucide-react';
 import { NotificationBell } from '../components/layout/NotificationBell';
 import { getAvatarColor } from '../utils/avatarColor';
+import { useAuthStore } from '../stores/authStore';
 import type { Post, User, RedditPost } from '../types';
 
 const FILTER_TYPES = ['All', 'Videos', 'Images', 'Colored', 'Links'];
@@ -54,10 +56,28 @@ export const FeedPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [openPost, setOpenPost] = useState<Post | RedditPost | null>(null);
 
+  // Pagination State
+  const [lastVisible, setLastVisible] = useState<any>(null);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
+
   const [isScrolledDown, setIsScrolledDown] = useState(false);
   const [pendingNewPostsCount, setPendingNewPostsCount] = useState(0);
   const renderedPostIdsRef = useRef<Set<string>>(new Set());
   const initialLoadRef = useRef(false);
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user?.subreddits) {
+      import('../lib/redditCache').then(({ isFresh, prefetchSubreddit }) => {
+        user.subreddits!.forEach((sub: string, index: number) => {
+          if (!isFresh(sub)) {
+            setTimeout(() => prefetchSubreddit(sub), index * 500);
+          }
+        });
+      });
+    }
+  }, [user?.subreddits]);
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -111,30 +131,100 @@ export const FeedPage: React.FC = () => {
   
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
-  useEffect(() => {
-    // Subscribe to posts collection, ordering by creation time descending
-    const unsubscribePosts = subscribeToCollection<Post>(
-      'posts',
-      (data) => {
-        const now = Date.now();
-        const validPosts = data.filter(p => !p.expiresAt || p.expiresAt > now);
-        setRawPosts(validPosts);
+  const fetchInitialPosts = async () => {
+    setIsLoading(true);
+    setRawPosts([]);
+    setLastVisible(null);
+    setHasMore(true);
+    
+    try {
+      const { collection, query, orderBy, limit, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(20));
+      const snapshot = await getDocs(q);
+      
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      setHasMore(docs.length === 20);
+      
+      const latestTs = docs.length > 0 ? docs[0].createdAt : Date.now();
+      
+      setRawPosts(docs);
+      setIsLoading(false);
+      return latestTs;
+    } catch (err) {
+      console.error(err);
+      setIsLoading(false);
+      return Date.now();
+    }
+  };
 
-        const expiredPosts = data.filter(p => p.expiresAt && p.expiresAt <= now);
-        if (expiredPosts.length > 0) {
-          import('firebase/firestore').then(({ writeBatch, doc }) => {
-            import('../lib/firebase').then(({ db }) => {
-              const batch = writeBatch(db);
-              expiredPosts.forEach(p => {
-                batch.delete(doc(db, 'posts', p.id));
-              });
-              batch.commit().catch(console.error);
-            });
+  const handleLoadMore = async () => {
+    if (!lastVisible || isLoadingMore || !hasMore) return;
+    setIsLoadingMore(true);
+    try {
+      const { collection, query, orderBy, limit, startAfter, getDocs } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      const q = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), startAfter(lastVisible), limit(20));
+      const snapshot = await getDocs(q);
+      
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+      setLastVisible(snapshot.docs[snapshot.docs.length - 1] || null);
+      if (docs.length < 20) setHasMore(false);
+      
+      setRawPosts(prev => {
+        const existing = new Map(prev.map(p => [p.id, p]));
+        docs.forEach(d => existing.set(d.id, d));
+        return Array.from(existing.values());
+      });
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsLoadingMore(false);
+    }
+  };
+
+  useEffect(() => {
+    let unsubscribeNewPosts = () => {};
+    let unsubscribePinned = () => {};
+
+    const init = async () => {
+      const latestTs = await fetchInitialPosts();
+      
+      const { collection, query, orderBy, where, onSnapshot } = await import('firebase/firestore');
+      const { db } = await import('../lib/firebase');
+      
+      const newQ = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), where('createdAt', '>', latestTs));
+      unsubscribeNewPosts = onSnapshot(newQ, (snap) => {
+        const newDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+        if (newDocs.length > 0) {
+          setRawPosts(prev => {
+            const existing = new Map(prev.map(p => [p.id, p]));
+            newDocs.forEach(d => existing.set(d.id, d));
+            return Array.from(existing.values());
           });
         }
-      },
-      orderBy('createdAt', 'desc')
-    );
+      });
+      
+      const pinnedQ = query(collection(db, 'posts'), where('isPinned', '==', true));
+      unsubscribePinned = onSnapshot(pinnedQ, (snap) => {
+        const pinnedDocs = snap.docs.map(d => ({ id: d.id, ...d.data() } as Post));
+        if (pinnedDocs.length > 0) {
+          setRawPosts(prev => {
+            const existing = new Map(prev.map(p => [p.id, p]));
+            pinnedDocs.forEach(d => existing.set(d.id, d));
+            return Array.from(existing.values());
+          });
+        }
+      });
+    };
+    
+    init();
+
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setRawPosts(prev => prev.filter(p => !p.expiresAt || p.expiresAt > now));
+    }, 60000);
 
     const unsubscribeUsers = subscribeToCollection<User>(
       'users',
@@ -143,7 +233,6 @@ export const FeedPage: React.FC = () => {
 
     const handleOpenPostModal = (e: CustomEvent) => {
       const postId = e.detail;
-      // Find the post
       import('../lib/firestore').then(({ getDoc }) => {
         getDoc<Post>('posts', [postId]).then(p => {
           if (p) setOpenPost(p);
@@ -157,7 +246,6 @@ export const FeedPage: React.FC = () => {
     };
 
     const handleScrollToPoll = () => {
-      // Small hack: wait for render then find the text 'Poll'
       setTimeout(() => {
         const h3s = Array.from(document.querySelectorAll('h3'));
         const pollHeader = h3s.find(h => h.textContent === 'Poll');
@@ -167,18 +255,38 @@ export const FeedPage: React.FC = () => {
       }, 500);
     };
 
+    const handleOptimisticDelete = (e: CustomEvent) => {
+      const postId = e.detail;
+      setRawPosts(prev => prev.filter(p => p.id !== postId));
+    };
+
+    const handleOptimisticRestore = (e: CustomEvent) => {
+      const post = e.detail;
+      setRawPosts(prev => {
+        const arr = [...prev, post];
+        arr.sort((a, b) => b.createdAt - a.createdAt);
+        return arr;
+      });
+    };
+
     window.addEventListener('openPostModal', handleOpenPostModal as EventListener);
     window.addEventListener('focusComposer', handleFocusComposer);
     window.addEventListener('scrollToPoll', handleScrollToPoll);
+    window.addEventListener('optimisticDeletePost', handleOptimisticDelete as EventListener);
+    window.addEventListener('optimisticRestorePost', handleOptimisticRestore as EventListener);
 
     return () => {
-      unsubscribePosts();
+      unsubscribeNewPosts();
+      unsubscribePinned();
+      clearInterval(interval);
       unsubscribeUsers();
       window.removeEventListener('openPostModal', handleOpenPostModal as EventListener);
       window.removeEventListener('focusComposer', handleFocusComposer);
       window.removeEventListener('scrollToPoll', handleScrollToPoll);
+      window.removeEventListener('optimisticDeletePost', handleOptimisticDelete as EventListener);
+      window.removeEventListener('optimisticRestorePost', handleOptimisticRestore as EventListener);
     };
-  }, []);
+  }, [activeType, activeMember, sortBy]);
 
   const sortedAndFilteredPosts = useMemo(() => {
     let filtered = [...posts];
@@ -239,6 +347,15 @@ export const FeedPage: React.FC = () => {
   };
 
   const hasActiveFilters = activeType !== 'All' || activeMember !== null || sortBy !== 'Latest';
+
+  const isVirtual = sortedAndFilteredPosts.length > 30;
+  const virtualizer = useVirtualizer({
+    count: isVirtual ? sortedAndFilteredPosts.length : 0,
+    getScrollElement: () => document.getElementById('main-scroll-container'),
+    estimateSize: () => 400,
+    overscan: 5,
+  });
+
 
   const handleClearFilters = () => {
     setActiveType('All');
@@ -370,7 +487,7 @@ export const FeedPage: React.FC = () => {
                         title={u.displayName}
                       >
                         {u.avatarUrl ? (
-                          <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                          <img src={u.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                         ) : (
                           u.displayName.charAt(0).toUpperCase()
                         )}
@@ -468,9 +585,53 @@ export const FeedPage: React.FC = () => {
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-4">
-            {sortedAndFilteredPosts.map((post) => (
-              <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={users} />
-            ))}
+            {isVirtual ? (
+              <div
+                style={{
+                  height: `${virtualizer.getTotalSize()}px`,
+                  width: '100%',
+                  position: 'relative',
+                }}
+              >
+                {virtualizer.getVirtualItems().map((virtualRow) => {
+                  const post = sortedAndFilteredPosts[virtualRow.index];
+                  return (
+                    <div
+                      key={post.id}
+                      ref={virtualizer.measureElement}
+                      data-index={virtualRow.index}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        transform: `translateY(${virtualRow.start}px)`,
+                      }}
+                      className="pb-4"
+                    >
+                      <PostCard post={post} onOpenPost={setOpenPost} allUsers={users} />
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              sortedAndFilteredPosts.map((post) => (
+                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={users} />
+              ))
+            )}
+            
+            {hasMore ? (
+              <button 
+                onClick={handleLoadMore} 
+                disabled={isLoadingMore}
+                className="w-full max-w-xs mx-auto my-4 py-2 border border-border-subtle rounded-full text-muted hover:text-main hover:bg-base transition-colors flex items-center justify-center gap-2"
+              >
+                {isLoadingMore ? <span className="animate-spin opacity-70">⏳</span> : null}
+                {isLoadingMore ? 'Loading...' : 'Load more posts'}
+              </button>
+            ) : (
+              <p className="text-faint text-xs text-center my-4">You've seen everything. Go touch grass. 🌿</p>
+            )}
           </div>
         )}
       </div>
