@@ -8,7 +8,7 @@ interface StreakData {
   longestStreak: number;
 }
 
-export const GroupStreakWidget: React.FC = () => {
+const GroupStreakWidgetComponent: React.FC = () => {
   const [streak, setStreak] = useState<StreakData | null>(null);
 
   useEffect(() => {
@@ -95,3 +95,5 @@ export const GroupStreakWidget: React.FC = () => {
     </div>
   );
 };
+
+export const GroupStreakWidget = React.memo(GroupStreakWidgetComponent);

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { TopBar } from './TopBar';
@@ -11,6 +11,8 @@ import { MiniPollWidget } from './MiniPollWidget';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { usePresence } from '../../hooks/usePresence';
 import { useStartupNotifications } from '../../hooks/useStartupNotifications';
+import { useAuthStore } from '../../stores/authStore';
+import { loadFromStorage } from '../../lib/redditCache';
 
 export const AppShell: React.FC = () => {
   usePresence();
@@ -18,6 +20,13 @@ export const AppShell: React.FC = () => {
   
   const location = useLocation();
   const isProfile = location.pathname === '/profile';
+  const { user } = useAuthStore();
+
+  useEffect(() => {
+    if (user?.subreddits) {
+      user.subreddits.forEach((sub) => loadFromStorage(sub));
+    }
+  }, [user?.subreddits]);
 
   return (
     <div className="flex flex-col h-screen bg-base md:flex-row overflow-hidden">

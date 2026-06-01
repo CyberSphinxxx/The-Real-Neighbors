@@ -4,7 +4,7 @@ import { updateDoc, subscribeToCollection, getDoc, addDoc } from '../../lib/fire
 import type { Poll, User } from '../../types';
 import { Plus, Check, Loader2 } from 'lucide-react';
 
-export const MiniPollWidget: React.FC = () => {
+const MiniPollWidgetComponent: React.FC = () => {
   const { user } = useAuthStore();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [pollAuthor, setPollAuthor] = useState<User | null>(null);
@@ -68,10 +68,13 @@ export const MiniPollWidget: React.FC = () => {
 
   const handleVote = async (optionId: string) => {
     if (!poll || !user || isExpired) return;
+    const oldPoll = poll;
     try {
       const newVotes = { ...poll.votes, [user.id]: optionId };
+      setPoll({ ...poll, votes: newVotes });
       await updateDoc('polls', [poll.id], { votes: newVotes });
     } catch (e) {
+      setPoll(oldPoll);
       console.error('Failed to vote', e);
     }
   };
@@ -307,3 +310,5 @@ export const MiniPollWidget: React.FC = () => {
     </div>
   );
 };
+
+export const MiniPollWidget = React.memo(MiniPollWidgetComponent);

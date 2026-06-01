@@ -2,7 +2,7 @@ import React from 'react';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { formatTimeAgo } from '../../utils/date';
 
-export const OnlineWidget: React.FC = () => {
+const OnlineWidgetComponent: React.FC = () => {
   const { onlineUsers, offlineUsers } = useOnlineUsers();
   
   return (
@@ -33,7 +33,7 @@ export const OnlineWidget: React.FC = () => {
                 style={{ background: u.avatarUrl ? undefined : u.avatarColor || 'var(--color-primary)' }}
               >
                 {u.avatarUrl ? (
-                  <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                  <img src={u.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 ) : (
                   u.displayName.charAt(0).toUpperCase()
                 )}
@@ -69,7 +69,7 @@ export const OnlineWidget: React.FC = () => {
               style={{ background: u.avatarUrl ? undefined : u.avatarColor || 'var(--color-primary)' }}
             >
               {u.avatarUrl ? (
-                <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                <img src={u.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               ) : (
                 u.displayName.charAt(0).toUpperCase()
               )}
@@ -86,3 +86,5 @@ export const OnlineWidget: React.FC = () => {
     </div>
   );
 };
+
+export const OnlineWidget = React.memo(OnlineWidgetComponent);
