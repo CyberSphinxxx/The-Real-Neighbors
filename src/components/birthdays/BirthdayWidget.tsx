@@ -11,7 +11,7 @@ const BirthdayWidgetComponent: React.FC = () => {
 
   useEffect(() => {
     const unsubscribe = subscribeToCollection<User>('users', (users) => {
-      const withBirthdays = users.filter(u => !!u.birthdate);
+      const withBirthdays = users.filter(u => !!u.birthdate && u.privacyPrefs?.showBirthday !== false);
       const sorted = withBirthdays.sort((a, b) =>
         getDaysUntilBirthday(a.birthdate!) - getDaysUntilBirthday(b.birthdate!)
       );
@@ -35,10 +35,9 @@ const BirthdayWidgetComponent: React.FC = () => {
       {/* Widget header */}
       <div className="flex items-center justify-between mb-3">
         <span
-          className="text-xs font-semibold uppercase tracking-widest flex items-center gap-1.5"
-          style={{ color: 'var(--color-text-muted)' }}
+          className="text-xs font-semibold uppercase tracking-wide text-muted flex items-center"
         >
-          <Cake size={13} />
+          <Cake size={14} className="mr-1.5" />
           Birthdays
         </span>
         <Link
