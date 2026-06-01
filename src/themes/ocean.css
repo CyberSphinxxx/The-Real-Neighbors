@@ -1,0 +1,31 @@
+:root.ocean {
+  --color-bg-base: #083344; /* Cyan 950 */
+  --color-bg-surface: #164e63; /* Cyan 900 */
+  --color-bg-elevated: #155e75; /* Cyan 800 */
+  
+  --color-primary: #38bdf8; /* Sky 400 */
+  --color-primary-hover: #0ea5e9; /* Sky 500 */
+  --color-on-primary: #0c4a6e;
+  
+  --color-secondary: #34d399; /* Emerald 400 */
+  --color-accent: #818cf8; /* Indigo 400 */
+  
+  --color-text-main: #f0f9ff;
+  --color-text-muted: #7dd3fc;
+  --color-text-faint: #38bdf8;
+  
+  --color-border: #0e7490;
+  --color-border-subtle: #164e63;
+  
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  /* Avatar palette */
+  --avatar-color-0: #38bdf8;
+  --avatar-color-1: #34d399;
+  --avatar-color-2: #818cf8;
+  --avatar-color-3: #f472b6;
+  --avatar-color-4: #fbbf24;
+  --avatar-color-5: #f87171;
+}
