@@ -30,7 +30,7 @@ export const Tooltip: React.FC<TooltipProps> = ({ children, content, disabled = 
           style={{ 
             background: 'var(--color-bg-elevated)',
             color: 'var(--color-text-main)',
-            border: '1px solid var(--color-border-default)',
+            border: '1px solid var(--color-border-border-subtle)',
             maxWidth: '200px',
             width: 'max-content'
           }}
