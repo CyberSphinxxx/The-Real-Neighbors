@@ -1,0 +1,31 @@
+:root.forest {
+  --color-bg-base: #064e3b; /* Emerald 900 */
+  --color-bg-surface: #065f46; /* Emerald 800 */
+  --color-bg-elevated: #047857; /* Emerald 700 */
+  
+  --color-primary: #34d399; /* Emerald 400 */
+  --color-primary-hover: #10b981; /* Emerald 500 */
+  --color-on-primary: #022c22;
+  
+  --color-secondary: #fbbf24; /* Amber 400 */
+  --color-accent: #a3e635; /* Lime 400 */
+  
+  --color-text-main: #ecfdf5;
+  --color-text-muted: #6ee7b7;
+  --color-text-faint: #10b981;
+  
+  --color-border: #047857;
+  --color-border-subtle: #065f46;
+  
+  --color-danger: #f87171;
+  --color-success: #6ee7b7;
+  --color-warning: #fbbf24;
+
+  /* Avatar palette */
+  --avatar-color-0: #34d399;
+  --avatar-color-1: #fbbf24;
+  --avatar-color-2: #a3e635;
+  --avatar-color-3: #60a5fa;
+  --avatar-color-4: #f472b6;
+  --avatar-color-5: #f87171;
+}
