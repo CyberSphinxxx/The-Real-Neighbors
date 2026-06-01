@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { subscribeToCollection, addDoc, getDoc } from '../../lib/firestore';
+import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/firestore';
 import { orderBy } from 'firebase/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import type { Comment, User } from '../../types';
@@ -155,6 +155,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
         createdAt: Date.now(),
       };
       await addDoc<Omit<Comment, 'id'>>(`posts/${postId}/comments`, newComment as any);
+      import('firebase/firestore').then(({ increment }) => {
+        updateDoc('users', [user.id], { commentCount: increment(1) }).catch(console.error);
+      });
       
       // Handle notifications
       import('../../lib/notifications').then(async ({ writeNotification }) => {
@@ -248,7 +251,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
               className="absolute bottom-full mb-2 left-0 z-50 rounded-xl shadow-lg border max-h-[150px] overflow-y-auto custom-scrollbar"
               style={{
                 background: 'var(--color-bg-elevated)',
-                borderColor: 'var(--color-border-default)',
+                borderColor: 'var(--color-border-border-subtle)',
                 minWidth: '200px'
               }}
             >
