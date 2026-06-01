@@ -110,7 +110,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
 
   useEffect(() => {
     if (!user || user.id === post.authorId) return;
-    if (hasSeen) return;
+    if (hasSeen || user.privacyPrefs?.showSeenBy === false) return;
 
     let timeout: ReturnType<typeof setTimeout>;
     
@@ -238,6 +238,11 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
       setOptimisticReactions(newReactions);
       try {
         await updateDoc('posts', [post.id], { reactions: newReactions });
+        if (!hadReaction) {
+          import('firebase/firestore').then(({ increment }) => {
+            updateDoc('users', [user.id], { reactionCount: increment(1) }).catch(console.error);
+          });
+        }
       } catch (err) {
         setOptimisticReactions(prevReactions);
         toast.error('Failed to react. Try again.');
@@ -700,7 +705,13 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
 
             let reactorNamesString = '';
             if (count > 0 && allUsers) {
-              const names = reactors.map(uid => allUsers.find(u => u.id === uid)?.displayName || 'Unknown');
+              const names = reactors.map(uid => {
+                const reactorUser = allUsers.find(u => u.id === uid);
+                if (reactorUser?.privacyPrefs?.showReactions === false && reactorUser.id !== user?.id) {
+                  return 'Someone';
+                }
+                return reactorUser?.displayName || 'Unknown';
+              });
               if (names.length > 3) {
                 reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
               } else {
