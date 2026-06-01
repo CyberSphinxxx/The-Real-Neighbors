@@ -385,9 +385,7 @@ export const FeedPage: React.FC = () => {
   };
 
   return (
-    <div className="relative">
-      {/* Content Container — global Header handles the fixed bar */}
-      <div>
+    <div className="max-w-[680px] mx-auto relative pb-12">
       {/* MOBILE TAB SWITCHER */}
       <div className="md:hidden flex items-center bg-surface border border-border-subtle rounded-full p-1 mb-4 mt-4 shadow-sm mx-2 sm:mx-0">
         <button
@@ -667,8 +665,6 @@ export const FeedPage: React.FC = () => {
       ) : (
         <ExploreTab onOpenPost={setOpenPost} />
       )}
-      </div>
-
       {/* Post Detail Modal */}
       {openPost && (
         <PostDetailModal

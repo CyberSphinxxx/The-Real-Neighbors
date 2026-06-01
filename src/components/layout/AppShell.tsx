@@ -62,9 +62,9 @@ export const AppShell: React.FC = () => {
         className="flex-1 overflow-y-auto"
         style={{ paddingTop: '48px', height: '100vh' }}
       >
-        <div className="mx-auto max-w-[680px] px-4 py-6 md:px-6 w-full pb-24 md:pb-8">
+        <div className="w-full px-4 py-6 md:px-6 pb-24 md:pb-8">
           <ErrorBoundary>
-            <div className="animate-in fade-in duration-300">
+            <div key={location.pathname} className="animate-in fade-in duration-300">
               <Outlet />
             </div>
           </ErrorBoundary>

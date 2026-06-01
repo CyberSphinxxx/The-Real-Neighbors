@@ -36,7 +36,7 @@ function App() {
           <Route path="events/:id" element={<EventDetailPage />} />
           <Route path="birthdays" element={<BirthdaysPage />} />
           <Route path="links" element={<LinksPage />} />
-          <Route path="profile" element={<ProfilePage />} />
+          <Route path="profile/:handle" element={<ProfilePage />} />
         </Route>
         
         <Route path="/settings" element={
