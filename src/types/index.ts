@@ -27,6 +27,7 @@ export interface User {
     showReactions?: boolean;
     showSeenBy?: boolean;
   };
+  postCount?: number;
   commentCount?: number;
   reactionCount?: number;
 }

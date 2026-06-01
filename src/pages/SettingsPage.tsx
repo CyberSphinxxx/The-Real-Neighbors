@@ -8,7 +8,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc } from '../lib/firestore';
-import { useTheme } from '../hooks/useTheme';
+import { useTheme, type ThemeName } from '../hooks/useTheme';
 import { getAvatarColor } from '../utils/avatarColor';
 import toast from 'react-hot-toast';
 import { collection, addDoc } from 'firebase/firestore';
@@ -153,7 +153,7 @@ export const SettingsPage: React.FC = () => {
   };
 
 
-  const handleThemeChange = (theme: string) => {
+  const handleThemeChange = (theme: ThemeName) => {
     setTheme(theme);
   };
 
@@ -481,7 +481,7 @@ export const SettingsPage: React.FC = () => {
                     ].map(t => (
                       <div 
                         key={t.id}
-                        onClick={() => handleThemeChange(t.id)}
+                        onClick={() => handleThemeChange(t.id as ThemeName)}
                         className={`bg-elevated rounded-xl border p-3 cursor-pointer transition-all hover:border-primary relative ${currentTheme === t.id ? 'border-primary' : 'border-border-subtle'}`}
                       >
                         <div className="w-12 h-12 rounded-lg mb-2 shadow-sm ring-1 ring-inset ring-black/10" style={{ background: t.bg }}>
