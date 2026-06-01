@@ -6,11 +6,15 @@ import { MobileNav } from './MobileNav';
 import { BirthdayWidget } from '../birthdays/BirthdayWidget';
 import { EventWidget } from '../events/EventWidget';
 import { OnlineWidget } from './OnlineWidget';
+import { GroupStreakWidget } from './GroupStreakWidget';
+import { MiniPollWidget } from './MiniPollWidget';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { usePresence } from '../../hooks/usePresence';
+import { useStartupNotifications } from '../../hooks/useStartupNotifications';
 
 export const AppShell: React.FC = () => {
   usePresence();
+  useStartupNotifications();
   
   const location = useLocation();
   const isProfile = location.pathname === '/profile';
@@ -28,7 +32,7 @@ export const AppShell: React.FC = () => {
       </div>
 
       {/* Center Content — scrolls independently */}
-      <main className="flex-1 overflow-y-auto h-full">
+      <main id="main-scroll-container" className="flex-1 overflow-y-auto h-full">
         <div className="mx-auto max-w-[680px] px-4 py-6 md:px-6 w-full pb-24 md:pb-8">
           <ErrorBoundary>
             <div className="animate-in fade-in duration-300">
@@ -44,6 +48,8 @@ export const AppShell: React.FC = () => {
           <BirthdayWidget />
           <EventWidget />
           <OnlineWidget />
+          <GroupStreakWidget />
+          <MiniPollWidget />
         </aside>
       )}
 

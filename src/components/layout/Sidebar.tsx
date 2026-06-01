@@ -1,23 +1,119 @@
-import React from 'react';
-import { NavLink } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
+import { subscribeToCollection } from '../../lib/firestore';
+import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuthStore();
   const { onlineUsers } = useOnlineUsers();
+  const location = useLocation();
   
   const isOnline = user ? onlineUsers.some(u => u.uid === user.id) : false;
 
+  const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
+  const [latestDates, setLatestDates] = useState<Record<string, string>>({});
+  const [hasUpcomingBirthdays, setHasUpcomingBirthdays] = useState(false);
+
+  useEffect(() => {
+    if (!user) return;
+    const stored = localStorage.getItem(`lastVisited_${user.id}`);
+    if (stored) {
+      setLastVisited(JSON.parse(stored));
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    const path = location.pathname.substring(1);
+    if (['events', 'birthdays', 'watchlist', 'links'].includes(path)) {
+      setLastVisited(prev => {
+        const next = { ...prev, [path]: new Date().toISOString() };
+        localStorage.setItem(`lastVisited_${user.id}`, JSON.stringify(next));
+        return next;
+      });
+    }
+  }, [location, user]);
+
+  useEffect(() => {
+    if (!user) return;
+
+    const unsubEvents = subscribeToCollection<Event>('events', (data) => {
+      if (data.length > 0) {
+        const latest = Math.max(...data.map(d => new Date(d.createdAt).getTime()));
+        setLatestDates(prev => ({ ...prev, events: new Date(latest).toISOString() }));
+      }
+    });
+
+    const unsubWatchlist = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
+      const othersData = data.filter(d => d.userId !== user.id);
+      if (othersData.length > 0) {
+        const latest = Math.max(...othersData.map(d => new Date(d.createdAt).getTime()));
+        setLatestDates(prev => ({ ...prev, watchlist: new Date(latest).toISOString() }));
+      }
+    });
+
+    const unsubLinks = subscribeToCollection<SavedLink>('links', (data) => {
+      if (data.length > 0) {
+        const latest = Math.max(...data.map(d => new Date(d.createdAt).getTime()));
+        setLatestDates(prev => ({ ...prev, links: new Date(latest).toISOString() }));
+      }
+    });
+
+    const unsubUsers = subscribeToCollection<User>('users', (data) => {
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      const nextWeek = new Date(today);
+      nextWeek.setDate(today.getDate() + 7);
+      
+      const hasUpcoming = data.some(u => {
+        if (!u.birthdate) return false;
+        const [_, month, day] = u.birthdate.split('-');
+        const bdayThisYear = new Date(today.getFullYear(), parseInt(month)-1, parseInt(day));
+        if (bdayThisYear < today) bdayThisYear.setFullYear(today.getFullYear() + 1);
+        return bdayThisYear >= today && bdayThisYear <= nextWeek;
+      });
+      setHasUpcomingBirthdays(hasUpcoming);
+    });
+
+    return () => {
+      unsubEvents();
+      unsubWatchlist();
+      unsubLinks();
+      unsubUsers();
+    };
+  }, [user]);
+
   const navItems = [
-    { name: 'Feed', path: '/', icon: Home },
-    { name: 'Watchlist', path: '/watchlist', icon: Tv },
-    { name: 'Events', path: '/events', icon: Calendar },
-    { name: 'Birthdays', path: '/birthdays', icon: Cake },
-    { name: 'Links', path: '/links', icon: LinkIcon },
+    { name: 'Feed', path: '/', id: 'feed', icon: Home },
+    { name: 'Watchlist', path: '/watchlist', id: 'watchlist', icon: Tv },
+    { name: 'Events', path: '/events', id: 'events', icon: Calendar },
+    { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
+    { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
   ];
+
+  const hasUnread = (id: string) => {
+    if (id === 'birthdays') {
+      const visited = lastVisited[id];
+      // If they haven't visited since we detected an upcoming bday, show dot.
+      // Wait, birthdays last 7 days. Better: if hasUpcomingBirthdays and (visited is null or visited is older than 1 day)
+      // Actually the prompt says: "show a dot if any user has a birthday within the next 7 days" and "Dot disappears immediately on navigating".
+      // If hasUpcomingBirthdays is true, and they haven't visited since we calculated it? 
+      // Let's just say: if hasUpcomingBirthdays and (!visited or visited was before today)
+      if (!hasUpcomingBirthdays) return false;
+      if (!visited) return true;
+      const today = new Date();
+      today.setHours(0,0,0,0);
+      return new Date(visited) < today;
+    }
+    
+    if (!latestDates[id]) return false;
+    if (!lastVisited[id]) return true;
+    return latestDates[id] > lastVisited[id];
+  };
 
   return (
     <div className="flex flex-col h-full justify-between py-6 px-4">
@@ -49,14 +145,19 @@ export const Sidebar: React.FC = () => {
             >
               {({ isActive }) => (
                 <>
-                  <item.icon 
-                    className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${
-                      isActive 
-                        ? 'scale-110 drop-shadow-[0_2px_4px_rgba(var(--color-primary-rgb),0.3)]' 
-                        : 'group-hover:scale-110 group-hover:text-primary/70'
-                    }`} 
-                    strokeWidth={isActive ? 2.5 : 2} 
-                  />
+                  <div className="relative">
+                    <item.icon 
+                      className={`w-6 h-6 flex-shrink-0 transition-transform duration-300 ${
+                        isActive 
+                          ? 'scale-110 drop-shadow-[0_2px_4px_rgba(var(--color-primary-rgb),0.3)]' 
+                          : 'group-hover:scale-110 group-hover:text-primary/70'
+                      }`} 
+                      strokeWidth={isActive ? 2.5 : 2} 
+                    />
+                    {!isActive && hasUnread(item.id) && (
+                      <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-primary rounded-full border-2 border-surface" />
+                    )}
+                  </div>
                   <span className="text-[16px] tracking-wide">{item.name}</span>
                 </>
               )}
