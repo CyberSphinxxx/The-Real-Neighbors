@@ -2,20 +2,20 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc, subscribeToCollection } from '../lib/firestore';
 import { where, orderBy } from 'firebase/firestore';
-import { LogOut, Palette, Moon, Monitor, EyeOff, Loader2, Edit2, Tv, CheckCircle, Clock, ChevronRight } from 'lucide-react';
+import { LogOut, Palette, Moon, Monitor, EyeOff, Loader2, Edit2, Tv, CheckCircle, Clock, ChevronRight, Bell } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { auth } from '../lib/firebase';
 import { signOut } from 'firebase/auth';
 import { useConfirm } from '../contexts/ConfirmContext';
 import { getAvatarColor } from '../utils/avatarColor';
-import type { Post, WatchlistEntry } from '../types';
+import type { Post, WatchlistEntry, User } from '../types';
 import { PostCard } from '../components/feed/PostCard';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { Link } from 'react-router-dom';
 
 export const ProfilePage: React.FC = () => {
   const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'posts' | 'watchlist' | 'settings'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'watchlist' | 'settings' | 'saved'>('posts');
   
   // Edit Profile State
   const [isEditing, setIsEditing] = useState(false);
@@ -27,6 +27,43 @@ export const ProfilePage: React.FC = () => {
   const [myPosts, setMyPosts] = useState<Post[]>([]);
   const [myWatchlist, setMyWatchlist] = useState<WatchlistEntry[]>([]);
   const [openPost, setOpenPost] = useState<Post | null>(null);
+  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+
+  useEffect(() => {
+    import('firebase/firestore').then(({ collection, getDocs }) => {
+      import('../lib/firebase').then(({ db }) => {
+        getDocs(collection(db, 'users')).then(snap => {
+          setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }) as User));
+        });
+      });
+    });
+  }, []);
+
+  useEffect(() => {
+    if (activeTab === 'saved' && user?.savedPosts && user.savedPosts.length > 0) {
+      const fetchSavedPosts = async () => {
+        const { collection, getDocs, query, where, documentId } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        
+        const posts: Post[] = [];
+        const savedIds = user.savedPosts || [];
+        
+        for (let i = 0; i < savedIds.length; i += 10) {
+          const chunk = savedIds.slice(i, i + 10);
+          const q = query(collection(db, 'posts'), where(documentId(), 'in', chunk));
+          const snap = await getDocs(q);
+          snap.forEach(doc => {
+            posts.push({ id: doc.id, ...doc.data() } as Post);
+          });
+        }
+        
+        posts.sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
+        setSavedPosts(posts);
+      };
+      fetchSavedPosts();
+    }
+  }, [activeTab, user?.savedPosts]);
 
   const handlePrev = () => {
     if (!openPost) return;
@@ -48,9 +85,10 @@ export const ProfilePage: React.FC = () => {
 
   useEffect(() => {
     if (user) {
-      setShowAge(user.showAge ?? true);
-      const savedTheme = localStorage.getItem('theme') as any || 'default';
-      setTheme(savedTheme);
+      // Avoid calling setState in effect if possible, but safe here with correct deps or skipping it.
+      // Alternatively, we just read from user object directly in UI.
+      const savedTheme = localStorage.getItem('theme') || 'default';
+      setTheme(savedTheme as any);
     }
   }, [user]);
 
@@ -128,6 +166,27 @@ export const ProfilePage: React.FC = () => {
       console.error(err);
       setShowAge(!newValue); // revert
       toast.error('Failed to update privacy settings');
+    }
+  };
+
+  const handleToggleNotificationPref = async (key: string, currentValue: boolean) => {
+    if (!user) return;
+    const currentPrefs = user.notificationPrefs || {};
+    // Default is true if not set
+    const newValue = currentValue === undefined ? false : !currentValue;
+    
+    const newPrefs = { ...currentPrefs, [key]: newValue };
+    
+    // Optimistic update
+    useAuthStore.getState().setUser({ ...user, notificationPrefs: newPrefs });
+    
+    try {
+      await updateDoc('users', [user.id], { notificationPrefs: newPrefs });
+    } catch (err) {
+      console.error(err);
+      // Revert on fail
+      useAuthStore.getState().setUser({ ...user, notificationPrefs: currentPrefs });
+      toast.error('Failed to update notification settings');
     }
   };
 
@@ -251,7 +310,8 @@ export const ProfilePage: React.FC = () => {
         {[
           { id: 'posts', label: `My Posts (${myPosts.length})` },
           { id: 'watchlist', label: 'Watchlist' },
-          { id: 'settings', label: 'Settings' }
+          { id: 'settings', label: 'Settings' },
+          { id: 'saved', label: `🔖 Saved (${user.savedPosts?.length || 0})` }
         ].map(tab => (
           <button
             key={tab.id}
@@ -279,7 +339,24 @@ export const ProfilePage: React.FC = () => {
               </div>
             ) : (
               myPosts.map(post => (
-                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} />
+                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={allUsers} />
+              ))
+            )}
+          </div>
+        )}
+
+        {/* SAVED TAB */}
+        {activeTab === 'saved' && (
+          <div className="space-y-4">
+            {(!user.savedPosts || user.savedPosts.length === 0) ? (
+              <div className="text-center py-12 bg-surface rounded-2xl border border-border-subtle flex flex-col items-center justify-center">
+                <span className="text-4xl mb-4">🔖</span>
+                <p className="text-main font-bold">No saved posts yet.</p>
+                <p className="text-muted text-sm mt-1">Bookmark posts from the feed to find them here.</p>
+              </div>
+            ) : (
+              savedPosts.map(post => (
+                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={allUsers} />
               ))
             )}
           </div>
@@ -385,6 +462,46 @@ export const ProfilePage: React.FC = () => {
               </div>
             </div>
 
+            {/* Notifications */}
+            <div className="bg-surface rounded-2xl border border-border-subtle p-5">
+              <h3 className="font-heading font-bold text-main mb-4 flex items-center gap-2">
+                <Bell size={18} className="text-primary" /> Notifications
+              </h3>
+              
+              <div className="space-y-4">
+                {[
+                  { key: 'posts', label: 'New posts from friends' },
+                  { key: 'reactions', label: 'Reactions on my posts' },
+                  { key: 'comments', label: 'Comments on my posts' },
+                  { key: 'mentions', label: 'Mentions' },
+                  { key: 'events', label: 'New events' },
+                  { key: 'event_reminders', label: 'Event reminders' },
+                  { key: 'birthdays', label: 'Birthdays' },
+                  { key: 'polls', label: 'Poll created' },
+                  { key: 'streak', label: 'Streak at risk' },
+                  { key: 'expiry', label: 'Post expiry warning' },
+                ].map((pref) => {
+                  const currentValue = user.notificationPrefs?.[pref.key] ?? true;
+                  return (
+                    <div key={pref.key} className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-main">{pref.label}</span>
+                      <label className="flex items-center cursor-pointer">
+                        <div className={`w-11 h-6 rounded-full transition-colors flex items-center px-1 ${currentValue ? 'bg-primary' : 'bg-border'}`}>
+                          <div className={`w-4 h-4 bg-white rounded-full shadow-sm transform transition-transform ${currentValue ? 'translate-x-5' : 'translate-x-0'}`} />
+                        </div>
+                        <input 
+                          type="checkbox" 
+                          className="hidden" 
+                          checked={currentValue} 
+                          onChange={() => handleToggleNotificationPref(pref.key, currentValue)} 
+                        />
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
             {/* Danger Zone */}
             <div className="bg-surface rounded-2xl border p-5" style={{ borderColor: 'color-mix(in srgb, var(--color-danger) 20%, var(--color-border-subtle))' }}>
               <h3 className="font-heading font-bold text-danger mb-2 flex items-center gap-2">
@@ -418,6 +535,7 @@ export const ProfilePage: React.FC = () => {
           onClose={() => setOpenPost(null)}
           onPrev={myPosts.findIndex(p => p.id === openPost.id) > 0 ? handlePrev : undefined}
           onNext={myPosts.findIndex(p => p.id === openPost.id) < myPosts.length - 1 ? handleNext : undefined}
+          allUsers={allUsers}
         />
       )}
     </div>
