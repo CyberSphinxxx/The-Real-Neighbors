@@ -1,0 +1,31 @@
+:root.synthwave {
+  --color-bg-base: #1e102f;
+  --color-bg-surface: #2b1744;
+  --color-bg-elevated: #3d2162;
+  
+  --color-primary: #f0abfc; /* light pink */
+  --color-primary-hover: #e879f9;
+  --color-on-primary: #1e102f;
+  
+  --color-secondary: #06b6d4; /* cyan */
+  --color-accent: #facc15;
+  
+  --color-text-main: #fdf4ff;
+  --color-text-muted: #d946ef; /* muted pink */
+  --color-text-faint: #a21caf;
+  
+  --color-border: #86198f;
+  --color-border-subtle: #4a044e;
+  
+  --color-danger: #ef4444;
+  --color-success: #10b981;
+  --color-warning: #f59e0b;
+
+  /* Avatar palette */
+  --avatar-color-0: #f0abfc;
+  --avatar-color-1: #06b6d4;
+  --avatar-color-2: #facc15;
+  --avatar-color-3: #10b981;
+  --avatar-color-4: #ef4444;
+  --avatar-color-5: #3b82f6;
+}
