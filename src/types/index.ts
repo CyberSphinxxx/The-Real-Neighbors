@@ -11,6 +11,24 @@ export interface User {
   subreddits?: string[];
   savedPosts?: string[];
   notificationPrefs?: Record<string, boolean>;
+  feedPrefs?: {
+    defaultSort?: 'latest' | 'reacted';
+    defaultFilter?: 'all' | 'videos' | 'images' | 'colored' | 'links';
+    autoLoad?: boolean;
+    showSeenBy?: boolean;
+    showReactionTooltips?: boolean;
+    compactCards?: boolean;
+  };
+  privacyPrefs?: {
+    showOnlineStatus?: boolean;
+    showLastSeen?: boolean;
+    showBirthday?: boolean;
+    showBirthYear?: boolean;
+    showReactions?: boolean;
+    showSeenBy?: boolean;
+  };
+  commentCount?: number;
+  reactionCount?: number;
 }
 
 export interface Post {
