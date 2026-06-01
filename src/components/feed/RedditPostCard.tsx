@@ -25,7 +25,7 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
   const isLink = !isImage && !isVideo && post.url && !post.url.includes('reddit.com/r/');
 
   return (
-    <div className="bg-surface rounded-xl border border-default shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
+    <div className="bg-surface rounded-xl border border-border-subtle shadow-sm hover:shadow-md transition-shadow overflow-hidden flex flex-col">
       {/* Header */}
       <div className="p-4 pb-3 flex items-start justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
@@ -142,7 +142,7 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
           </div>
           <button 
             onClick={() => onOpenPost(post)}
-            className="px-3 py-1.5 bg-elevated hover:bg-border border border-default rounded-full text-xs font-semibold text-main transition-colors"
+            className="px-3 py-1.5 bg-elevated hover:bg-border border border-border-subtle rounded-full text-xs font-semibold text-main transition-colors"
           >
             View Post
           </button>
