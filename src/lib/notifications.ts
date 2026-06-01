@@ -1,6 +1,50 @@
-import { getDoc, addDoc } from './firestore';
+import { getDoc } from './firestore';
 import type { User, Notification } from '../types';
 import { useAuthStore } from '../stores/authStore';
+
+// Batching queue
+type QueuedNotification = {
+  path: string;
+  data: Omit<Notification, 'id'>;
+};
+
+let notificationQueue: QueuedNotification[] = [];
+let batchTimer: ReturnType<typeof setTimeout> | null = null;
+
+const commitBatch = async () => {
+  if (notificationQueue.length === 0) return;
+
+  const queueCopy = [...notificationQueue];
+  notificationQueue = [];
+
+  try {
+    const { writeBatch, doc, collection } = await import('firebase/firestore');
+    const { db } = await import('./firebase');
+
+    const batch = writeBatch(db);
+    queueCopy.forEach(({ path, data }) => {
+      // Create a new doc reference with auto ID
+      const docRef = doc(collection(db, path));
+      batch.set(docRef, data);
+    });
+
+    await batch.commit();
+  } catch (error) {
+    console.error('Failed to commit notification batch', error);
+  }
+};
+
+const queueWrite = (path: string, data: Omit<Notification, 'id'>) => {
+  notificationQueue.push({ path, data });
+  
+  if (batchTimer) {
+    clearTimeout(batchTimer);
+  }
+  
+  batchTimer = setTimeout(() => {
+    commitBatch();
+  }, 2000); // 2 second debounce
+};
 
 export const writeNotification = async (
   targetUid: string,
@@ -10,7 +54,6 @@ export const writeNotification = async (
   const currentUser = useAuthStore.getState().user;
   
   // Never write a notification to yourself (unless explicitly allowed, e.g., reminders)
-  // We'll let the caller handle self-notification logic, but block it here if prefKey is standard
   const isSelfNotification = targetUid === currentUser?.id;
   if (isSelfNotification && !['expiry', 'event_reminder'].includes(data.type)) {
     return;
@@ -21,7 +64,6 @@ export const writeNotification = async (
     const targetUser = await getDoc<User>('users', [targetUid]);
     if (targetUser && prefKey) {
       const prefs = targetUser.notificationPrefs || {};
-      // If the pref is explicitly false, don't send
       if (prefs[prefKey] === false) {
         return;
       }
@@ -33,9 +75,9 @@ export const writeNotification = async (
       createdAt: Date.now(),
     };
 
-    await addDoc<Omit<Notification, 'id'>>(`users/${targetUid}/notifications`, newNotification);
+    queueWrite(`users/${targetUid}/notifications`, newNotification);
   } catch (error) {
-    console.error('Failed to write notification', error);
+    console.error('Failed to queue notification', error);
   }
 };
 
@@ -49,12 +91,11 @@ export const broadcastNotification = async (
     const { db } = await import('./firebase');
     const usersSnap = await getDocs(collection(db, 'users'));
     
-    const promises: Promise<any>[] = [];
-    usersSnap.forEach(doc => {
-      const uid = doc.id;
+    usersSnap.forEach(docSnap => {
+      const uid = docSnap.id;
       if (uid === excludeUid) return;
       
-      const targetUser = doc.data() as User;
+      const targetUser = docSnap.data() as User;
       const prefs = targetUser.notificationPrefs || {};
       
       if (prefs[prefKey] !== false) {
@@ -63,11 +104,9 @@ export const broadcastNotification = async (
           isRead: false,
           createdAt: Date.now(),
         };
-        promises.push(addDoc<Omit<Notification, 'id'>>(`users/${uid}/notifications`, newNotification));
+        queueWrite(`users/${uid}/notifications`, newNotification);
       }
     });
-
-    await Promise.all(promises);
   } catch (error) {
     console.error('Failed to broadcast notification', error);
   }

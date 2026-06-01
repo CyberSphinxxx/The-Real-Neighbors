@@ -4,6 +4,8 @@ import { rtdb } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { getAvatarColor } from '../utils/avatarColor';
 
+let lastWriteTime = 0;
+
 export const usePresence = () => {
   const { user } = useAuthStore();
 
@@ -32,10 +34,15 @@ export const usePresence = () => {
 
     const unsubscribe = onValue(connectedRef, (snap) => {
       if (snap.val() === true) {
-        // 1. Set onDisconnect handler (fire and forget - doesn't need to be awaited)
+        // 1. Set onDisconnect handler
         onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).catch(console.error);
-        // 2. Immediately write online status - don't wait for onDisconnect ACK
-        set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
+        
+        // 2. Immediately write online status if last write was > 60s ago
+        const now = Date.now();
+        if (now - lastWriteTime > 60000) {
+          lastWriteTime = now;
+          set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
+        }
       }
     });
 
