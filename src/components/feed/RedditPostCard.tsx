@@ -64,11 +64,18 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
       <div className="w-full cursor-pointer" onClick={() => onOpenPost(post)}>
         {isImage && (
           <div className="w-full px-4 pb-3">
+            <div className="relative w-full rounded-lg overflow-hidden bg-elevated" style={{ aspectRatio: '16/9' }}>
             <img 
               src={post.url} 
-              alt="Post media" 
-              className="w-full max-h-[320px] object-cover rounded-lg border border-border-subtle"
+              alt="Post attachment" 
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+              style={{ opacity: 0 }}
+              onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
             />
+          </div>
           </div>
         )}
 
