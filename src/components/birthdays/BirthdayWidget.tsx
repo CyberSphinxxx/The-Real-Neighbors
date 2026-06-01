@@ -6,7 +6,7 @@ import { Cake } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { getAvatarColor } from '../../utils/avatarColor';
 
-export const BirthdayWidget: React.FC = () => {
+const BirthdayWidgetComponent: React.FC = () => {
   const [upcoming, setUpcoming] = useState<User[]>([]);
 
   useEffect(() => {
@@ -78,7 +78,7 @@ export const BirthdayWidget: React.FC = () => {
                 style={{ background: user.avatarUrl ? undefined : getAvatarColor(user.displayName) }}
               >
                 {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                  <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 ) : (
                   user.displayName.charAt(0).toUpperCase()
                 )}
@@ -117,3 +117,5 @@ export const BirthdayWidget: React.FC = () => {
     </div>
   );
 };
+
+export const BirthdayWidget = React.memo(BirthdayWidgetComponent);

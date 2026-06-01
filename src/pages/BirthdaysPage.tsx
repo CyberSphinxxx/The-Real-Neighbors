@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
-import { subscribeToCollection, updateDoc } from '../lib/firestore';
+import { updateDoc } from '../lib/firestore';
+import { useBirthdaysStore } from '../stores/birthdaysStore';
+const CACHE_TTL = 2 * 60 * 1000;
 import { getDaysUntilBirthday, calculateAgeTurning, isBirthdayToday } from '../utils/date';
 import type { User } from '../types';
 import { BirthdayMessageBoard } from '../components/birthdays/BirthdayMessageBoard';
@@ -12,7 +14,7 @@ import toast from 'react-hot-toast';
 
 export const BirthdaysPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<User[]>([]);
+  const { users, fetchedAt, setUsers } = useBirthdaysStore();
   const [isLoading, setIsLoading] = useState(true);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editDate, setEditDate] = useState('');
@@ -20,12 +22,29 @@ export const BirthdaysPage: React.FC = () => {
   const isAdmin = currentUser?.role === 'admin';
 
   useEffect(() => {
-    const unsub = subscribeToCollection<User>('users', (data) => {
-      setUsers(data);
-      setIsLoading(false);
-    });
-    return () => unsub();
-  }, []);
+    let isMounted = true;
+    const fetchUsers = async () => {
+      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        const snap = await getDocs(collection(db, 'users'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
+        if (isMounted) {
+          setUsers(data);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to fetch users', err);
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    fetchUsers();
+    return () => { isMounted = false; };
+  }, [fetchedAt, setUsers]);
 
   const sortedUsers = useMemo(() => {
     const withBday = users.filter(u => u.birthdate);
