@@ -73,6 +73,18 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit }) => {
           createdAt: Date.now(),
         };
         await addDoc(collection(db, 'events'), newEvent);
+        
+        import('../../lib/notifications').then(({ broadcastNotification }) => {
+          broadcastNotification({
+            type: 'event',
+            fromUid: user.id,
+            fromName: user.displayName,
+            fromAvatarColor: user.accentColor || '#3b82f6',
+            message: `${user.displayName} created a new event: ${title.trim()}`,
+            preview: `${dateObj.toLocaleDateString()} · ${finalType}`,
+          }, 'events');
+        });
+
         toast.success('Event created successfully!');
       }
       onClose();

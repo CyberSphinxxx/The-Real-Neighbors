@@ -6,15 +6,12 @@ import { PostSkeleton } from '../components/feed/PostSkeleton';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { ExploreTab } from '../components/feed/ExploreTab';
 import { subscribeToCollection } from '../lib/firestore';
-import { Users, Bell } from 'lucide-react';
+import { Users } from 'lucide-react';
+import { NotificationBell } from '../components/layout/NotificationBell';
 import { getAvatarColor } from '../utils/avatarColor';
 import type { Post, User, RedditPost } from '../types';
 
-const FILTER_TYPES = [
-  'All', 'Videos', 'Images', 'Colored', 'Links', 
-  'Vibing 🎵', 'Gaming 🎮', 'Chill 😄', 'Hype 🔥', 
-  'Lutang 😴', 'Kain 🍜', 'Rant 😤', 'Tamad 💤'
-];
+const FILTER_TYPES = ['All', 'Videos', 'Images', 'Colored', 'Links'];
 
 const SPLASH_TEXTS = [
   "See what your neighbors are up to.",
@@ -51,10 +48,52 @@ const RARE_SPLASHES = [
 export const FeedPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'our_feed' | 'explore'>('our_feed');
 
+  const [rawPosts, setRawPosts] = useState<Post[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openPost, setOpenPost] = useState<Post | RedditPost | null>(null);
+
+  const [isScrolledDown, setIsScrolledDown] = useState(false);
+  const [pendingNewPostsCount, setPendingNewPostsCount] = useState(0);
+  const renderedPostIdsRef = useRef<Set<string>>(new Set());
+  const initialLoadRef = useRef(false);
+
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+    if (!container) return;
+    const handleScroll = () => {
+      setIsScrolledDown(container.scrollTop > 300);
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  useEffect(() => {
+    if (rawPosts.length === 0) return;
+
+    if (!initialLoadRef.current) {
+      setPosts(rawPosts);
+      renderedPostIdsRef.current = new Set(rawPosts.map(p => p.id));
+      initialLoadRef.current = true;
+      setIsLoading(false);
+      return;
+    }
+
+    const currentRenderedIds = renderedPostIdsRef.current;
+    const newUnpinnedPosts = rawPosts.filter(p => !currentRenderedIds.has(p.id) && !p.isPinned);
+
+    if (newUnpinnedPosts.length > 0 && isScrolledDown) {
+      setPendingNewPostsCount(newUnpinnedPosts.length);
+      // Keep displaying what's already rendered (plus any pinned posts, which bypass the buffer)
+      const updatedPostsToRender = rawPosts.filter(p => currentRenderedIds.has(p.id) || p.isPinned);
+      setPosts(updatedPostsToRender);
+    } else {
+      setPendingNewPostsCount(0);
+      setPosts(rawPosts);
+      renderedPostIdsRef.current = new Set(rawPosts.map(p => p.id));
+    }
+  }, [rawPosts, isScrolledDown]);
 
   const splashData = useMemo(() => {
     const isRare = Math.random() < 0.05;
@@ -77,8 +116,22 @@ export const FeedPage: React.FC = () => {
     const unsubscribePosts = subscribeToCollection<Post>(
       'posts',
       (data) => {
-        setPosts(data);
-        setIsLoading(false);
+        const now = Date.now();
+        const validPosts = data.filter(p => !p.expiresAt || p.expiresAt > now);
+        setRawPosts(validPosts);
+
+        const expiredPosts = data.filter(p => p.expiresAt && p.expiresAt <= now);
+        if (expiredPosts.length > 0) {
+          import('firebase/firestore').then(({ writeBatch, doc }) => {
+            import('../lib/firebase').then(({ db }) => {
+              const batch = writeBatch(db);
+              expiredPosts.forEach(p => {
+                batch.delete(doc(db, 'posts', p.id));
+              });
+              batch.commit().catch(console.error);
+            });
+          });
+        }
       },
       orderBy('createdAt', 'desc')
     );
@@ -88,9 +141,42 @@ export const FeedPage: React.FC = () => {
       (data) => setUsers(data)
     );
 
+    const handleOpenPostModal = (e: CustomEvent) => {
+      const postId = e.detail;
+      // Find the post
+      import('../lib/firestore').then(({ getDoc }) => {
+        getDoc<Post>('posts', [postId]).then(p => {
+          if (p) setOpenPost(p);
+        });
+      });
+    };
+
+    const handleFocusComposer = () => {
+      composerRef.current?.focus();
+      composerRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    };
+
+    const handleScrollToPoll = () => {
+      // Small hack: wait for render then find the text 'Poll'
+      setTimeout(() => {
+        const h3s = Array.from(document.querySelectorAll('h3'));
+        const pollHeader = h3s.find(h => h.textContent === 'Poll');
+        if (pollHeader) {
+          pollHeader.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
+      }, 500);
+    };
+
+    window.addEventListener('openPostModal', handleOpenPostModal as EventListener);
+    window.addEventListener('focusComposer', handleFocusComposer);
+    window.addEventListener('scrollToPoll', handleScrollToPoll);
+
     return () => {
       unsubscribePosts();
       unsubscribeUsers();
+      window.removeEventListener('openPostModal', handleOpenPostModal as EventListener);
+      window.removeEventListener('focusComposer', handleFocusComposer);
+      window.removeEventListener('scrollToPoll', handleScrollToPoll);
     };
   }, []);
 
@@ -104,9 +190,6 @@ export const FeedPage: React.FC = () => {
         if (activeType === 'Images') return !!post.imageUrl;
         if (activeType === 'Colored') return !!post.bgColor;
         if (activeType === 'Links') return !!post.linkUrl && !post.linkMeta?.youtubeId && !post.linkUrl.includes('youtube.com') && !post.linkUrl.includes('youtu.be');
-        
-        // Vibe tags
-        if (post.vibeTag?.label && activeType.includes(post.vibeTag.label)) return true;
         
         return false;
       });
@@ -165,146 +248,168 @@ export const FeedPage: React.FC = () => {
 
   return (
     <div className="relative">
-      {/* Sticky Page Header */}
+      {/* Fixed Page Header */}
       <div 
-        className="sticky -top-6 z-20 flex items-center justify-between h-[56px] px-4 md:px-6 -mx-4 md:-mx-6 mb-4 backdrop-blur-md" 
+        className="fixed top-0 left-0 right-0 md:left-[240px] lg:right-[300px] z-50 flex justify-center backdrop-blur-md" 
         style={{ 
           background: 'color-mix(in srgb, var(--color-bg-base) 95%, transparent)', 
           borderBottom: '1px solid var(--color-border-subtle)' 
         }}
       >
-        {/* LEFT: Title & Subtitle */}
-        <div className="flex flex-col">
-          <h1 className="font-heading font-bold text-lg text-main leading-none">What's Up 👀</h1>
-          <p 
-            className={`text-xs mt-1 hidden md:block ${
-              splashData.isRare 
-                ? 'text-rose-500 font-mono tracking-widest font-semibold animate-pulse uppercase' 
-                : 'text-muted italic'
-            }`} 
-          >
-            {splashData.text}
-          </p>
-        </div>
+        <div className="flex items-center justify-end w-full max-w-[680px] h-[48px] px-4 md:px-6 relative">
+          {/* CENTER: Tab Switcher */}
+          <div className="absolute left-1/2 -translate-x-1/2 bottom-0 flex items-center h-full">
+            <button
+              onClick={() => setActiveTab('our_feed')}
+              className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
+                activeTab === 'our_feed' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
+              }`}
+            >
+              Our Feed
+            </button>
+            <button
+              onClick={() => setActiveTab('explore')}
+              className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
+                activeTab === 'explore' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
+              }`}
+            >
+              Explore
+            </button>
+          </div>
 
-        {/* CENTER: Tab Switcher */}
-        <div className="absolute left-1/2 -translate-x-1/2 bottom-0 flex items-center h-full">
-          <button
-            onClick={() => setActiveTab('our_feed')}
-            className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
-              activeTab === 'our_feed' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
-            }`}
-          >
-            Our Feed
-          </button>
-          <button
-            onClick={() => setActiveTab('explore')}
-            className={`flex items-center px-4 h-full font-medium text-sm transition-colors border-b-2 ${
-              activeTab === 'explore' ? 'border-primary text-main font-semibold' : 'border-transparent text-muted hover:text-main'
-            }`}
-          >
-            Explore
-          </button>
+          {/* RIGHT: Bell Icon */}
+          <NotificationBell />
         </div>
-
-        {/* RIGHT: Bell Icon Placeholder */}
-        <button className="p-2 rounded-md text-muted hover:bg-elevated hover:text-main transition-colors">
-          <Bell size={20} />
-        </button>
       </div>
+
+      {/* Scrollable Content Container */}
+      <div className="-mt-6 pt-[48px]">
+      {/* New Posts Pill */}
+      {pendingNewPostsCount > 0 && (
+        <div className="sticky top-[60px] z-30 flex justify-center w-full pointer-events-none mb-2 -mt-4">
+          <button
+            onClick={() => {
+              const container = document.getElementById('main-scroll-container');
+              if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+            }}
+            className="pointer-events-auto flex items-center gap-1.5 bg-primary text-on-primary px-4 py-1.5 rounded-full shadow-lg font-bold text-sm hover:scale-105 hover:bg-primary-hover active:scale-95 transition-all animate-in slide-in-from-top-4 fade-in duration-300"
+          >
+            &uarr; {pendingNewPostsCount} new post{pendingNewPostsCount > 1 ? 's' : ''}
+          </button>
+        </div>
+      )}
 
       {activeTab === 'our_feed' ? (
         <>
+          {/* Feed Heading Section */}
+          <div className="pt-6 mb-4">
+            <h1 className="font-heading font-bold text-2xl text-main">What's Up 👀</h1>
+            <p 
+              className={`text-sm mt-1 italic ${
+                splashData.isRare 
+                  ? 'text-rose-500 font-mono tracking-widest font-semibold animate-pulse uppercase' 
+                  : 'text-faint'
+              }`} 
+            >
+              {splashData.text}
+            </p>
+          </div>
+
           {/* Composer */}
-          <div className="bg-surface rounded-xl border border-default shadow-sm mb-3">
-            <PostComposer composerRef={composerRef} />
+          <div className="mb-3">
+            <PostComposer composerRef={composerRef} allUsers={users} />
           </div>
 
           {/* Filter Bar */}
           {posts.length > 0 && (
-            <div className="mb-3 border-b border-border-subtle py-2 bg-transparent flex flex-col gap-3">
-              {/* Row 1: Type Filter Pills & Clear */}
-              <div className="relative flex items-center w-full">
-                <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-2 w-full pr-12 relative z-10">
-                  {FILTER_TYPES.map(type => (
-                    <button
-                      key={type}
-                      onClick={() => setActiveType(type)}
-                      className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                        activeType === type
-                          ? 'bg-primary/15 border-primary text-primary font-semibold'
-                          : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
-                      }`}
-                    >
-                      {type}
-                    </button>
-                  ))}
-                </div>
-                
-                {hasActiveFilters && (
-                  <div className="absolute right-0 top-0 bottom-2 bg-gradient-to-l from-base via-base to-transparent pl-8 pr-1 flex items-center z-20 pointer-events-none">
-                    <button
-                      onClick={handleClearFilters}
-                      className="text-xs text-muted hover:text-main font-semibold whitespace-nowrap bg-base px-2 py-1 rounded pointer-events-auto"
-                    >
-                      Clear filters
-                    </button>
+            <div className="mb-3 flex flex-col gap-2">
+              <div className="flex items-center gap-4 bg-transparent py-2 border-b border-border-subtle w-full">
+                {/* LEFT: Type Filter Pills (Scrollable) */}
+                <div className="relative flex-1 min-w-0">
+                  <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full pr-8">
+                    {FILTER_TYPES.map(type => (
+                      <button
+                        key={type}
+                        onClick={() => setActiveType(type)}
+                        className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                          activeType === type
+                            ? 'bg-primary/15 border-primary text-primary font-semibold'
+                            : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+                        }`}
+                      >
+                        {type}
+                      </button>
+                    ))}
                   </div>
-                )}
+                  {/* Fade gradient for scrolling edge */}
+                  <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-base to-transparent pointer-events-none" />
+                </div>
+
+                {/* RIGHT: Member Filter & Sort Toggle */}
+                <div className="flex items-center gap-3 flex-shrink-0">
+                  {/* Member Avatars */}
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => setActiveMember(null)}
+                      className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 ${
+                        activeMember === null ? 'ring-2 ring-primary ring-offset-2 ring-offset-base' : 'opacity-70 hover:opacity-100'
+                      }`}
+                      style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)' }}
+                      title="All members"
+                    >
+                      <Users size={12} className="text-muted md:w-4 md:h-4" />
+                    </button>
+                    {users.map(u => (
+                      <button
+                        key={u.id}
+                        onClick={() => setActiveMember(u.id)}
+                        className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center font-bold text-white text-[10px] md:text-[11px] flex-shrink-0 transition-transform active:scale-95 ${
+                          activeMember === u.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-base' : 'opacity-70 hover:opacity-100'
+                        }`}
+                        style={{ background: u.avatarUrl ? undefined : getAvatarColor(u.displayName) }}
+                        title={u.displayName}
+                      >
+                        {u.avatarUrl ? (
+                          <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                        ) : (
+                          u.displayName.charAt(0).toUpperCase()
+                        )}
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Sort Toggle */}
+                  <div className="flex items-center bg-surface border border-border-subtle rounded-full p-0.5 flex-shrink-0 shadow-sm">
+                    {(['Latest', 'Most Reacted'] as const).map(s => (
+                      <button
+                        key={s}
+                        onClick={() => setSortBy(s)}
+                        className={`px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs rounded-full font-bold transition-all ${
+                          sortBy === s
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'text-muted hover:text-main'
+                        }`}
+                      >
+                        {s === 'Latest' ? '✨ Latest' : '🔥 Most Reacted'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               </div>
-
-              {/* Row 2: Member Filter and Sort Toggle */}
-              <div className="flex items-center justify-between gap-4">
-                {/* LEFT: Member Filter */}
-            <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-1">
-              <button
-                onClick={() => setActiveMember(null)}
-                className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 ${
-                  activeMember === null ? 'ring-2 ring-primary ring-offset-2 ring-offset-base' : 'opacity-70 hover:opacity-100'
-                }`}
-                style={{ background: 'var(--color-bg-surface)', border: '1px solid var(--color-border)' }}
-                title="All members"
-              >
-                <Users size={16} className="text-muted" />
-              </button>
-              {users.map(u => (
-                <button
-                  key={u.id}
-                  onClick={() => setActiveMember(u.id)}
-                  className={`w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-[11px] flex-shrink-0 transition-transform active:scale-95 ${
-                    activeMember === u.id ? 'ring-2 ring-primary ring-offset-2 ring-offset-base' : 'opacity-70 hover:opacity-100'
-                  }`}
-                  style={{ background: u.avatarUrl ? undefined : getAvatarColor(u.displayName) }}
-                  title={u.displayName}
-                >
-                  {u.avatarUrl ? (
-                    <img src={u.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
-                  ) : (
-                    u.displayName.charAt(0).toUpperCase()
-                  )}
-                </button>
-              ))}
+              
+              {/* Clear Filters (Below the bar) */}
+              {hasActiveFilters && (
+                <div className="flex justify-end px-1">
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-[11px] font-medium text-faint hover:text-main transition-colors"
+                  >
+                    &middot; Clear filters
+                  </button>
+                </div>
+              )}
             </div>
-
-            {/* RIGHT: Sort Toggle */}
-            <div className="flex items-center bg-surface border border-border-subtle rounded-full p-0.5 flex-shrink-0 shadow-sm">
-              {(['Latest', 'Most Reacted'] as const).map(s => (
-                <button
-                  key={s}
-                  onClick={() => setSortBy(s)}
-                  className={`px-3 py-1.5 text-xs rounded-full font-bold transition-all ${
-                    sortBy === s
-                      ? 'bg-primary text-on-primary shadow-sm'
-                      : 'text-muted hover:text-main'
-                  }`}
-                >
-                  {s === 'Latest' ? '✨ Latest' : '🔥 Most Reacted'}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+          )}
 
       {/* Feed */}
       <div className="flex flex-col gap-3">
@@ -364,7 +469,7 @@ export const FeedPage: React.FC = () => {
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-4">
             {sortedAndFilteredPosts.map((post) => (
-              <PostCard key={post.id} post={post} onOpenPost={setOpenPost} />
+              <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={users} />
             ))}
           </div>
         )}
@@ -374,6 +479,7 @@ export const FeedPage: React.FC = () => {
       ) : (
         <ExploreTab onOpenPost={setOpenPost} />
       )}
+      </div>
 
       {/* Post Detail Modal */}
       {openPost && (
@@ -381,6 +487,7 @@ export const FeedPage: React.FC = () => {
           post={openPost}
           isRedditPost={'subreddit' in openPost}
           onClose={() => setOpenPost(null)}
+          allUsers={users}
           onPrev={
             !('subreddit' in openPost) && sortedAndFilteredPosts.findIndex(p => p.id === openPost.id) > 0 
               ? handlePrev 
