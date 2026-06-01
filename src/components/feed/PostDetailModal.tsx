@@ -150,7 +150,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
   // Real-time comments (wait, this is actually view tracking, not comments)
   useEffect(() => {
     if (isRedditPost || !user || user.id === post.authorId) return;
-    if (hasSeen) return;
+    if (hasSeen || user.privacyPrefs?.showSeenBy === false) return;
     const timeout = setTimeout(() => {
       import('firebase/firestore').then(({ arrayUnion }) => {
         updateDoc('posts', [post.id], { seenBy: arrayUnion(user.id) }).catch(console.error);
@@ -203,6 +203,11 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
         if (newReactions[key].length === 0) delete newReactions[key];
       });
       await updateDoc('posts', [post.id], { reactions: newReactions });
+      if (!hadReaction) {
+        import('firebase/firestore').then(({ increment }) => {
+          updateDoc('users', [user.id], { reactionCount: increment(1) }).catch(console.error);
+        });
+      }
     } catch (error) {
       console.error('Failed to update reaction', error);
     } finally {
@@ -222,6 +227,9 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
       };
       const collectionPath = isRedditPost ? `redditPosts/${post.id}/comments` : `posts/${post.id}/comments`;
       await addDoc<Omit<Comment, 'id'>>(collectionPath, commentObj as any);
+      import('firebase/firestore').then(({ increment }) => {
+        updateDoc('users', [user.id], { commentCount: increment(1) }).catch(console.error);
+      });
       setNewComment('');
       setShowMentionPicker(false);
     } catch (error) {
@@ -697,7 +705,13 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
 
                     let reactorNamesString = '';
                     if (count > 0 && allUsers) {
-                      const names = reactors.map((uid: string) => allUsers.find(u => u.id === uid)?.displayName || 'Unknown');
+                      const names = reactors.map((uid: string) => {
+                        const reactorUser = allUsers.find(u => u.id === uid);
+                        if (reactorUser?.privacyPrefs?.showReactions === false && reactorUser.id !== user?.id) {
+                          return 'Someone';
+                        }
+                        return reactorUser?.displayName || 'Unknown';
+                      });
                       if (names.length > 3) {
                         reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
                       } else {
@@ -782,7 +796,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                   className="absolute bottom-full mb-2 left-0 z-50 rounded-xl shadow-lg border max-h-[150px] overflow-y-auto custom-scrollbar"
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    borderColor: 'var(--color-border-default)',
+                    borderColor: 'var(--color-border-border-subtle)',
                     minWidth: '200px'
                   }}
                 >
@@ -810,7 +824,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                 onChange={handleInputChange}
                 onKeyDown={handleInputKeyDown}
                 placeholder="Write a comment..."
-                className="w-full bg-elevated border border-default rounded-full pl-4 pr-10 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
+                className="w-full bg-elevated border border-border-subtle rounded-full pl-4 pr-10 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
               />
               <button
                 onClick={() => handleCommentSubmit()}
