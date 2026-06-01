@@ -276,7 +276,7 @@ export const Header: React.FC = () => {
             >
               <Home className="text-primary w-[18px] h-[18px]" strokeWidth={2} style={{ color: 'var(--color-primary)' }} />
               {!searchExpanded && (
-                <span className="hidden-mobile font-heading font-bold text-sm text-main">
+                <span className="hidden md:inline font-heading font-bold text-sm text-main">
                   Neighbors
                 </span>
               )}
@@ -379,6 +379,20 @@ export const Header: React.FC = () => {
               bottom: 0,
             }}
           >
+            {/* Mobile Title */}
+            <div className="flex md:hidden items-center h-full">
+              <span className="font-heading font-bold text-[17px] text-main">
+                {isFeedPage ? (activeTab === 'our_feed' ? 'Our Feed' : 'Explore') : 
+                 location.pathname === '/watchlist' ? 'Watchlist' :
+                 location.pathname.startsWith('/events') ? 'Events' :
+                 location.pathname === '/birthdays' ? 'Birthdays' :
+                 location.pathname === '/links' ? 'Links' :
+                 location.pathname === '/profile' ? 'Profile' : 'Neighbors'}
+              </span>
+            </div>
+
+            {/* Desktop Tabs */}
+            <div className="hidden md:flex items-center h-full">
             <button
               onClick={() => handleTabClick('our_feed')}
               style={{
@@ -446,6 +460,7 @@ export const Header: React.FC = () => {
             >
               Explore
             </button>
+            </div>
           </div>
 
           {/* ── RIGHT ZONE ────────────────────────────────────────────────── */}
@@ -492,11 +507,13 @@ export const Header: React.FC = () => {
             />
 
             {/* Theme toggle */}
-            <HeaderIconButton
-              onClick={cycleTheme}
-              title={nextThemeLabel}
-              icon={<ThemeIcon size={18} />}
-            />
+            <div className="hidden md:block">
+              <HeaderIconButton
+                onClick={cycleTheme}
+                title={nextThemeLabel}
+                icon={<ThemeIcon size={18} />}
+              />
+            </div>
 
             {/* Notification bell */}
             <NotificationBell />

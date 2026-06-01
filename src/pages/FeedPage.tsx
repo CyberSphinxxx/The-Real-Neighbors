@@ -6,8 +6,9 @@ import { PostCard } from '../components/feed/PostCard';
 import { PostSkeleton } from '../components/feed/PostSkeleton';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { ExploreTab } from '../components/feed/ExploreTab';
+import { FilterBottomSheet } from '../components/feed/FilterBottomSheet';
 import { subscribeToCollection } from '../lib/firestore';
-import { Users } from 'lucide-react';
+import { Users, Filter } from 'lucide-react';
 import { getAvatarColor } from '../utils/avatarColor';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedTabStore } from '../stores/feedTabStore';
@@ -147,6 +148,7 @@ export const FeedPage: React.FC = () => {
   const [activeType, setActiveType] = useState<string>('All');
   const [activeMember, setActiveMember] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<'Latest' | 'Most Reacted'>('Latest');
+  const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
   
   const composerRef = useRef<HTMLTextAreaElement>(null);
 
@@ -386,6 +388,26 @@ export const FeedPage: React.FC = () => {
     <div className="relative">
       {/* Content Container — global Header handles the fixed bar */}
       <div>
+      {/* MOBILE TAB SWITCHER */}
+      <div className="md:hidden flex items-center bg-surface border border-border-subtle rounded-full p-1 mb-4 mt-4 shadow-sm mx-2 sm:mx-0">
+        <button
+          onClick={() => useFeedTabStore.getState().setActiveTab('our_feed')}
+          className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
+            activeTab === 'our_feed' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
+          }`}
+        >
+          Our Feed
+        </button>
+        <button
+          onClick={() => useFeedTabStore.getState().setActiveTab('explore')}
+          className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
+            activeTab === 'explore' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
+          }`}
+        >
+          Explore
+        </button>
+      </div>
+
       {/* New Posts Pill */}
       {pendingNewPostsCount > 0 && (
         <div className="sticky top-[60px] z-30 flex justify-center w-full pointer-events-none mb-2 -mt-4">
@@ -425,7 +447,27 @@ export const FeedPage: React.FC = () => {
           {/* Filter Bar */}
           {posts.length > 0 && (
             <div className="mb-3 flex flex-col gap-2">
-              <div className="flex items-center gap-4 bg-transparent py-2 border-b border-border-subtle w-full">
+              {/* MOBILE FILTER BUTTON */}
+              <div className="md:hidden flex justify-between items-center bg-transparent py-1 w-full px-2 sm:px-0">
+                <button
+                  onClick={() => setIsMobileFilterOpen(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-surface border border-border-subtle rounded-full text-sm font-semibold text-main hover:bg-elevated transition-colors shadow-sm"
+                >
+                  <Filter size={16} />
+                  Filters {hasActiveFilters && <span className="w-2 h-2 rounded-full bg-primary inline-block"></span>}
+                </button>
+                {hasActiveFilters && (
+                  <button
+                    onClick={handleClearFilters}
+                    className="text-[12px] font-medium text-faint hover:text-main transition-colors px-2"
+                  >
+                    Clear All
+                  </button>
+                )}
+              </div>
+
+              {/* DESKTOP FILTER BAR */}
+              <div className="hidden md:flex items-center gap-4 bg-transparent py-2 border-b border-border-subtle w-full">
                 {/* LEFT: Type Filter Pills (Scrollable) */}
                 <div className="relative flex-1 min-w-0">
                   <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full pr-8">
@@ -501,7 +543,7 @@ export const FeedPage: React.FC = () => {
               
               {/* Clear Filters (Below the bar) */}
               {hasActiveFilters && (
-                <div className="flex justify-end px-1">
+                <div className="hidden md:flex justify-end px-1">
                   <button
                     onClick={handleClearFilters}
                     className="text-[11px] font-medium text-faint hover:text-main transition-colors"
@@ -646,6 +688,22 @@ export const FeedPage: React.FC = () => {
           }
         />
       )}
+
+      {/* Mobile Filter Bottom Sheet */}
+      <FilterBottomSheet
+        isOpen={isMobileFilterOpen}
+        onClose={() => setIsMobileFilterOpen(false)}
+        activeType={activeType}
+        setActiveType={setActiveType}
+        activeMember={activeMember}
+        setActiveMember={setActiveMember}
+        sortBy={sortBy}
+        setSortBy={setSortBy}
+        users={users}
+        filterTypes={FILTER_TYPES}
+        onClearFilters={handleClearFilters}
+        hasActiveFilters={hasActiveFilters}
+      />
     </div>
   );
 };
