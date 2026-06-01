@@ -581,7 +581,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                       className="absolute bottom-full mb-2 left-4 z-50 rounded-xl shadow-lg border max-h-[200px] overflow-y-auto custom-scrollbar"
                       style={{
                         background: 'var(--color-bg-elevated)',
-                        borderColor: 'var(--color-border-default)',
+                        borderColor: 'var(--color-border-border-subtle)',
                         minWidth: '200px'
                       }}
                     >
@@ -737,7 +737,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                   className="absolute bottom-full mb-3 left-4 z-50 p-3 rounded-xl shadow-lg"
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    border: '1px solid var(--color-border-default)',
+                    border: '1px solid var(--color-border-border-subtle)',
                     width: 'max-content'
                   }}
                 >
@@ -782,7 +782,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                   className="absolute bottom-full mb-3 left-32 z-50 p-3 rounded-xl shadow-lg"
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    border: '1px solid var(--color-border-default)',
+                    border: '1px solid var(--color-border-border-subtle)',
                     width: 'max-content'
                   }}
                 >
@@ -824,7 +824,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                   className="absolute bottom-full mb-3 left-40 z-50 p-3 rounded-xl shadow-lg"
                   style={{
                     background: 'var(--color-bg-elevated)',
-                    border: '1px solid var(--color-border-default)',
+                    border: '1px solid var(--color-border-border-subtle)',
                     width: 'max-content'
                   }}
                 >
