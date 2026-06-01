@@ -1,385 +1,825 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect } from 'react';
+import { useParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
-import { updateDoc, subscribeToCollection } from '../lib/firestore';
-import { where, orderBy } from 'firebase/firestore';
-import { Loader2, Edit2, Tv, CheckCircle, Clock, ChevronRight, Palette } from 'lucide-react';
+import { doc, getDoc, updateDoc, collection, query, getDocs, limit, where } from 'firebase/firestore';
+import { Loader2, Edit2, CheckCircle, Save, X, Image as ImageIcon, MessageSquare, Gamepad2, Tv, Music, History, ShieldAlert, Cake, Hash, Camera, Link as LinkIcon, MoreHorizontal, Monitor } from 'lucide-react';
+import { Facebook, Youtube, Twitter, Instagram, Github, Twitch } from '../components/ui/BrandIcons';
+
+const getSiteIcon = (url: string) => {
+  if (!url) return <LinkIcon size={16} />;
+  const lower = url.toLowerCase();
+  if (lower.includes('facebook.com') || lower.includes('fb.com')) return <Facebook size={16} />;
+  if (lower.includes('youtube.com') || lower.includes('youtu.be')) return <Youtube size={16} />;
+  if (lower.includes('twitter.com') || lower.includes('x.com')) return <Twitter size={16} />;
+  if (lower.includes('instagram.com') || lower.includes('ig.me')) return <Instagram size={16} />;
+  if (lower.includes('github.com')) return <Github size={16} />;
+  if (lower.includes('twitch.tv')) return <Twitch size={16} />;
+  if (lower.includes('steamcommunity.com')) return <Monitor size={16} />;
+  return <LinkIcon size={16} />;
+};
 import toast from 'react-hot-toast';
-import { auth } from '../lib/firebase';
-import { signOut } from 'firebase/auth';
-import { useConfirm } from '../contexts/ConfirmContext';
+import { db } from '../lib/firebase';
 import { getAvatarColor } from '../utils/avatarColor';
-import type { Post, WatchlistEntry, User } from '../types';
+import type { Post, User } from '../types';
 import { PostCard } from '../components/feed/PostCard';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
-import { Link } from 'react-router-dom';
+import { TopMoviesSelector } from '../components/profile/TopMoviesSelector';
+import { subscribeToCollection } from '../lib/firestore';
 
-export const ProfilePage: React.FC = () => {
-  const { user } = useAuthStore();
-  const [activeTab, setActiveTab] = useState<'posts' | 'watchlist' | 'saved'>('posts');
+const ProfilePage: React.FC = () => {
+  const { handle } = useParams<{ handle: string }>();
+  const { user: currentUser, isLoading: authLoading } = useAuthStore();
   
-  // Edit Profile State
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
   const [isEditing, setIsEditing] = useState(false);
-  const [editName, setEditName] = useState('');
-  const [editColor, setEditColor] = useState('');
+  const [isEditingVibes, setIsEditingVibes] = useState(false);
+  const [isEditingMedia, setIsEditingMedia] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [showEditMenu, setShowEditMenu] = useState(false);
+  const menuRef = React.useRef<HTMLDivElement>(null);
   
   // Data State
-  const [myPosts, setMyPosts] = useState<Post[]>([]);
-  const [myWatchlist, setMyWatchlist] = useState<WatchlistEntry[]>([]);
+  const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [openPost, setOpenPost] = useState<Post | null>(null);
   const [allUsers, setAllUsers] = useState<User[]>([]);
-  const [savedPosts, setSavedPosts] = useState<Post[]>([]);
+
+  // Edit State
+  const [editData, setEditData] = useState<Partial<User>>({});
 
   useEffect(() => {
+    if (!handle) return;
+    
+    let isMounted = true;
+    const fetchUser = async () => {
+      setIsLoading(true);
+      try {
+        const q = query(collection(db, 'users'), where('handle', '==', handle), limit(1));
+        const querySnapshot = await getDocs(q);
+        
+        if (!querySnapshot.empty && isMounted) {
+          const docSnap = querySnapshot.docs[0];
+          setProfileUser({ id: docSnap.id, ...docSnap.data() } as User);
+        } else if (isMounted) {
+          // Fallback if handle doesn't match, maybe they used an ID
+          const docRef = doc(db, 'users', handle);
+          const docSnap = await getDoc(docRef);
+          if (docSnap.exists() && isMounted) {
+            setProfileUser({ id: docSnap.id, ...docSnap.data() } as User);
+          }
+        }
+      } catch (err) {
+        console.error('Failed to fetch user', err);
+        if (isMounted) toast.error('Failed to load profile');
+      } finally {
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    
+    fetchUser();
+    
+    // Fetch all users for mentions/seenBy in PostCard
     import('firebase/firestore').then(({ collection, getDocs }) => {
-      import('../lib/firebase').then(({ db }) => {
-        getDocs(collection(db, 'users')).then(snap => {
-          setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }) as User));
-        });
+      getDocs(collection(db, 'users')).then(snap => {
+        if (isMounted) setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }) as User));
       });
     });
-  }, []);
+
+    const handleClickOutside = (event: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setShowEditMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+
+    return () => { 
+      isMounted = false; 
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [handle]);
 
   useEffect(() => {
-    if (activeTab === 'saved' && user?.savedPosts && user.savedPosts.length > 0) {
-      const fetchSavedPosts = async () => {
-        const { collection, getDocs, query, where, documentId } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        
-        const posts: Post[] = [];
-        const savedIds = user.savedPosts || [];
-        
-        for (let i = 0; i < savedIds.length; i += 10) {
-          const chunk = savedIds.slice(i, i + 10);
-          const q = query(collection(db, 'posts'), where(documentId(), 'in', chunk));
-          const snap = await getDocs(q);
-          snap.forEach(doc => {
-            posts.push({ id: doc.id, ...doc.data() } as Post);
-          });
-        }
-        
-        posts.sort((a, b) => Number(b.createdAt) - Number(a.createdAt));
-        setSavedPosts(posts);
-      };
-      fetchSavedPosts();
-    }
-  }, [activeTab, user?.savedPosts]);
-
-  const handlePrev = () => {
-    if (!openPost) return;
-    const idx = myPosts.findIndex(p => p.id === openPost.id);
-    if (idx > 0) setOpenPost(myPosts[idx - 1]);
-  };
-
-  const handleNext = () => {
-    if (!openPost) return;
-    const idx = myPosts.findIndex(p => p.id === openPost.id);
-    if (idx !== -1 && idx < myPosts.length - 1) setOpenPost(myPosts[idx + 1]);
-  };
-  
-  const { confirm } = useConfirm();
-
-
-  useEffect(() => {
-    if (!user) return;
+    if (!profileUser?.id || authLoading) return;
     const unsubPosts = subscribeToCollection<Post>(
       'posts', 
-      (data) => setMyPosts(data),
-      where('authorId', '==', user.id),
-      orderBy('createdAt', 'desc')
+      (data) => {
+        const getTime = (date: any) => {
+          if (!date) return 0;
+          if (typeof date === 'number') return date;
+          if (typeof date.toMillis === 'function') return date.toMillis();
+          if (date instanceof Date) return date.getTime();
+          return new Date(date).getTime();
+        };
+        const sorted = [...data].sort((a, b) => getTime(b.createdAt) - getTime(a.createdAt));
+        setUserPosts(sorted);
+      },
+      where('authorId', '==', profileUser.id)
     );
     
-    const unsubWatchlist = subscribeToCollection<WatchlistEntry>(
-      'watchlists',
-      (data) => setMyWatchlist(data),
-      where('userId', '==', user.id)
-    );
-
     return () => {
       unsubPosts();
-      unsubWatchlist();
     };
-  }, [user]);
+  }, [profileUser?.id, authLoading]);
 
-  const stats = useMemo(() => {
-    return myWatchlist.reduce((acc, curr) => {
-      if (curr.status === 'watching') acc.watching++;
-      else if (curr.status === 'finished') acc.finished++;
-      else if (curr.status === 'planned') acc.planned++;
-      return acc;
-    }, { watching: 0, finished: 0, planned: 0 });
-  }, [myWatchlist]);
+  const isOwner = currentUser?.id === profileUser?.id;
 
-  const handleEditInit = () => {
-    if (!user) return;
-    setEditName(user.displayName);
-    setEditColor(user.accentColor || '#3b82f6');
-    setIsEditing(true);
+  const handleEditToggle = () => {
+    if (isEditing) {
+      setEditData({});
+      setIsEditing(false);
+    } else {
+      setEditData({
+        bannerUrl: profileUser?.bannerUrl || '',
+        bio: profileUser?.bio || '',
+        statusMessage: profileUser?.statusMessage || '',
+        customTitle: profileUser?.customTitle || '',
+        gamerTags: profileUser?.gamerTags || { riot: '', facebook: '', steam: '' },
+        customLink: profileUser?.customLink || { name: '', url: '' },
+        topMovies: profileUser?.topMovies || [],
+        themeSongUrl: profileUser?.themeSongUrl || '',
+        lore: profileUser?.lore || ''
+      });
+      setIsEditing(true);
+    }
   };
 
-  const handleSaveProfile = async () => {
-    if (!user || !editName.trim()) return;
+  const handleEditVibesToggle = () => {
+    if (isEditingVibes) {
+      setIsEditingVibes(false);
+    } else {
+      setEditData(prev => ({
+        ...prev,
+        statusMessage: profileUser?.statusMessage || '',
+        customTitle: profileUser?.customTitle || '',
+        gamerTags: profileUser?.gamerTags || { riot: '', facebook: '', steam: '' },
+        customLink: profileUser?.customLink || { name: '', url: '' },
+      }));
+      setIsEditingVibes(true);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!profileUser?.id) return;
     setIsSaving(true);
     try {
-      await updateDoc('users', [user.id], {
-        displayName: editName.trim(),
-        accentColor: editColor,
-      });
+      await updateDoc(doc(db, 'users', profileUser.id), editData);
+      setProfileUser({ ...profileUser, ...editData });
       setIsEditing(false);
-      toast.success('Profile updated');
-    } catch (err) {
-      console.error(err);
+      
+      // Update auth store if saving own profile
+      if (isOwner && currentUser) {
+        useAuthStore.getState().setUser({ ...currentUser, ...editData });
+      }
+      
+      toast.success('Profile updated successfully');
+    } catch (error) {
+      console.error(error);
       toast.error('Failed to update profile');
     } finally {
       setIsSaving(false);
     }
   };
 
-
-  const handleSignOut = async () => {
-    const isConfirmed = await confirm({
-      title: 'Sign out?',
-      message: 'Are you sure you want to sign out?',
-      isDanger: true,
-      confirmText: 'Sign Out'
-    });
-    if (isConfirmed) {
-      signOut(auth);
+  const handleSaveVibes = async () => {
+    if (!profileUser?.id) return;
+    setIsSaving(true);
+    try {
+      const vibesData = {
+        statusMessage: editData.statusMessage || '',
+        customTitle: editData.customTitle || '',
+        gamerTags: editData.gamerTags || { riot: '', facebook: '', steam: '' },
+        customLink: editData.customLink || { name: '', url: '' },
+      };
+      await updateDoc(doc(db, 'users', profileUser.id), vibesData);
+      setProfileUser({ ...profileUser, ...vibesData });
+      setIsEditingVibes(false);
+      
+      if (isOwner && currentUser) {
+        useAuthStore.getState().setUser({ ...currentUser, ...vibesData });
+      }
+      toast.success('Vibes & Gaming updated successfully');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update Vibes & Gaming');
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  if (!user) return null;
+  const handleEditMediaToggle = () => {
+    if (isEditingMedia) {
+      setIsEditingMedia(false);
+    } else {
+      setEditData(prev => ({
+        ...prev,
+        topMovies: profileUser?.topMovies || [],
+        themeSongUrl: profileUser?.themeSongUrl || '',
+      }));
+      setIsEditingMedia(true);
+    }
+  };
 
-  const joinedDate = new Date(user.joinedAt || Date.now());
-  const daysAgo = Math.floor((Date.now() - joinedDate.getTime()) / (1000 * 60 * 60 * 24));
+  const handleSaveMedia = async () => {
+    if (!profileUser?.id) return;
+    setIsSaving(true);
+    try {
+      const mediaData = {
+        topMovies: editData.topMovies || [],
+        themeSongUrl: editData.themeSongUrl || '',
+      };
+      await updateDoc(doc(db, 'users', profileUser.id), mediaData);
+      setProfileUser({ ...profileUser, ...mediaData });
+      setIsEditingMedia(false);
+      
+      if (isOwner && currentUser) {
+        useAuthStore.getState().setUser({ ...currentUser, ...mediaData });
+      }
+      toast.success('Media Shelf updated successfully');
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to update Media Shelf');
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const calculateDaysUntilBirthday = (birthdate?: string) => {
+    if (!birthdate) return null;
+    const [_, month, day] = birthdate.split('-');
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const bday = new Date(today.getFullYear(), parseInt(month) - 1, parseInt(day));
+    
+    if (bday.getTime() < today.getTime()) {
+      bday.setFullYear(today.getFullYear() + 1);
+    }
+    
+    const diffTime = Math.abs(bday.getTime() - today.getTime());
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+    return diffDays;
+  };
+
+  const getZodiacSign = (birthdate?: string) => {
+    if (!birthdate) return null;
+    const [_, m, d] = birthdate.split('-').map(Number);
+    if ((m === 3 && d >= 21) || (m === 4 && d <= 19)) return '♈ Aries';
+    if ((m === 4 && d >= 20) || (m === 5 && d <= 20)) return '♉ Taurus';
+    if ((m === 5 && d >= 21) || (m === 6 && d <= 20)) return '♊ Gemini';
+    if ((m === 6 && d >= 21) || (m === 7 && d <= 22)) return '♋ Cancer';
+    if ((m === 7 && d >= 23) || (m === 8 && d <= 22)) return '♌ Leo';
+    if ((m === 8 && d >= 23) || (m === 9 && d <= 22)) return '♍ Virgo';
+    if ((m === 9 && d >= 23) || (m === 10 && d <= 22)) return '♎ Libra';
+    if ((m === 10 && d >= 23) || (m === 11 && d <= 21)) return '♏ Scorpio';
+    if ((m === 11 && d >= 22) || (m === 12 && d <= 21)) return '♐ Sagittarius';
+    if ((m === 12 && d >= 22) || (m === 1 && d <= 19)) return '♑ Capricorn';
+    if ((m === 1 && d >= 20) || (m === 2 && d <= 18)) return '♒ Aquarius';
+    return '♓ Pisces';
+  };
+
+  const handleUpdateNested = (field: string, subField: string, value: string) => {
+    setEditData(prev => ({
+      ...prev,
+      [field]: {
+        ...(prev[field as keyof User] as any || {}),
+        [subField]: value
+      }
+    }));
+  };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Loader2 size={32} className="animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  if (!profileUser) {
+    return (
+      <div className="text-center py-12 text-muted">
+        <ShieldAlert size={48} className="mx-auto mb-4 opacity-50" />
+        <p className="text-lg">User not found</p>
+      </div>
+    );
+  }
+
+  const generatedHandle = `@${profileUser.displayName.replace(/\s+/g, '').toLowerCase()}`;
+  const daysUntilBirthday = calculateDaysUntilBirthday(profileUser.birthdate);
+  const zodiac = getZodiacSign(profileUser.birthdate);
+
+  const renderThemeSongEmbed = (url: string) => {
+    if (url.includes('spotify.com/track/')) {
+      const match = url.match(/track\/([a-zA-Z0-9]+)/);
+      if (match && match[1]) {
+        return (
+          <iframe 
+            style={{ borderRadius: '12px' }} 
+            src={`https://open.spotify.com/embed/track/${match[1]}?theme=0`} 
+            width="100%" 
+            height="152" 
+            frameBorder="0" 
+            allow="autoplay; clipboard-write; encrypted-media; fullscreen; picture-in-picture" 
+            loading="lazy"
+          />
+        );
+      }
+    } else if (url.includes('youtube.com/watch') || url.includes('youtu.be/')) {
+      let videoId = '';
+      if (url.includes('youtube.com/watch')) {
+        videoId = url.split('v=')[1]?.split('&')[0];
+      } else if (url.includes('youtu.be/')) {
+        videoId = url.split('youtu.be/')[1]?.split('?')[0];
+      }
+      
+      if (videoId) {
+        return (
+          <iframe 
+            className="rounded-xl border border-border-subtle"
+            width="100%" 
+            height="200" 
+            src={`https://www.youtube.com/embed/${videoId}`} 
+            title="YouTube video player" 
+            frameBorder="0" 
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen" 
+            loading="lazy"
+          />
+        );
+      }
+    }
+    
+    return (
+      <a href={url} target="_blank" rel="noopener noreferrer" className="block p-3 rounded-xl bg-base border border-border-subtle hover:border-primary transition-colors text-sm text-primary font-medium truncate">
+        {url}
+      </a>
+    );
+  };
 
   return (
-    <div className="max-w-2xl mx-auto py-6 space-y-6 animate-in fade-in duration-300">
+    <div className="max-w-7xl mx-auto pb-12 animate-in fade-in">
       
-      {/* Profile Header Card */}
-      <div className="bg-surface rounded-2xl p-6 shadow-sm border border-border-subtle relative overflow-hidden">
-        {/* Subtle accent color top bar */}
-        <div 
-          className="absolute top-0 left-0 right-0 h-1" 
-          style={{ background: user.accentColor || 'var(--color-primary)' }} 
-        />
+      {/* 1. Header & Identity */}
+      <div className="bg-surface border border-border-subtle rounded-3xl shadow-sm mb-6 relative">
         
-        <div className="flex flex-col sm:flex-row items-center sm:items-start gap-5">
-          {/* Avatar */}
-          <div 
-            className="w-20 h-20 rounded-full flex items-center justify-center text-3xl font-bold text-white shadow-sm flex-shrink-0"
-            style={{ background: getAvatarColor(user.displayName) }}
-          >
-            {user.avatarUrl ? (
-              <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full rounded-full object-cover" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-            ) : (
-              user.displayName.charAt(0).toUpperCase()
-            )}
-          </div>
-
-          {/* Info & Edit */}
-          <div className="flex-1 text-center sm:text-left min-w-0">
-            {isEditing ? (
-              <div className="space-y-3 animate-in fade-in slide-in-from-top-2">
-                <div>
-                  <input
-                    type="text"
-                    value={editName}
-                    onChange={(e) => setEditName(e.target.value)}
-                    className="w-full bg-base border border-border-subtle rounded-xl px-3 py-1.5 text-main focus:border-primary outline-none font-heading font-bold text-lg"
-                    placeholder="Display Name"
-                  />
-                </div>
-                <div className="flex items-center justify-center sm:justify-start gap-3">
-                  <label className="text-sm font-semibold text-main flex items-center gap-2">
-                    <Palette size={16} /> Accent:
-                  </label>
-                  <input
-                    type="color"
-                    value={editColor}
-                    onChange={(e) => setEditColor(e.target.value)}
-                    className="w-8 h-8 rounded cursor-pointer border-0 p-0 bg-transparent"
-                  />
-                </div>
-                <div className="flex items-center justify-center sm:justify-start gap-2 pt-2">
-                  <button 
-                    onClick={() => setIsEditing(false)}
-                    className="px-3 py-1.5 text-sm font-semibold text-muted hover:bg-base rounded-lg transition-colors"
-                  >
-                    Cancel
-                  </button>
-                  <button 
-                    onClick={handleSaveProfile}
-                    disabled={isSaving || !editName.trim()}
-                    className="flex items-center gap-1.5 px-4 py-1.5 bg-primary text-on-primary text-sm font-bold rounded-lg hover:bg-primary-hover transition-colors disabled:opacity-50"
-                  >
-                    {isSaving && <Loader2 size={14} className="animate-spin" />}
-                    Save
-                  </button>
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h1 className="text-2xl font-heading font-bold text-main truncate">
-                  {user.displayName}
-                </h1>
-                <p className="text-sm text-muted mb-2 truncate">{user.email}</p>
-                <div className="flex items-center justify-center sm:justify-start gap-3">
-                  <span
-                    className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold uppercase tracking-wider"
-                    style={{ background: 'color-mix(in srgb, var(--color-primary) 15%, transparent)', color: 'var(--color-primary)' }}
-                  >
-                    {user.role === 'admin' ? 'Admin' : 'Member'}
-                  </span>
-                  <span className="text-xs text-faint font-medium">
-                    Joined {daysAgo === 0 ? 'today' : `${daysAgo} days ago`}
-                  </span>
-                </div>
-              </div>
-            )}
-          </div>
+        {/* Banner Area */}
+        <div className="h-48 sm:h-64 relative bg-pattern-grid border-b border-border-subtle rounded-t-3xl overflow-hidden">
+          {profileUser.bannerUrl ? (
+             <img src={profileUser.bannerUrl} alt="Banner" className="w-full h-full object-cover" />
+          ) : (
+            <div className="absolute inset-0 bg-gradient-to-tr from-primary/20 to-primary/5" />
+          )}
           
-          {/* Edit Button Toggle */}
-          {!isEditing && (
-            <div className="flex flex-col gap-2 mt-2 sm:mt-0">
-              <button 
-                onClick={handleEditInit}
-                className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors border border-border-subtle hover:bg-base text-main"
-              >
-                <Edit2 size={15} /> Edit Profile
-              </button>
-              <Link
-                to="/settings"
-                className="px-4 py-2 rounded-xl text-sm font-semibold flex items-center justify-center gap-2 transition-colors text-muted hover:text-main hover:bg-base"
-              >
-                ⚙️ Settings
-              </Link>
+          {isEditing && (
+            <div className="absolute inset-0 bg-black/60 flex items-center justify-center p-4">
+              <div className="w-full max-w-md bg-surface p-4 rounded-xl border border-border flex items-center gap-3">
+                <ImageIcon size={20} className="text-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Paste banner image URL..."
+                  value={editData.bannerUrl || ''}
+                  onChange={(e) => setEditData({ ...editData, bannerUrl: e.target.value })}
+                  className="w-full bg-transparent border-none text-sm text-main placeholder-muted focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
+          
+          {/* Edit Actions in Banner */}
+          {isOwner && (
+            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
+              {isEditing ? (
+                <>
+                  <button onClick={handleEditToggle} className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-sm bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-colors text-sm font-semibold">
+                    <X size={16} /> Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={isSaving} className="flex items-center gap-2 rounded-lg px-4 py-1.5 shadow-sm bg-primary text-on-primary hover:brightness-110 transition-colors text-sm font-bold">
+                    {isSaving ? <Loader2 size={16} className="animate-spin" /> : <Save size={16} />}
+                    Save Changes
+                  </button>
+                </>
+              ) : (
+                <button onClick={handleEditToggle} className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-sm bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-colors text-sm font-semibold border border-white/10">
+                  <Camera size={16} /> Edit Cover Photo
+                </button>
+              )}
             </div>
           )}
         </div>
-      </div>
 
-      {/* Tabs Row */}
-      <div className="flex gap-2 p-1 bg-surface border border-border-subtle rounded-xl overflow-x-auto custom-scrollbar">
-        {[
-          { id: 'posts', label: `My Posts (${myPosts.length})` },
-          { id: 'watchlist', label: 'Watchlist' },
-          { id: 'saved', label: `🔖 Saved (${user.savedPosts?.length || 0})` }
-        ].map(tab => (
-          <button
-            key={tab.id}
-            onClick={() => setActiveTab(tab.id as any)}
-            className={`flex-1 py-2 px-4 rounded-lg font-bold text-sm transition-all whitespace-nowrap ${
-              activeTab === tab.id 
-                ? 'bg-primary text-on-primary shadow-sm' 
-                : 'text-muted hover:text-main hover:bg-base'
-            }`}
-          >
-            {tab.label}
-          </button>
-        ))}
-      </div>
-
-      {/* Tab Content */}
-      <div className="animate-in fade-in slide-in-from-bottom-2 duration-300">
-        
-        {/* MY POSTS TAB */}
-        {activeTab === 'posts' && (
-          <div className="space-y-4">
-            {myPosts.length === 0 ? (
-              <div className="text-center py-12 bg-surface rounded-2xl border border-border-subtle">
-                <p className="text-muted font-medium">You haven't posted anything yet. 👀</p>
-              </div>
-            ) : (
-              myPosts.map(post => (
-                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={allUsers} />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* SAVED TAB */}
-        {activeTab === 'saved' && (
-          <div className="space-y-4">
-            {(!user.savedPosts || user.savedPosts.length === 0) ? (
-              <div className="text-center py-12 bg-surface rounded-2xl border border-border-subtle flex flex-col items-center justify-center">
-                <span className="text-4xl mb-4">🔖</span>
-                <p className="text-main font-bold">No saved posts yet.</p>
-                <p className="text-muted text-sm mt-1">Bookmark posts from the feed to find them here.</p>
-              </div>
-            ) : (
-              savedPosts.map(post => (
-                <PostCard key={post.id} post={post} onOpenPost={setOpenPost} allUsers={allUsers} />
-              ))
-            )}
-          </div>
-        )}
-
-        {/* WATCHLIST TAB */}
-        {activeTab === 'watchlist' && (
-          <div className="bg-surface rounded-2xl border border-border-subtle p-5 space-y-5">
-            {/* Stats */}
-            <div className="grid grid-cols-3 gap-3">
-              <div className="bg-base border border-border rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <Tv size={20} className="text-primary mb-1" />
-                <span className="text-xl font-bold text-main">{stats.watching}</span>
-                <span className="text-[10px] uppercase text-muted font-semibold tracking-wider">Watching</span>
-              </div>
-              <div className="bg-base border border-border rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <CheckCircle size={20} className="text-emerald-500 mb-1" />
-                <span className="text-xl font-bold text-main">{stats.finished}</span>
-                <span className="text-[10px] uppercase text-muted font-semibold tracking-wider">Finished</span>
-              </div>
-              <div className="bg-base border border-border rounded-xl p-3 flex flex-col items-center justify-center text-center">
-                <Clock size={20} className="text-amber-500 mb-1" />
-                <span className="text-xl font-bold text-main">{stats.planned}</span>
-                <span className="text-[10px] uppercase text-muted font-semibold tracking-wider">Planned</span>
-              </div>
+        {/* Profile Info Overlay */}
+        <div className="px-6 pb-6 pt-16 sm:pt-20 relative">
+          {/* Avatar */}
+          <div className="absolute -top-16 sm:-top-20 left-6">
+            <div 
+              className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-surface shadow-xl flex items-center justify-center font-bold text-white text-5xl overflow-hidden bg-base relative group"
+              style={{ background: profileUser.avatarUrl ? undefined : getAvatarColor(profileUser.displayName) }}
+            >
+              {profileUser.avatarUrl ? (
+                <img src={profileUser.avatarUrl} alt="" className="w-full h-full object-cover" />
+              ) : (
+                profileUser.displayName.charAt(0).toUpperCase()
+              )}
             </div>
+          </div>
 
-            {/* Condensed List */}
-            <div className="space-y-2">
-              {myWatchlist.slice(0, 5).map(entry => (
-                <div key={entry.id} className="flex items-center justify-between p-3 rounded-xl bg-base border border-border">
-                  <span className="font-semibold text-sm text-main truncate pr-2">{entry.title}</span>
-                  <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-1 rounded bg-surface border border-border-subtle text-muted flex-shrink-0">
-                    {entry.status}
-                  </span>
-                </div>
-              ))}
-              {myWatchlist.length === 0 && (
-                <p className="text-center text-sm text-muted py-4">Your watchlist is empty.</p>
+          {/* User Details */}
+          <div className="flex justify-between items-start mt-2">
+            <div className="flex-1 min-w-0 pr-4">
+              <h1 className="text-2xl sm:text-3xl font-heading font-bold text-main">{profileUser.displayName}</h1>
+              <p className="text-primary font-medium text-sm mt-1">{generatedHandle}</p>
+              
+              {isEditing ? (
+                <textarea
+                  value={editData.bio || ''}
+                  onChange={(e) => setEditData({ ...editData, bio: e.target.value })}
+                  placeholder="Write a short bio..."
+                  className="mt-4 w-full bg-base border border-border rounded-xl p-3 text-main focus:ring-1 focus:ring-primary outline-none resize-none h-24 text-sm"
+                />
+              ) : (
+                profileUser.bio && (
+                  <p className="mt-4 text-main leading-relaxed max-w-2xl">{profileUser.bio}</p>
+                )
               )}
             </div>
 
-            <Link 
-              to="/watchlist"
-              className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-base border border-border-subtle text-sm font-semibold text-main hover:bg-surface hover:text-primary transition-colors"
-            >
-              View full watchlist <ChevronRight size={16} />
-            </Link>
+            {/* 3-dot Edit Menu for Global Edit */}
+            {isOwner && !isEditing && (
+              <div className="relative ml-4" ref={menuRef}>
+                <button onClick={() => setShowEditMenu(!showEditMenu)} className="p-2 rounded-full hover:bg-base text-muted transition-colors">
+                  <MoreHorizontal size={20} />
+                </button>
+                {showEditMenu && (
+                  <div className="absolute right-0 top-full mt-1 w-48 bg-surface border border-border-subtle rounded-xl shadow-xl z-20 py-1 overflow-hidden animate-in fade-in slide-in-from-top-2">
+                    <button 
+                      onClick={() => { setShowEditMenu(false); handleEditToggle(); }} 
+                      className="w-full flex items-center gap-3 px-4 py-3 text-sm text-main hover:bg-base transition-colors"
+                    >
+                      <Edit2 size={16} /> Edit Profile
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
           </div>
-        )}
-
+        </div>
       </div>
 
-      {/* Standalone Sign Out */}
-      <div className="mt-8 text-center">
-        <button
-          onClick={handleSignOut}
-          className="px-6 py-2.5 rounded-xl text-sm font-bold transition-colors border border-danger/30 text-danger hover:bg-danger/10"
-        >
-          Sign Out
-        </button>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        
+        {/* Left Column: Vibes, Lore, Badges */}
+        <div className="md:col-span-1 space-y-6">
+          
+          {/* Vibes & Gaming Module */}
+          <div className="bg-surface border border-border-subtle rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted flex items-center gap-2">
+                <Hash size={16} /> Vibes & Gaming
+              </h2>
+              {isOwner && !isEditingVibes && (
+                <button onClick={handleEditVibesToggle} className="p-1.5 text-muted hover:text-main hover:bg-base rounded-md transition-colors" title="Edit Vibes & Gaming">
+                  <Edit2 size={14} />
+                </button>
+              )}
+            </div>
+            
+            <div className="space-y-4">
+              {/* Status */}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-muted block mb-1">Current Status</label>
+                {isEditingVibes ? (
+                  <input
+                    type="text"
+                    value={editData.statusMessage || ''}
+                    onChange={(e) => setEditData({ ...editData, statusMessage: e.target.value })}
+                    placeholder="e.g. Debugging, Sleeping..."
+                    className="w-full bg-base border border-border rounded-lg px-3 py-2 text-sm text-main outline-none focus:border-primary"
+                  />
+                ) : (
+                  <div className="text-sm text-main font-medium bg-base py-2 px-3 rounded-lg border border-border-subtle shadow-inner inline-block">
+                    {profileUser.statusMessage || 'Vibing'}
+                  </div>
+                )}
+              </div>
+
+              {/* Custom Title */}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-muted block mb-1">Title</label>
+                {isEditingVibes ? (
+                  <input
+                    type="text"
+                    value={editData.customTitle || ''}
+                    onChange={(e) => setEditData({ ...editData, customTitle: e.target.value })}
+                    placeholder="Neighborhood title"
+                    className="w-full bg-base border border-border rounded-lg px-3 py-2 text-sm text-main outline-none focus:border-primary"
+                  />
+                ) : (
+                  <div className="text-sm text-primary font-bold">
+                    {profileUser.customTitle || 'Member'}
+                  </div>
+                )}
+              </div>
+
+              {/* Gamer Tags */}
+              <div className="pt-2 border-t border-border-subtle space-y-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-danger/10 text-danger flex items-center justify-center flex-shrink-0">
+                    <Gamepad2 size={16} />
+                  </div>
+                  {isEditingVibes ? (
+                    <input
+                      type="text"
+                      value={editData.gamerTags?.riot || ''}
+                      onChange={(e) => handleUpdateNested('gamerTags', 'riot', e.target.value)}
+                      placeholder="Riot ID"
+                      className="w-full bg-base border border-border rounded-lg px-3 py-1.5 text-sm text-main outline-none"
+                    />
+                  ) : (
+                    <div className="text-sm">
+                      <span className="text-muted text-xs block">Riot ID</span>
+                      <span className="font-medium">{profileUser.gamerTags?.riot || 'Not linked'}</span>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-blue-600/10 text-blue-600 flex items-center justify-center flex-shrink-0">
+                    <Facebook size={16} />
+                  </div>
+                  {isEditingVibes ? (
+                    <input
+                      type="text"
+                      value={editData.gamerTags?.facebook || ''}
+                      onChange={(e) => handleUpdateNested('gamerTags', 'facebook', e.target.value)}
+                      placeholder="Facebook Profile URL or Name"
+                      className="w-full bg-base border border-border rounded-lg px-3 py-1.5 text-sm text-main outline-none"
+                    />
+                  ) : (
+                    <div className="text-sm overflow-hidden w-full">
+                      <span className="text-muted text-xs block">Facebook</span>
+                      {profileUser.gamerTags?.facebook ? (
+                        profileUser.gamerTags.facebook.startsWith('http') ? (
+                          <a href={profileUser.gamerTags.facebook} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline truncate block">
+                            {profileUser.gamerTags.facebook.split('facebook.com/')[1] || 'Facebook Profile'}
+                          </a>
+                        ) : (
+                          <span className="font-medium">{profileUser.gamerTags.facebook}</span>
+                        )
+                      ) : (
+                        <span className="font-medium">Not linked</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-main/10 text-main flex items-center justify-center flex-shrink-0">
+                    <Monitor size={16} />
+                  </div>
+                  {isEditingVibes ? (
+                    <input
+                      type="text"
+                      value={editData.gamerTags?.steam || ''}
+                      onChange={(e) => handleUpdateNested('gamerTags', 'steam', e.target.value)}
+                      placeholder="Steam ID or URL"
+                      className="w-full bg-base border border-border rounded-lg px-3 py-1.5 text-sm text-main outline-none"
+                    />
+                  ) : (
+                    <div className="text-sm overflow-hidden w-full">
+                      <span className="text-muted text-xs block">Steam</span>
+                      {profileUser.gamerTags?.steam ? (
+                        profileUser.gamerTags.steam.startsWith('http') ? (
+                          <a href={profileUser.gamerTags.steam} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline truncate block">
+                            {profileUser.gamerTags.steam.split('steamcommunity.com/id/')[1] || profileUser.gamerTags.steam.split('steamcommunity.com/profiles/')[1] || 'Steam Profile'}
+                          </a>
+                        ) : (
+                          <span className="font-medium">{profileUser.gamerTags.steam}</span>
+                        )
+                      ) : (
+                        <span className="font-medium">Not linked</span>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {(isEditingVibes || profileUser.customLink?.url) && (
+                  <div className="flex items-center gap-3 pt-2">
+                    <div className="w-8 h-8 rounded-lg bg-primary/10 text-primary flex items-center justify-center flex-shrink-0">
+                      {isEditingVibes ? <LinkIcon size={16} /> : getSiteIcon(profileUser.customLink?.url || '')}
+                    </div>
+                    {isEditingVibes ? (
+                      <div className="w-full flex flex-col sm:flex-row gap-2">
+                        <input
+                          type="text"
+                          value={editData.customLink?.name || ''}
+                          onChange={(e) => handleUpdateNested('customLink', 'name', e.target.value)}
+                          placeholder="Link Name"
+                          className="w-full sm:w-1/3 bg-base border border-border rounded-lg px-3 py-1.5 text-sm text-main outline-none"
+                        />
+                        <input
+                          type="url"
+                          value={editData.customLink?.url || ''}
+                          onChange={(e) => handleUpdateNested('customLink', 'url', e.target.value)}
+                          placeholder="https://..."
+                          className="w-full sm:flex-1 bg-base border border-border rounded-lg px-3 py-1.5 text-sm text-main outline-none"
+                        />
+                      </div>
+                    ) : (
+                      <div className="text-sm w-full overflow-hidden">
+                        <span className="text-muted text-xs block">Custom Link</span>
+                        <a href={profileUser.customLink?.url} target="_blank" rel="noopener noreferrer" className="font-medium text-primary hover:underline truncate block">
+                          {profileUser.customLink?.name || profileUser.customLink?.url}
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+              
+              {isEditingVibes && (
+                <div className="flex justify-end gap-2 pt-4 mt-2 border-t border-border-subtle">
+                  <button onClick={() => setIsEditingVibes(false)} className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-base border border-border hover:bg-surface text-main transition-colors">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveVibes} disabled={isSaving} className="flex items-center gap-2 px-4 py-1.5 text-sm font-bold rounded-lg bg-primary text-on-primary hover:brightness-110 transition-colors">
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Milestones & Lore Module */}
+          <div className="bg-surface border border-border-subtle rounded-2xl p-5 shadow-sm">
+            <h2 className="text-sm font-bold uppercase tracking-wider text-muted mb-4 flex items-center gap-2">
+              <History size={16} /> Milestones & Lore
+            </h2>
+            
+            <div className="space-y-4">
+              {/* Birthday */}
+              {(profileUser.birthdate || isEditing) && (
+                <div className="flex items-center gap-3 bg-base p-3 rounded-xl border border-border-subtle">
+                  <Cake size={20} className="text-primary" />
+                  <div>
+                    <div className="text-sm font-bold text-main">
+                      {daysUntilBirthday === 0 ? 'Birthday is today! 🎉' : `${daysUntilBirthday} days until birthday`}
+                    </div>
+                    {zodiac && <div className="text-xs text-muted">{zodiac}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Admin Badges */}
+              {profileUser.badges && profileUser.badges.length > 0 && (
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-muted block mb-2">Badges</label>
+                  <div className="flex flex-wrap gap-2">
+                    {profileUser.badges.map(badge => (
+                      <span key={badge} className="px-2.5 py-1 bg-primary/10 text-primary border border-primary/20 rounded-md text-xs font-bold flex items-center gap-1 shadow-sm">
+                        <CheckCircle size={12} /> {badge}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Lore */}
+              <div>
+                <label className="text-[10px] uppercase font-bold text-muted block mb-2">Origin Story</label>
+                {isEditing ? (
+                  <textarea
+                    value={editData.lore || ''}
+                    onChange={(e) => setEditData({ ...editData, lore: e.target.value })}
+                    placeholder="How did you join the neighborhood?"
+                    className="w-full bg-base border border-border rounded-xl p-3 text-sm text-main focus:ring-1 focus:ring-primary outline-none resize-none h-32"
+                  />
+                ) : (
+                  <div className="text-sm text-main leading-relaxed bg-base p-3 rounded-xl border border-border-subtle whitespace-pre-wrap italic">
+                    {profileUser.lore || 'The archives are incomplete...'}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Right Column: Media, Feed */}
+        <div className="md:col-span-2 space-y-6">
+          
+          {/* Media Shelf Module */}
+          <div className="bg-surface border border-border-subtle rounded-2xl p-5 shadow-sm">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted flex items-center gap-2">
+                <Tv size={16} /> Media Shelf
+              </h2>
+              {isOwner && !isEditingMedia && (
+                <button onClick={handleEditMediaToggle} className="p-1.5 text-muted hover:text-main hover:bg-base rounded-md transition-colors" title="Edit Media Shelf">
+                  <Edit2 size={14} />
+                </button>
+              )}
+            </div>
+            
+            <div className="space-y-6">
+              {/* Top 4 Watches */}
+              <div>
+                <label className="text-xs font-bold text-main block mb-3">Top 4 Watches</label>
+                {isEditingMedia ? (
+                  <TopMoviesSelector
+                    movies={editData.topMovies || []}
+                    onChange={(movies) => setEditData({ ...editData, topMovies: movies })}
+                  />
+                ) : (
+                  <div className="grid grid-cols-4 gap-3">
+                    {Array.from({ length: 4 }).map((_, i) => {
+                      const movie = (profileUser.topMovies || [])[i];
+                      return (
+                        <div key={i} className="aspect-[2/3] bg-base border border-border-subtle rounded-xl overflow-hidden relative shadow-sm flex items-center justify-center group">
+                          {movie ? (
+                            <>
+                              <img src={movie.posterUrl} alt={movie.title} className="w-full h-full object-cover" />
+                              <div className="absolute inset-0 bg-black/80 opacity-0 group-hover:opacity-100 transition-opacity p-2 flex items-end">
+                                <span className="text-[10px] text-white font-bold leading-tight line-clamp-3">{movie.title}</span>
+                              </div>
+                            </>
+                          ) : (
+                            <Tv size={24} className="text-border-subtle" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Theme Song */}
+              <div className="pt-4 border-t border-border-subtle">
+                <label className="text-xs font-bold text-main block mb-2 flex items-center gap-2">
+                  <Music size={14} className="text-primary" /> Theme Song
+                </label>
+                {isEditingMedia ? (
+                  <input
+                    type="url"
+                    value={editData.themeSongUrl || ''}
+                    onChange={(e) => setEditData({ ...editData, themeSongUrl: e.target.value })}
+                    placeholder="YouTube or Spotify URL"
+                    className="w-full bg-base border border-border rounded-lg px-3 py-2 text-sm text-main outline-none focus:border-primary"
+                  />
+                ) : (
+                  profileUser.themeSongUrl ? (
+                    renderThemeSongEmbed(profileUser.themeSongUrl)
+                  ) : (
+                    <p className="text-sm text-muted italic">No theme song set.</p>
+                  )
+                )}
+              </div>
+              
+              {isEditingMedia && (
+                <div className="flex justify-end gap-2 pt-4 border-t border-border-subtle">
+                  <button onClick={() => setIsEditingMedia(false)} className="px-4 py-1.5 text-sm font-semibold rounded-lg bg-base border border-border hover:bg-surface text-main transition-colors">
+                    Cancel
+                  </button>
+                  <button onClick={handleSaveMedia} disabled={isSaving} className="flex items-center gap-2 px-4 py-1.5 text-sm font-bold rounded-lg bg-primary text-on-primary hover:brightness-110 transition-colors">
+                    {isSaving ? <Loader2 size={14} className="animate-spin" /> : <Save size={14} />}
+                    Save
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Personal Feed */}
+          <div>
+            <div className="flex items-center gap-3 mb-4 mt-2">
+              <h2 className="text-lg font-heading font-bold text-main">Personal Feed</h2>
+              <div className="h-px bg-border-subtle flex-1" />
+            </div>
+
+            <div className="space-y-4">
+              {userPosts.length === 0 ? (
+                <div className="text-center py-12 bg-surface rounded-2xl border border-border-subtle shadow-sm">
+                  <MessageSquare size={32} className="mx-auto mb-3 text-border" />
+                  <p className="text-muted font-medium">No posts yet</p>
+                </div>
+              ) : (
+                userPosts.map(post => (
+                  <PostCard 
+                    key={post.id} 
+                    post={post} 
+                    onOpenPost={setOpenPost} 
+                    allUsers={allUsers}
+                  />
+                ))
+              )}
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      {/* Post Detail Modal */}
       {openPost && (
         <PostDetailModal
           post={openPost}
           onClose={() => setOpenPost(null)}
-          onPrev={myPosts.findIndex(p => p.id === openPost.id) > 0 ? handlePrev : undefined}
-          onNext={myPosts.findIndex(p => p.id === openPost.id) < myPosts.length - 1 ? handleNext : undefined}
           allUsers={allUsers}
         />
       )}
