@@ -2,12 +2,25 @@
 @import './themes/default.css';
 @import './themes/dark.css';
 @import './themes/amoled.css';
+@import './themes/synthwave.css';
+@import './themes/midnight.css';
+@import './themes/forest.css';
+@import './themes/sunset.css';
+@import './themes/ocean.css';
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --font-size-base: 14px;
+  }
+  
+  html {
+    font-size: var(--font-size-base);
+  }
+
   body {
     @apply bg-base text-main font-main antialiased;
   }
@@ -15,6 +28,59 @@
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading font-semibold tracking-tight;
   }
+}
+
+/* Background Patterns */
+.bg-pattern-grid {
+  background-image: linear-gradient(var(--color-border-subtle) 1px, transparent 1px),
+    linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+.bg-pattern-dots {
+  background-image: radial-gradient(circle, var(--color-border) 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+.bg-pattern-cross {
+  background-image: 
+    linear-gradient(var(--color-border-subtle) 2px, transparent 2px),
+    linear-gradient(90deg, var(--color-border-subtle) 2px, transparent 2px);
+  background-size: 40px 40px;
+  background-position: center center;
+}
+.bg-pattern-waves {
+  background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%239C92AC' fill-opacity='0.08'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+
+/* Background Animations */
+@keyframes rise {
+  0% {
+    bottom: -100px;
+    transform: translateX(0);
+  }
+  50% {
+    transform: translateX(100px);
+  }
+  100% {
+    bottom: 1080px;
+    transform: translateX(-200px);
+  }
+}
+
+@keyframes fall {
+  0% {
+    transform: translateY(-100%) rotate(20deg);
+  }
+  100% {
+    transform: translateY(100vh) rotate(20deg);
+  }
+}
+
+.animate-bubble {
+  animation: rise infinite ease-in;
+}
+
+.animate-rain {
+  animation: fall linear infinite;
 }
 
 /* Custom Scrollbar for Webkit */
