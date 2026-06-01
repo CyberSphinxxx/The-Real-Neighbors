@@ -1,82 +1,264 @@
-import React, { useState, useEffect } from 'react';
-import { Bell } from 'lucide-react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
+import { Bell, X } from 'lucide-react';
 import { subscribeToCollection } from '../../lib/firestore';
-import type { Post, User, Event } from '../../types';
+import type { Notification } from '../../types';
+import { useAuthStore } from '../../stores/authStore';
+import { useNavigate } from 'react-router-dom';
+import { formatTimeAgo } from '../../utils/date';
+import { orderBy, limit } from 'firebase/firestore';
 
 export const NotificationBell: React.FC = () => {
-  const [hasUnread, setHasUnread] = useState(false);
+  const { user } = useAuthStore();
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const [isOpen, setIsOpen] = useState(false);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const bellRef = useRef<HTMLButtonElement>(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    let unmounted = false;
+    if (!user) return;
+    const unsub = subscribeToCollection<Notification>(
+      `users/${user.id}/notifications`,
+      (data) => setNotifications(data),
+      orderBy('createdAt', 'desc'),
+      limit(50)
+    );
+    return () => unsub();
+  }, [user]);
 
-    // Track last visited (update every minute while active)
-    const updateLastVisited = () => {
-      localStorage.setItem('lastVisited', Date.now().toString());
+  useEffect(() => {
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        panelRef.current && !panelRef.current.contains(e.target as Node) &&
+        bellRef.current && !bellRef.current.contains(e.target as Node)
+      ) {
+        setIsOpen(false);
+      }
     };
-    const lastVisitedStr = localStorage.getItem('lastVisited');
-    const lastVisited = lastVisitedStr ? parseInt(lastVisitedStr, 10) : Date.now() - 86400000; // default 24h ago
+    if (isOpen) document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, [isOpen]);
+
+  const unreadCount = notifications.filter(n => !n.isRead).length;
+
+  const handleMarkAllRead = async () => {
+    if (!user) return;
+    try {
+      const { writeBatch, doc } = await import('firebase/firestore');
+      const { db } = await import('../../lib/firebase');
+      const batch = writeBatch(db);
+      const unread = notifications.filter(n => !n.isRead);
+      unread.forEach(n => {
+        batch.update(doc(db, `users/${user.id}/notifications`, n.id), { isRead: true });
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleClearAll = async () => {
+    if (!user) return;
+    if (!window.confirm('Clear all notifications?')) return;
+    try {
+      const { writeBatch, doc } = await import('firebase/firestore');
+      const { db } = await import('../../lib/firebase');
+      const batch = writeBatch(db);
+      notifications.forEach(n => {
+        batch.delete(doc(db, `users/${user.id}/notifications`, n.id));
+      });
+      await batch.commit();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleDelete = async (e: React.MouseEvent, id: string) => {
+    e.stopPropagation();
+    if (!user) return;
+    try {
+      const { deleteDoc, doc } = await import('firebase/firestore');
+      const { db } = await import('../../lib/firebase');
+      await deleteDoc(doc(db, `users/${user.id}/notifications`, id));
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleNotificationClick = async (n: Notification) => {
+    if (!n.isRead && user) {
+      try {
+        const { updateDoc: updateFsDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        await updateFsDoc(doc(db, `users/${user.id}/notifications`, n.id), { isRead: true });
+      } catch (err) {
+        console.error(err);
+      }
+    }
+    setIsOpen(false);
+
+    if (['post', 'reaction', 'comment', 'mention', 'expiry'].includes(n.type)) {
+      navigate('/');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('openPostModal', { detail: n.postId }));
+      }, 100);
+    } else if (n.type === 'event' || n.type === 'event_reminder') {
+      navigate('/events');
+    } else if (n.type === 'birthday') {
+      navigate('/birthdays');
+    } else if (n.type === 'poll') {
+      navigate('/');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('scrollToPoll'));
+      }, 100);
+    } else if (n.type === 'streak_risk') {
+      navigate('/');
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('focusComposer'));
+      }, 100);
+    }
+  };
+
+  const grouped = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const todayTime = today.getTime();
     
-    updateLastVisited();
-    const interval = setInterval(updateLastVisited, 60000);
-
-    let recentPosts = 0;
-    let upcomingEvents = 0;
-    let birthdaysToday = 0;
-
-    const evaluateUnread = () => {
-      if (unmounted) return;
-      setHasUnread(recentPosts > 0 || upcomingEvents > 0 || birthdaysToday > 0);
-    };
-
-    const unsubPosts = subscribeToCollection<Post>('posts', (data) => {
-      recentPosts = data.filter(p => Number(p.createdAt) > lastVisited).length;
-      evaluateUnread();
+    const res = { today: [] as Notification[], earlier: [] as Notification[] };
+    notifications.forEach(n => {
+      if (n.createdAt >= todayTime) res.today.push(n);
+      else res.earlier.push(n);
     });
+    return res;
+  }, [notifications]);
 
-    const unsubEvents = subscribeToCollection<Event>('events', (data) => {
-      const now = new Date();
-      now.setHours(0, 0, 0, 0);
-      const twoDaysFromNow = new Date(now);
-      twoDaysFromNow.setDate(now.getDate() + 2);
+  const renderItem = (n: Notification) => {
+    const isSystem = ['birthday', 'streak_risk', 'expiry', 'event_reminder'].includes(n.type);
+    let avatarContent = <></>;
+    if (n.type === 'birthday') avatarContent = <span>🎂</span>;
+    else if (n.type === 'streak_risk') avatarContent = <span>🔥</span>;
+    else if (n.type === 'expiry') avatarContent = <span>⏱️</span>;
+    else if (n.type === 'event_reminder') avatarContent = <span>🗓️</span>;
+    else avatarContent = <span className="text-white font-bold">{n.fromName.charAt(0).toUpperCase()}</span>;
 
-      upcomingEvents = data.filter(e => {
-        const d = new Date(e.date);
-        return d >= now && d <= twoDaysFromNow;
-      }).length;
-      evaluateUnread();
-    });
-
-    const unsubBirthdays = subscribeToCollection<User>('users', (data) => {
-      const todayStr = new Date().toISOString().slice(5, 10); // MM-DD
-      birthdaysToday = data.filter(u => u.birthdate && u.birthdate.slice(5, 10) === todayStr).length;
-      evaluateUnread();
-    });
-
-    return () => {
-      unmounted = true;
-      clearInterval(interval);
-      unsubPosts();
-      unsubEvents();
-      unsubBirthdays();
-    };
-  }, []);
-
-  const handleClick = () => {
-    // Clear notification dot when clicked
-    setHasUnread(false);
-    localStorage.setItem('lastVisited', Date.now().toString());
+    return (
+      <div 
+        key={n.id}
+        onClick={() => handleNotificationClick(n)}
+        className={`flex items-start px-4 py-3 gap-3 hover:bg-elevated cursor-pointer transition-colors border-l-[3px] ${
+          !n.isRead 
+            ? 'border-primary' 
+            : 'border-transparent'
+        }`}
+        style={{
+          background: !n.isRead ? 'color-mix(in srgb, var(--color-primary) 3%, transparent)' : 'transparent'
+        }}
+      >
+        <div 
+          className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-sm shadow-sm"
+          style={{ background: isSystem ? 'var(--color-bg-elevated)' : n.fromAvatarColor }}
+        >
+          {avatarContent}
+        </div>
+        
+        <div className="flex-1 min-w-0">
+          <p className={`text-sm text-main ${!n.isRead ? 'font-medium' : ''}`}>
+            {n.message}
+          </p>
+          {n.preview && (
+            <p className="text-xs text-muted mt-0.5 truncate">
+              {n.preview}
+            </p>
+          )}
+          <p className="text-xs text-faint mt-1">
+            {formatTimeAgo(n.createdAt)}
+          </p>
+        </div>
+        
+        <button 
+          onClick={(e) => handleDelete(e, n.id)}
+          className="p-1 text-faint hover:text-main transition-colors flex-shrink-0"
+        >
+          <X size={14} />
+        </button>
+      </div>
+    );
   };
 
   return (
-    <button 
-      onClick={handleClick}
-      className="p-2 rounded-full hover:bg-border-subtle text-muted transition-colors relative"
-      title="Notifications"
-    >
-      <Bell className="w-6 h-6" />
-      {hasUnread && (
-        <span className="absolute top-1 right-1 w-2.5 h-2.5 bg-danger rounded-full border-2 border-surface animate-pulse"></span>
+    <div className="relative">
+      <button 
+        ref={bellRef}
+        onClick={() => setIsOpen(!isOpen)}
+        className="p-2 rounded-md text-muted hover:bg-elevated hover:text-main transition-colors relative"
+        title="Notifications"
+      >
+        <Bell size={20} />
+        {unreadCount > 0 && (
+          <span className="absolute top-1 right-1 bg-danger text-white text-[10px] font-bold rounded-full min-w-[18px] h-[18px] flex items-center justify-center border-2 border-surface shadow-sm">
+            {unreadCount > 9 ? '9+' : unreadCount}
+          </span>
+        )}
+      </button>
+
+      {isOpen && (
+        <div 
+          ref={panelRef}
+          className="absolute right-0 mt-2 w-[380px] bg-surface rounded-2xl border border-default shadow-lg flex flex-col z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+          style={{ maxHeight: '480px' }}
+        >
+          <div className="flex items-center justify-between px-4 py-3 border-b border-default shrink-0">
+            <h2 className="font-semibold text-base text-main">Notifications</h2>
+            <div className="flex items-center gap-3">
+              {unreadCount > 0 && (
+                <button 
+                  onClick={handleMarkAllRead}
+                  className="text-sm text-primary font-medium hover:underline"
+                >
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button 
+                  onClick={handleClearAll}
+                  className="text-sm text-muted hover:text-main font-medium"
+                >
+                  Clear all
+                </button>
+              )}
+            </div>
+          </div>
+
+          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+            {notifications.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+                <div className="text-5xl mb-3">🎉</div>
+                <p className="text-sm text-muted font-medium">You're all caught up!</p>
+              </div>
+            ) : (
+              <>
+                {grouped.today.length > 0 && (
+                  <div className="flex flex-col">
+                    <div className="sticky top-0 bg-surface/95 backdrop-blur-sm px-4 pt-3 pb-1 text-xs uppercase tracking-wide text-faint font-semibold z-10 border-b border-transparent">
+                      Today
+                    </div>
+                    {grouped.today.map(renderItem)}
+                  </div>
+                )}
+                
+                {grouped.earlier.length > 0 && (
+                  <div className="flex flex-col">
+                    <div className="sticky top-0 bg-surface/95 backdrop-blur-sm px-4 pt-3 pb-1 text-xs uppercase tracking-wide text-faint font-semibold z-10 border-b border-transparent">
+                      Earlier
+                    </div>
+                    {grouped.earlier.map(renderItem)}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </div>
       )}
-    </button>
+    </div>
   );
 };
