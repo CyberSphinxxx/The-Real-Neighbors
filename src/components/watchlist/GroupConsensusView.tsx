@@ -108,7 +108,7 @@ export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap }) => {
           {/* Cover */}
           <div className="w-32 bg-base border-r border-border-subtle relative flex-shrink-0">
             {group.coverUrl ? (
-              <img src={group.coverUrl} alt={group.title} className="w-full h-full object-cover" loading="lazy" />
+              <img loading="lazy" decoding="async" src={group.coverUrl} alt={group.title} className="w-full h-full object-cover" />
             ) : (
               <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-4xl font-black uppercase shadow-inner">
                 {group.title.charAt(0)}

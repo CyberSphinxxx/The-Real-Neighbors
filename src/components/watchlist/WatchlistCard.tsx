@@ -49,12 +49,11 @@ export const WatchlistCard: React.FC<Props> = ({ entry, onEdit, onDelete, usersM
       {/* Cover Image */}
       <div className="aspect-[2/3] w-full bg-base border-b border-border-subtle relative overflow-hidden flex-shrink-0">
         {entry.coverUrl ? (
-          <img 
+          <img loading="lazy" decoding="async" 
             src={entry.coverUrl} 
             alt={entry.title} 
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            loading="lazy"
-          />
+            />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-4xl font-black uppercase shadow-inner">
             {entry.title.charAt(0)}

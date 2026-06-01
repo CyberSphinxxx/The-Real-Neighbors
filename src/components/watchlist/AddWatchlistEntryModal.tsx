@@ -1,3 +1,4 @@
+import { useWatchlistStore } from '../../stores/watchlistStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { addDoc, updateDoc } from '../../lib/firestore';
@@ -93,11 +94,13 @@ export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryT
 
       if (entryToEdit) {
         await updateDoc('watchlists', [entryToEdit.id], payload);
+        useWatchlistStore.getState().invalidate();
         toast.success('Entry updated');
       } else {
         payload.userId = user.id;
         payload.createdAt = Date.now();
         await addDoc('watchlists', payload as any);
+        useWatchlistStore.getState().invalidate();
         toast.success('Entry added');
       }
       onClose();
@@ -182,7 +185,7 @@ export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryT
                     className="w-full flex items-center gap-3 p-3 text-left hover:bg-base transition-colors border-b border-border-subtle last:border-0"
                   >
                     {res.poster_path ? (
-                      <img src={`https://image.tmdb.org/t/p/w92${res.poster_path}`} alt="" className="w-10 h-14 object-cover rounded bg-base" />
+                      <img loading="lazy" decoding="async" src={`https://image.tmdb.org/t/p/w92${res.poster_path}`} alt="" className="w-10 h-14 object-cover rounded bg-base" />
                     ) : (
                       <div className="w-10 h-14 bg-base rounded flex items-center justify-center text-muted text-xs">No img</div>
                     )}
@@ -251,7 +254,7 @@ export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryT
             />
             {coverUrl && (
               <div className="mt-2 w-24 h-36 rounded-lg overflow-hidden border border-border-subtle shadow-sm">
-                <img src={coverUrl} alt="Cover preview" className="w-full h-full object-cover" onError={(e) => {
+                <img loading="lazy" decoding="async" src={coverUrl} alt="Cover preview" className="w-full h-full object-cover" onError={(e) => {
                   (e.target as HTMLImageElement).src = 'data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="150" viewBox="0 0 100 150"><rect fill="%232d3748" width="100" height="150"/><text fill="%23a0aec0" x="50" y="75" font-family="sans-serif" font-size="12" text-anchor="middle">Invalid Image</text></svg>';
                 }} />
               </div>

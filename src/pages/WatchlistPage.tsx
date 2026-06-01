@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { subscribeToCollection, deleteDoc } from '../lib/firestore';
+import { useWatchlistStore } from '../stores/watchlistStore';
+const CACHE_TTL = 2 * 60 * 1000;
 import type { User, WatchlistEntry } from '../types';
 import { UserWatchlist } from '../components/watchlist/UserWatchlist';
 import { GroupConsensusView } from '../components/watchlist/GroupConsensusView';
@@ -13,7 +15,7 @@ import { useConfirm } from '../contexts/ConfirmContext';
 export const WatchlistPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
-  const [entries, setEntries] = useState<WatchlistEntry[]>([]);
+  const { entries, fetchedAt, setEntries } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState<WatchlistEntry | undefined>(undefined);
@@ -28,14 +30,27 @@ export const WatchlistPage: React.FC = () => {
 
   useEffect(() => {
     const unsubUsers = subscribeToCollection<User>('users', (data) => setUsers(data));
-    const unsubEntries = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
-      setEntries(data);
-      setIsLoading(false);
-    });
+    const fetchWatchlist = async () => {
+      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        const snap = await getDocs(collection(db, 'watchlists'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WatchlistEntry));
+        setEntries(data);
+        setIsLoading(false);
+      } catch (err) {
+        console.error('Failed to fetch watchlists', err);
+        setIsLoading(false);
+      }
+    };
+    fetchWatchlist();
 
     return () => {
       unsubUsers();
-      unsubEntries();
     };
   }, []);
 
@@ -58,6 +73,7 @@ export const WatchlistPage: React.FC = () => {
     if (isConfirmed) {
       try {
         await deleteDoc('watchlists', id);
+        useWatchlistStore.getState().invalidate();
         toast.success('Entry deleted');
       } catch (err) {
         console.error(err);
