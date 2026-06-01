@@ -47,8 +47,9 @@ export const BirthdaysPage: React.FC = () => {
   }, [fetchedAt, setUsers]);
 
   const sortedUsers = useMemo(() => {
-    const withBday = users.filter(u => u.birthdate);
-    const withoutBday = users.filter(u => !u.birthdate);
+    const visibleUsers = users.filter(u => u.privacyPrefs?.showBirthday !== false || u.id === currentUser?.id);
+    const withBday = visibleUsers.filter(u => u.birthdate);
+    const withoutBday = visibleUsers.filter(u => !u.birthdate);
 
     withBday.sort((a, b) => getDaysUntilBirthday(a.birthdate!) - getDaysUntilBirthday(b.birthdate!));
     
@@ -56,11 +57,11 @@ export const BirthdaysPage: React.FC = () => {
     withoutBday.sort((a, b) => a.displayName.localeCompare(b.displayName));
 
     return [...withBday, ...withoutBday];
-  }, [users]);
+  }, [users, currentUser?.id]);
 
   const celebrants = useMemo(() => {
-    return users.filter(u => u.birthdate && isBirthdayToday(u.birthdate));
-  }, [users]);
+    return users.filter(u => u.birthdate && isBirthdayToday(u.birthdate) && (u.privacyPrefs?.showBirthday !== false || u.id === currentUser?.id));
+  }, [users, currentUser?.id]);
 
   // Trigger confetti if someone has a birthday today
   useEffect(() => {
@@ -105,8 +106,10 @@ export const BirthdaysPage: React.FC = () => {
 
   const handleToggleAge = async (u: User) => {
     try {
-      const newPref = u.showAge === false ? true : false;
-      await updateDoc('users', [u.id], { showAge: newPref });
+      const newPref = u.privacyPrefs?.showBirthYear === false ? true : false;
+      await updateDoc('users', [u.id], { 
+        'privacyPrefs.showBirthYear': newPref 
+      });
     } catch (err) {
       console.error(err);
       toast.error('Failed to update preference');
@@ -137,11 +140,11 @@ export const BirthdaysPage: React.FC = () => {
             <input 
               type="checkbox" 
               className="sr-only"
-              checked={currentUser?.showAge ?? true}
+              checked={currentUser?.privacyPrefs?.showBirthYear !== false}
               onChange={() => { if (currentUser) handleToggleAge(currentUser); }}
             />
-            <div className={`block w-8 h-5 rounded-full transition-colors ${currentUser?.showAge !== false ? 'bg-primary' : 'bg-border'}`}></div>
-            <div className={`absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${currentUser?.showAge !== false ? 'translate-x-3' : ''}`}></div>
+            <div className={`block w-8 h-5 rounded-full transition-colors ${currentUser?.privacyPrefs?.showBirthYear !== false ? 'bg-primary' : 'bg-border'}`}></div>
+            <div className={`absolute left-1 top-1 bg-white w-3 h-3 rounded-full transition-transform ${currentUser?.privacyPrefs?.showBirthYear !== false ? 'translate-x-3' : ''}`}></div>
           </div>
         </label>
       </div>
@@ -157,7 +160,7 @@ export const BirthdaysPage: React.FC = () => {
           const hasBday = !!u.birthdate;
           const isToday = hasBday && isBirthdayToday(u.birthdate!);
           const daysLeft = hasBday ? getDaysUntilBirthday(u.birthdate!) : -1;
-          const showAge = u.showAge !== false;
+          const showAge = u.privacyPrefs?.showBirthYear !== false;
           const canEdit = isAdmin || u.id === currentUser?.id;
           const isEditing = editingId === u.id;
 
