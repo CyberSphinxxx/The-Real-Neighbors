@@ -92,7 +92,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, sub
             value={newSub}
             onChange={(e) => { setNewSub(e.target.value); setError(''); }}
             placeholder="Add subreddit..."
-            className="flex-1 bg-surface border border-default rounded-lg px-3 py-1.5 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
+            className="flex-1 bg-surface border border-border-subtle rounded-lg px-3 py-1.5 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
           />
           <button
             type="submit"
