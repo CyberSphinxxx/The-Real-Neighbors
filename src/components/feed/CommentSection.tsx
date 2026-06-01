@@ -4,15 +4,25 @@ import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/fire
 import { orderBy } from 'firebase/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import type { Comment, User } from '../../types';
-import { Loader2, Send } from 'lucide-react';
+import { Loader2, Send, Heart, Reply, X } from 'lucide-react';
+import { getAvatarColor } from '../../utils/avatarColor';
 
 interface CommentSectionProps {
   postId: string;
   allUsers?: User[];
 }
 
+interface CommentItemProps {
+  comment: Comment;
+  allUsers?: User[];
+  currentUserId?: string;
+  onToggleLike?: (commentId: string, isLiked: boolean) => void;
+  onReply?: (commentId: string, authorName: string) => void;
+  isReply?: boolean;
+}
+
 // A sub-component to fetch and render user info for a comment author
-const CommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ comment, allUsers }) => {
+const CommentItem: React.FC<CommentItemProps> = ({ comment, allUsers, currentUserId, onToggleLike, onReply, isReply }) => {
   const [author, setAuthor] = useState<User | null>(null);
 
   useEffect(() => {
@@ -25,35 +35,66 @@ const CommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ commen
     return () => { isMounted = false; };
   }, [comment.authorId]);
 
+  const avatarBg = author ? getAvatarColor(author.displayName) : 'var(--color-primary)';
+  const likesCount = comment.likes?.length || 0;
+  const isLiked = currentUserId ? (comment.likes?.includes(currentUserId) || false) : false;
+
   return (
-    <div className="flex gap-3 text-sm">
-      <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0 text-xs">
-        {author ? author.displayName.charAt(0).toUpperCase() : '?'}
+    <div className={`flex gap-3 text-sm ${isReply ? 'ml-8 mt-2' : 'mt-4'}`}>
+      <div 
+        className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-xs shadow-sm overflow-hidden"
+        style={{ background: author?.avatarUrl ? undefined : avatarBg }}
+      >
+        {author?.avatarUrl ? (
+          <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
+        ) : (
+          author ? author.displayName.charAt(0).toUpperCase() : '?'
+        )}
       </div>
-      <div className="flex-1 bg-surface rounded-2xl rounded-tl-none p-3 border border-border-subtle">
-        <div className="flex items-center gap-2 mb-1">
-          <span className="font-semibold text-main">{author ? author.displayName : 'Loading...'}</span>
-          <span className="text-xs text-faint">{formatTimeAgo(comment.createdAt)}</span>
-        </div>
-        <p className="text-muted break-words whitespace-pre-wrap">
-          {(() => {
-            if (!allUsers || !comment.content) return comment.content;
-            const tokens = comment.content.split(/(\s+)/);
-            return tokens.map((token, i) => {
-              if (token.startsWith('@') && token.length > 1) {
-                const name = token.slice(1);
-                if (allUsers.some(u => u.displayName === name)) {
-                  return (
-                    <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
-                      {token}
-                    </span>
-                  );
+      <div className="flex-1">
+        <div className="bg-surface rounded-2xl rounded-tl-none p-3 border border-border-subtle inline-block min-w-[120px]">
+          <div className="flex items-center gap-2 mb-1">
+            <span className="font-semibold text-main">{author ? author.displayName : 'Loading...'}</span>
+            <span className="text-xs text-faint">{formatTimeAgo(comment.createdAt)}</span>
+          </div>
+          <p className="text-muted break-words whitespace-pre-wrap">
+            {(() => {
+              if (!allUsers || !comment.content) return comment.content;
+              const tokens = comment.content.split(/(\s+)/);
+              return tokens.map((token, i) => {
+                if (token.startsWith('@') && token.length > 1) {
+                  const name = token.slice(1);
+                  if (allUsers.some(u => u.displayName === name)) {
+                    return (
+                      <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
+                        {token}
+                      </span>
+                    );
+                  }
                 }
-              }
-              return token;
-            });
-          })()}
-        </p>
+                return token;
+              });
+            })()}
+          </p>
+        </div>
+        {/* Action Bar */}
+        <div className="flex items-center gap-4 mt-1 ml-2 text-[11px] font-medium text-faint">
+          <button 
+            onClick={() => onToggleLike?.(comment.id, isLiked)}
+            className={`flex items-center gap-1 hover:scale-105 transition-transform ${isLiked ? 'text-primary' : 'hover:text-main'}`}
+          >
+            <Heart size={12} className={isLiked ? 'fill-primary' : ''} />
+            {likesCount > 0 && <span>{likesCount}</span>}
+          </button>
+          {!isReply && (
+            <button 
+              onClick={() => onReply?.(comment.id, author?.displayName || 'Unknown')}
+              className="flex items-center gap-1 hover:text-main hover:scale-105 transition-transform"
+            >
+              <Reply size={12} /> Reply
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -65,6 +106,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [replyTo, setReplyTo] = useState<{ id: string, name: string } | null>(null);
   
   const textareaRef = React.useRef<HTMLTextAreaElement>(null);
   const [showMentionPicker, setShowMentionPicker] = useState(false);
@@ -127,22 +169,48 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
     return () => unsubscribe();
   }, [postId]);
 
+  const handleToggleLike = async (commentId: string, isLiked: boolean) => {
+    if (!user) return;
+    try {
+      import('firebase/firestore').then(({ arrayUnion, arrayRemove }) => {
+        updateDoc(`posts/${postId}/comments`, [commentId], {
+          likes: isLiked ? arrayRemove(user.id) : arrayUnion(user.id)
+        }).catch(console.error);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleReply = (commentId: string, authorName: string) => {
+    setReplyTo({ id: commentId, name: authorName });
+    setContent((prev) => {
+      if (prev.includes(`@${authorName}`)) return prev;
+      return `@${authorName} ${prev}`;
+    });
+    textareaRef.current?.focus();
+  };
+
   const handleSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!content.trim() || !user) return;
 
     const newCommentContent = content.trim();
     const tempId = `temp_${Date.now()}`;
-    const optimisticComment = {
+    const optimisticComment: Comment = {
       id: tempId,
       authorId: user.id,
       content: newCommentContent,
       createdAt: Date.now(),
+      parentId: replyTo?.id,
+      likes: [],
     };
 
-    setComments(prev => [...prev, optimisticComment as Comment]);
+    setComments(prev => [...prev, optimisticComment]);
     setContent('');
     setShowMentionPicker(false);
+    const savedReplyTo = replyTo;
+    setReplyTo(null);
     
     const savedMentions = [...mentions];
     setMentions([]);
@@ -153,6 +221,7 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
         authorId: user.id,
         content: newCommentContent,
         createdAt: Date.now(),
+        ...(savedReplyTo ? { parentId: savedReplyTo.id } : {})
       };
       await addDoc<Omit<Comment, 'id'>>(`posts/${postId}/comments`, newComment as any);
       import('firebase/firestore').then(({ increment }) => {
@@ -235,15 +304,49 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
         ) : comments.length === 0 ? (
           <p className="text-center text-sm text-faint py-2">No comments yet. Be the first!</p>
         ) : (
-          comments.map((comment) => (
-            <CommentItem key={comment.id} comment={comment} allUsers={allUsers} />
+          comments.filter(c => !c.parentId).map((comment) => (
+            <div key={comment.id}>
+              <CommentItem 
+                comment={comment} 
+                allUsers={allUsers} 
+                currentUserId={user?.id}
+                onToggleLike={handleToggleLike}
+                onReply={handleReply}
+              />
+              {comments.filter(c => c.parentId === comment.id).map(reply => (
+                <CommentItem 
+                  key={reply.id} 
+                  comment={reply} 
+                  allUsers={allUsers} 
+                  currentUserId={user?.id}
+                  onToggleLike={handleToggleLike}
+                  isReply
+                />
+              ))}
+            </div>
           ))
         )}
       </div>
 
+      {replyTo && (
+        <div className="flex items-center justify-between bg-surface border border-border-subtle rounded-xl px-3 py-1.5 mb-2 text-xs">
+          <span className="text-muted">Replying to <span className="font-semibold text-main">@{replyTo.name}</span></span>
+          <button onClick={() => setReplyTo(null)} className="text-faint hover:text-main">
+            <X size={14} />
+          </button>
+        </div>
+      )}
+
       <div className="flex gap-3 items-end">
-        <div className="w-8 h-8 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold flex-shrink-0 text-xs mb-1">
-          {user?.displayName?.charAt(0).toUpperCase()}
+        <div 
+          className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-xs mb-1 shadow-sm overflow-hidden"
+          style={{ background: user?.avatarUrl ? undefined : getAvatarColor(user?.displayName || '?') }}
+        >
+          {user?.avatarUrl ? (
+            <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
+          ) : (
+            user?.displayName?.charAt(0).toUpperCase() || '?'
+          )}
         </div>
         <div className="flex-1 relative">
           {showMentionPicker && filteredMentions.length > 0 && (

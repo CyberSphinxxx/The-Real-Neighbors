@@ -1,15 +1,17 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { getDoc, updateDoc, subscribeToCollection } from '../../lib/firestore';
+import { getDoc, updateDoc, addDoc, subscribeToCollection } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { CommentSection } from './CommentSection';
+import { SharePostModal } from './SharePostModal';
 import type { Post, User } from '../../types';
-import { Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye, Bookmark } from 'lucide-react';
+import { Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye, Bookmark, Share2 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import toast from 'react-hot-toast';
+import { Link } from 'react-router-dom';
 
 interface PostCardProps {
   post: Post;
@@ -19,6 +21,7 @@ interface PostCardProps {
 
 const REACTIONS = [
   { emoji: '👍', label: 'Like' },
+  { emoji: '❤️', label: 'Love' },
   { emoji: '😂', label: 'Haha' },
   { emoji: '😮', label: 'Wow' },
   { emoji: '😢', label: 'Sad' },
@@ -29,10 +32,29 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   const { onlineUsers } = useOnlineUsers();
   const [author, setAuthor] = useState<User | null>(null);
   const [optimisticReactions, setOptimisticReactions] = useState(post.reactions || {});
+  const [sharedPost, setSharedPost] = useState<Post | null>(null);
+  const [sharedPostAuthor, setSharedPostAuthor] = useState<User | null>(null);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   useEffect(() => {
     setOptimisticReactions(post.reactions || {});
   }, [post.reactions]);
+
+  useEffect(() => {
+    if (!post.sharedPostId) return;
+    let isMounted = true;
+    const fetchSharedPost = async () => {
+      const sp = await getDoc<Post>('posts', [post.sharedPostId!]);
+      if (isMounted && sp) {
+        setSharedPost(sp);
+        const spa = await getDoc<User>('users', [sp.authorId]);
+        if (isMounted) setSharedPostAuthor(spa);
+      }
+    };
+    fetchSharedPost();
+    return () => { isMounted = false; };
+  }, [post.sharedPostId]);
+
   const [showComments, setShowComments] = useState(false);
   const [isUpdatingReaction, setIsUpdatingReaction] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -424,11 +446,11 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
     >
       {/* Header */}
       <div className="flex justify-between items-start mb-4">
-        <div className="flex items-center gap-3">
+        <Link to={`/profile/${author?.handle || post.authorId}`} onClick={(e) => e.stopPropagation()} className="flex items-center gap-3 group">
           {/* Avatar with hash color */}
           <div className="relative">
             <div
-              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-sm"
+              className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white text-base flex-shrink-0 shadow-sm transition-transform group-hover:scale-105"
               style={{ background: author?.avatarUrl ? undefined : avatarBg }}
             >
               {author?.avatarUrl ? (
@@ -450,7 +472,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
 
           <div>
             <div className="flex items-center gap-2 flex-wrap">
-              <h3 className={`font-semibold text-sm ${textClass}`}>
+              <h3 className={`font-semibold text-sm group-hover:underline ${textClass}`}>
                 {author ? author.displayName : 'Loading...'}
               </h3>
               
@@ -505,7 +527,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
               )}
             </div>
           </div>
-        </div>
+        </Link>
         
         <div className="absolute top-3 right-3 flex items-center gap-1 z-10" ref={menuRef}>
           {user && (
@@ -618,6 +640,54 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
         >
           {renderContentWithMentions(post.content, allUsers)}
         </p>
+      )}
+
+      {/* Nested Shared Post */}
+      {post.sharedPostId && (
+        <div 
+          className="mb-4 rounded-xl p-4 border border-border-subtle cursor-pointer hover:bg-base transition-colors"
+          style={{ background: 'color-mix(in srgb, var(--color-bg-base) 50%, transparent)' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (sharedPost && onOpenPost) onOpenPost(sharedPost);
+          }}
+        >
+          {sharedPost ? (
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <div 
+                  className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-white text-[10px] overflow-hidden"
+                  style={{ background: sharedPostAuthor?.avatarUrl ? undefined : getAvatarColor(sharedPostAuthor?.displayName || '?') }}
+                >
+                  {sharedPostAuthor?.avatarUrl ? (
+                    <img src={sharedPostAuthor.avatarUrl} alt="" className="w-full h-full object-cover" />
+                  ) : (
+                    sharedPostAuthor?.displayName.charAt(0).toUpperCase() || '?'
+                  )}
+                </div>
+                <span className="font-semibold text-sm text-main">{sharedPostAuthor?.displayName || 'Loading...'}</span>
+                <span className="text-xs text-faint">&middot; {formatTimeAgo(sharedPost.createdAt)}</span>
+              </div>
+              <p className="text-sm text-main whitespace-pre-wrap break-words line-clamp-4">
+                {renderContentWithMentions(sharedPost.content, allUsers)}
+              </p>
+              {sharedPost.imageUrl && (
+                <div className="mt-2 text-xs text-primary font-medium flex items-center gap-1">
+                   🖼️ Attached Image
+                </div>
+              )}
+              {sharedPost.linkMeta && (
+                <div className="mt-2 text-xs text-primary font-medium flex items-center gap-1">
+                   🔗 Attached Link
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="text-sm text-faint flex items-center gap-2">
+              <Loader2 size={14} className="animate-spin" /> Loading shared post...
+            </div>
+          )}
+        </div>
       )}
 
       {/* Image Attachment */}
@@ -760,23 +830,46 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
           })}
         </div>
 
-        {/* Comments pill — right aligned */}
-        <button
-          onClick={() => setShowComments(!showComments)}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-105 flex-shrink-0"
-          style={{
-            minHeight: '36px',
-            background: showComments
-              ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)')
-              : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
-            border: showComments
-              ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
-              : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
-            color: hasBg ? '#fff' : (showComments ? 'var(--color-primary)' : 'var(--color-text-muted)'),
-          }}
-        >
-          <span>💬 {commentCount === 0 ? 'Comment' : commentCount}</span>
-        </button>
+        {/* Right side actions */}
+        <div className="flex items-center gap-2">
+          {/* Share Button */}
+          <button
+            onClick={() => {
+              if (!user) {
+                toast.error('You must be logged in to share.');
+                return;
+              }
+              setShowShareModal(true);
+            }}
+            className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-150 hover:scale-105 flex-shrink-0"
+            style={{
+              background: hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)',
+              border: hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)',
+              color: hasBg ? '#fff' : 'var(--color-text-muted)',
+            }}
+            title="Share post"
+          >
+            <Share2 size={16} />
+          </button>
+
+          {/* Comments pill */}
+          <button
+            onClick={() => setShowComments(!showComments)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-105 flex-shrink-0"
+            style={{
+              minHeight: '36px',
+              background: showComments
+                ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)')
+                : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
+              border: showComments
+                ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
+                : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
+              color: hasBg ? '#fff' : (showComments ? 'var(--color-primary)' : 'var(--color-text-muted)'),
+            }}
+          >
+            <span>💬 {commentCount === 0 ? 'Comment' : commentCount}</span>
+          </button>
+        </div>
       </div>
 
       {/* Views Counter */}
@@ -796,6 +889,53 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
         <div className={`mt-4 ${hasBg ? 'bg-black/20 p-4 rounded-xl' : ''}`}>
           <CommentSection postId={post.id} allUsers={allUsers} />
         </div>
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <SharePostModal
+          post={sharedPost || post}
+          author={sharedPostAuthor || author}
+          onClose={() => setShowShareModal(false)}
+          onShare={async (caption) => {
+            try {
+              if (!user) return;
+              const targetPostId = post.sharedPostId || post.id;
+              
+              const newPost = {
+                authorId: user.id,
+                content: caption.trim(),
+                createdAt: Date.now(),
+                sharedPostId: targetPostId,
+                reactions: {},
+                isPinned: false
+              };
+              
+              await addDoc('posts', newPost as any);
+              toast.success('Post shared to your feed!');
+              
+              const originalAuthorId = post.sharedPostId ? sharedPost?.authorId : post.authorId;
+              if (originalAuthorId && originalAuthorId !== user.id) {
+                import('../../lib/notifications').then(({ writeNotification }) => {
+                  writeNotification(originalAuthorId, {
+                    type: 'post',
+                    fromUid: user.id,
+                    fromName: user.displayName,
+                    fromAvatarColor: user.accentColor || '#3b82f6',
+                    postId: targetPostId,
+                    message: `${user.displayName} shared your post`,
+                    preview: caption.trim() ? caption.substring(0, 60) : 'Shared your post to their feed',
+                  }, 'posts');
+                });
+              }
+              setShowShareModal(false);
+            } catch (err) {
+              console.error(err);
+              toast.error('Failed to share post.');
+              throw err;
+            }
+          }}
+        />
       )}
 
       {/* Edit History Modal */}
