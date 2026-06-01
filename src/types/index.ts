@@ -9,6 +9,8 @@ export interface User {
   joinedAt: string | number | Date;
   showAge?: boolean;
   subreddits?: string[];
+  savedPosts?: string[];
+  notificationPrefs?: Record<string, boolean>;
 }
 
 export interface Post {
@@ -25,6 +27,11 @@ export interface Post {
   createdAt: string | number | Date;
   isPinned: boolean;
   editHistory?: { content: string; editedAt: number }[];
+  expiresAt?: number;
+  editedAt?: number;
+  isEdited?: boolean;
+  seenBy?: string[];
+  mentions?: string[];
 }
 
 export interface Comment {
@@ -125,4 +132,28 @@ export interface RedditPost {
   num_comments: number;
   created_utc: number;
   permalink: string;
+}
+
+export interface Poll {
+  id: string;
+  question: string;
+  options: { id: string; label: string }[];
+  votes: Record<string, string>; // uid -> optionId
+  createdBy: string;
+  expiresAt: number;
+  isActive: boolean;
+  createdAt: number;
+}
+
+export interface Notification {
+  id: string;
+  type: 'post' | 'reaction' | 'comment' | 'mention' | 'event' | 'birthday' | 'poll' | 'streak_risk' | 'expiry' | 'event_reminder';
+  fromUid: string;
+  fromName: string;
+  fromAvatarColor: string;
+  postId?: string;
+  message: string;
+  preview?: string;
+  isRead: boolean;
+  createdAt: number;
 }

@@ -73,5 +73,7 @@ export const subscribeToCollection = <T>(
       ...docSnap.data()
     })) as T[];
     callback(data);
+  }, (error) => {
+    console.error(`Error subscribing to collection ${path}:`, error.message);
   });
 };
