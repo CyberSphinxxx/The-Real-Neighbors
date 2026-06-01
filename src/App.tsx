@@ -6,6 +6,8 @@ import FeedPage from './pages/FeedPage';
 import React, { Suspense } from 'react';
 import { PageSkeleton } from './components/ui/PageSkeleton';
 
+import { GlobalStyleManager } from './components/layout/GlobalStyleManager';
+
 const LoginPage = React.lazy(() => import('./pages/LoginPage'));
 const BirthdaysPage = React.lazy(() => import('./pages/BirthdaysPage'));
 const EventsPage = React.lazy(() => import('./pages/EventsPage'));
@@ -13,10 +15,12 @@ const EventDetailPage = React.lazy(() => import('./pages/EventDetailPage'));
 const WatchlistPage = React.lazy(() => import('./pages/WatchlistPage'));
 const LinksPage = React.lazy(() => import('./pages/LinksPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
+const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 
 function App() {
   return (
     <Router>
+      <GlobalStyleManager />
       <Suspense fallback={<PageSkeleton />}><Routes>
         <Route path="/login" element={<LoginPage />} />
         
@@ -26,6 +30,7 @@ function App() {
           </ProtectedRoute>
         }>
           <Route index element={<FeedPage />} />
+          <Route path="feed" element={<FeedPage />} />
           <Route path="watchlist" element={<WatchlistPage />} />
           <Route path="events" element={<EventsPage />} />
           <Route path="events/:id" element={<EventDetailPage />} />
@@ -33,6 +38,12 @@ function App() {
           <Route path="links" element={<LinksPage />} />
           <Route path="profile" element={<ProfilePage />} />
         </Route>
+        
+        <Route path="/settings" element={
+          <ProtectedRoute>
+            <SettingsPage />
+          </ProtectedRoute>
+        } />
       </Routes></Suspense>
       <Toaster position="bottom-center" />
     </Router>
