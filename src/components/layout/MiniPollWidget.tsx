@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { updateDoc, subscribeToCollection, getDoc, addDoc } from '../../lib/firestore';
 import type { Poll, User } from '../../types';
-import { Plus, Check, Loader2 } from 'lucide-react';
+import { Plus, Check, Loader2, BarChart2 } from 'lucide-react';
 
 const MiniPollWidgetComponent: React.FC = () => {
   const { user } = useAuthStore();
@@ -128,13 +128,15 @@ const MiniPollWidgetComponent: React.FC = () => {
   if (isLoading) return null;
   if (!poll && !isCreating) return (
     <div 
-      className="bg-surface rounded-xl shadow-sm p-4 flex flex-col items-center justify-center gap-3"
+      className="bg-surface rounded-xl shadow-sm py-3 px-4 flex flex-col items-center justify-center"
       style={{ border: '1px solid var(--color-border-subtle)' }}
     >
-      <div className="text-4xl mb-1">🗳️</div>
+      <BarChart2 size={28} className="text-muted block mx-auto mb-2" strokeWidth={1.5} />
+      <div className="text-sm font-medium text-muted text-center mt-2">No active poll</div>
+      <div className="text-xs text-faint text-center mt-1 mb-3">Create one to get the group's opinion!</div>
       <button 
         onClick={() => setIsCreating(true)}
-        className="flex items-center gap-2 px-4 py-2 bg-primary text-on-primary rounded-xl text-sm font-semibold hover:bg-primary-hover transition-colors"
+        className="flex items-center justify-center gap-1.5 w-full bg-primary text-on-primary rounded-full px-4 py-1.5 text-sm font-medium hover:bg-primary-hover transition-colors"
       >
         <Plus size={16} /> Create Poll
       </button>
@@ -226,9 +228,10 @@ const MiniPollWidgetComponent: React.FC = () => {
           {/* Header */}
       <div className="flex items-center justify-between mb-3">
         <div className="flex items-center gap-1.5">
-          <h3 className="text-[10px] font-bold text-muted uppercase tracking-widest">
+          <span className="text-xs font-semibold uppercase tracking-wide text-muted flex items-center">
+            <BarChart2 size={14} className="mr-1.5" />
             Poll
-          </h3>
+          </span>
           {pollAuthor && (
             <span className="text-xs text-faint">
               by {pollAuthor.displayName}
@@ -264,7 +267,7 @@ const MiniPollWidgetComponent: React.FC = () => {
                   className={`relative w-full text-left rounded-lg p-2 text-sm transition-colors overflow-hidden flex items-center justify-between z-10 ${
                     isSelected
                       ? 'border-primary text-primary font-semibold'
-                      : 'border-default hover:bg-elevated text-main'
+                      : 'border-border-subtle hover:bg-elevated text-main'
                   } border ${isExpired ? 'cursor-default' : 'cursor-pointer'}`}
                   style={{
                     background: isSelected && !showResults ? 'color-mix(in srgb, var(--color-primary) 15%, transparent)' : undefined
