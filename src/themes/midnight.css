@@ -1,0 +1,31 @@
+:root.midnight {
+  --color-bg-base: #020617; /* Slate 950 */
+  --color-bg-surface: #0f172a; /* Slate 900 */
+  --color-bg-elevated: #1e293b; /* Slate 800 */
+  
+  --color-primary: #22d3ee; /* Cyan 400 */
+  --color-primary-hover: #06b6d4; /* Cyan 500 */
+  --color-on-primary: #083344;
+  
+  --color-secondary: #818cf8; /* Indigo 400 */
+  --color-accent: #f472b6; /* Pink 400 */
+  
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-faint: #475569;
+  
+  --color-border: #334155;
+  --color-border-subtle: #0f172a;
+  
+  --color-danger: #f87171;
+  --color-success: #34d399;
+  --color-warning: #fbbf24;
+
+  /* Avatar palette */
+  --avatar-color-0: #22d3ee;
+  --avatar-color-1: #818cf8;
+  --avatar-color-2: #f472b6;
+  --avatar-color-3: #34d399;
+  --avatar-color-4: #f87171;
+  --avatar-color-5: #fbbf24;
+}
