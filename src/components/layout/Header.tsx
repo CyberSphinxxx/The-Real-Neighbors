@@ -24,6 +24,7 @@ import { useFeedTabStore } from '../../stores/feedTabStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { formatTimeAgo } from '../../utils/date';
 import type { Post, WatchlistEntry, SavedLink } from '../../types';
+import type { PresenceUser } from '../../hooks/useOnlineUsers';
 
 // ─── Search Result Types ─────────────────────────────────────────────────────
 
@@ -31,6 +32,7 @@ interface SearchResults {
   posts: Post[];
   watchlist: WatchlistEntry[];
   links: SavedLink[];
+  users: PresenceUser[];
 }
 
 // ─── Debounce hook ─────────────────────────────────────────────────────────
@@ -50,7 +52,7 @@ export const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
-  const { onlineUsers } = useOnlineUsers();
+  const { onlineUsers, offlineUsers } = useOnlineUsers();
   const { nextThemeLabel, themeIcon: ThemeIcon, cycleTheme } = useTheme();
   const { posts } = usePostStore();
   const { entries: watchlistEntries } = useWatchlistStore();
@@ -119,7 +121,7 @@ export const Header: React.FC = () => {
   // ─── Search results ────────────────────────────────────────────────────────
   const searchResults = useMemo<SearchResults>(() => {
     const q = debouncedQuery.toLowerCase().trim();
-    if (!q) return { posts: [], watchlist: [], links: [] };
+    if (!q) return { posts: [], watchlist: [], links: [], users: [] };
 
     const matchedPosts = posts
       .filter((p) => p.content?.toLowerCase().includes(q))
@@ -137,16 +139,25 @@ export const Header: React.FC = () => {
       )
       .slice(0, 3);
 
-    return { posts: matchedPosts, watchlist: matchedWatchlist, links: matchedLinks };
-  }, [debouncedQuery, posts, watchlistEntries, links]);
+    const allUsers = [...onlineUsers, ...offlineUsers];
+    const matchedUsers = allUsers
+      .filter((u) => 
+        u.displayName.toLowerCase().includes(q) || 
+        u.handle?.toLowerCase().includes(q)
+      )
+      .slice(0, 3);
+
+    return { posts: matchedPosts, watchlist: matchedWatchlist, links: matchedLinks, users: matchedUsers };
+  }, [debouncedQuery, posts, watchlistEntries, links, onlineUsers, offlineUsers]);
 
   const hasResults =
     searchResults.posts.length > 0 ||
     searchResults.watchlist.length > 0 ||
-    searchResults.links.length > 0;
+    searchResults.links.length > 0 ||
+    searchResults.users.length > 0;
 
   const storesEmpty =
-    posts.length === 0 && watchlistEntries.length === 0 && links.length === 0;
+    posts.length === 0 && watchlistEntries.length === 0 && links.length === 0 && onlineUsers.length === 0 && offlineUsers.length === 0;
 
   // ─── Handle tab switching ──────────────────────────────────────────────────
   const handleTabClick = (tab: 'our_feed' | 'explore') => {
@@ -183,6 +194,11 @@ export const Header: React.FC = () => {
   const handleLinkResultClick = (url: string) => {
     collapseSearch();
     window.open(url, '_blank', 'noopener,noreferrer');
+  };
+
+  const handleUserResultClick = (u: PresenceUser) => {
+    collapseSearch();
+    navigate(`/profile/${u.handle || u.uid}`);
   };
 
   if (!user) return null;
@@ -257,6 +273,7 @@ export const Header: React.FC = () => {
               onPostClick={handlePostResultClick}
               onWatchlistClick={handleWatchlistResultClick}
               onLinkClick={handleLinkResultClick}
+              onUserClick={handleUserResultClick}
             />
           )}
         </div>
@@ -361,6 +378,7 @@ export const Header: React.FC = () => {
                     onPostClick={handlePostResultClick}
                     onWatchlistClick={handleWatchlistResultClick}
                     onLinkClick={handleLinkResultClick}
+                    onUserClick={handleUserResultClick}
                   />
                 )}
               </div>
@@ -387,7 +405,7 @@ export const Header: React.FC = () => {
                  location.pathname.startsWith('/events') ? 'Events' :
                  location.pathname === '/birthdays' ? 'Birthdays' :
                  location.pathname === '/links' ? 'Links' :
-                 location.pathname === '/profile' ? 'Profile' : 'Neighbors'}
+                 location.pathname.startsWith('/profile') ? 'Profile' : 'Neighbors'}
               </span>
             </div>
 
@@ -520,7 +538,7 @@ export const Header: React.FC = () => {
 
             {/* User avatar */}
             <button
-              onClick={() => navigate('/profile')}
+              onClick={() => user?.id && navigate(`/profile/${user.handle || user.id}`)}
               title="View profile"
               style={{
                 position: 'relative',
@@ -649,7 +667,8 @@ const SearchDropdown: React.FC<{
   onPostClick: (post: Post) => void;
   onWatchlistClick: () => void;
   onLinkClick: (url: string) => void;
-}> = ({ query, results, hasResults, storesEmpty, onPostClick, onWatchlistClick, onLinkClick }) => {
+  onUserClick: (user: PresenceUser) => void;
+}> = ({ query, results, hasResults, storesEmpty, onPostClick, onWatchlistClick, onLinkClick, onUserClick }) => {
   return (
     <div
       style={{
@@ -677,6 +696,81 @@ const SearchDropdown: React.FC<{
         </div>
       ) : (
         <div style={{ padding: '4px' }}>
+          {/* Users */}
+          {results.users.length > 0 && (
+            <div>
+              <div style={{
+                padding: '8px 12px 4px',
+                fontSize: '11px',
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                color: 'var(--color-text-faint)',
+              }}>
+                👥 People
+              </div>
+              {results.users.map((u) => (
+                <button
+                  key={u.uid}
+                  onClick={() => onUserClick(u)}
+                  style={{
+                    width: '100%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    background: 'none',
+                    border: 'none',
+                    cursor: 'pointer',
+                    textAlign: 'left',
+                    transition: 'background 100ms',
+                    fontSize: '13px',
+                    color: 'var(--color-text-main)',
+                  }}
+                  onMouseEnter={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'var(--color-bg-elevated)';
+                  }}
+                  onMouseLeave={(e) => {
+                    (e.currentTarget as HTMLButtonElement).style.background = 'none';
+                  }}
+                >
+                  {u.avatarUrl ? (
+                    <img 
+                      src={u.avatarUrl} 
+                      alt="" 
+                      style={{ width: '24px', height: '24px', borderRadius: '9999px', objectFit: 'cover', flexShrink: 0 }} 
+                    />
+                  ) : (
+                    <div
+                      style={{
+                        width: '24px',
+                        height: '24px',
+                        borderRadius: '9999px',
+                        background: u.avatarColor,
+                        color: '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: '10px',
+                        fontWeight: 'bold',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {u.displayName.charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {u.displayName}
+                  </span>
+                  <span style={{ fontSize: '11px', color: 'var(--color-text-faint)', flexShrink: 0 }}>
+                    {u.handle ? `@${u.handle}` : ''}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
           {/* Posts */}
           {results.posts.length > 0 && (
             <div>
