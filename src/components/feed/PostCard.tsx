@@ -24,10 +24,15 @@ const REACTIONS = [
   { emoji: '😢', label: 'Sad' },
 ];
 
-export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }) => {
+const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }) => {
   const { user } = useAuthStore();
   const { onlineUsers } = useOnlineUsers();
   const [author, setAuthor] = useState<User | null>(null);
+  const [optimisticReactions, setOptimisticReactions] = useState(post.reactions || {});
+
+  useEffect(() => {
+    setOptimisticReactions(post.reactions || {});
+  }, [post.reactions]);
   const [showComments, setShowComments] = useState(false);
   const [isUpdatingReaction, setIsUpdatingReaction] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
@@ -113,10 +118,8 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
       entries.forEach(entry => {
         if (entry.isIntersecting) {
           timeout = setTimeout(() => {
-            import('firebase/firestore').then(({ arrayUnion }) => {
-              updateDoc('posts', [post.id], {
-                seenBy: arrayUnion(user.id)
-              }).catch(console.error);
+            import('../../lib/debouncedWrites').then(({ queueSeenPost }) => {
+              queueSeenPost(post.id, user.id);
             });
             observer.disconnect();
           }, 1000);
@@ -201,13 +204,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
     setIsUpdatingReaction(true);
 
     try {
-      const newReactions = { ...post.reactions };
+      const newReactions = { ...optimisticReactions };
+      const prevReactions = { ...optimisticReactions };
 
       Object.keys(newReactions).forEach(key => {
         newReactions[key] = newReactions[key].filter(uid => uid !== user.id);
       });
 
-      const hadReaction = post.reactions[emoji]?.includes(user.id);
+      const hadReaction = optimisticReactions[emoji]?.includes(user.id);
       if (!hadReaction) {
         if (!newReactions[emoji]) newReactions[emoji] = [];
         newReactions[emoji].push(user.id);
@@ -231,7 +235,14 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
         if (newReactions[key].length === 0) delete newReactions[key];
       });
 
-      await updateDoc('posts', [post.id], { reactions: newReactions });
+      setOptimisticReactions(newReactions);
+      try {
+        await updateDoc('posts', [post.id], { reactions: newReactions });
+      } catch (err) {
+        setOptimisticReactions(prevReactions);
+        toast.error('Failed to react. Try again.');
+        throw err;
+      }
     } catch (error) {
       console.error('Failed to update reaction', error);
     } finally {
@@ -250,6 +261,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
     });
 
     if (isConfirmed) {
+      window.dispatchEvent(new CustomEvent('optimisticDeletePost', { detail: post.id }));
       try {
         const { collection, query, getDocs, deleteDoc: firestoreDeleteDoc, doc } = await import('firebase/firestore');
         const { db } = await import('../../lib/firebase');
@@ -265,6 +277,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
         toast.success('Post deleted.');
       } catch (error) {
         console.error('Error deleting post:', error);
+        window.dispatchEvent(new CustomEvent('optimisticRestorePost', { detail: post }));
         toast.error('Failed to delete post.');
       }
     }
@@ -414,7 +427,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
               style={{ background: author?.avatarUrl ? undefined : avatarBg }}
             >
               {author?.avatarUrl ? (
-                <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                <img src={author.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               ) : (
                 author ? author.displayName.charAt(0).toUpperCase() : '?'
               )}
@@ -605,13 +618,19 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
       {/* Image Attachment */}
       {post.imageUrl && !imageError && (
         <div className="mb-4">
-          <img 
-            src={post.imageUrl} 
-            alt="Post attachment" 
-            className="w-full max-h-[400px] object-cover rounded-lg cursor-pointer hover:opacity-95 transition-opacity"
-            onClick={() => onOpenPost?.(post)}
-            onError={() => setImageError(true)}
-          />
+          <div className="relative w-full rounded-lg overflow-hidden bg-elevated" style={{ aspectRatio: '16/9' }}>
+            <img 
+              src={post.imageUrl} 
+              alt="Post attachment" 
+              loading="lazy"
+              decoding="async"
+              className="absolute inset-0 w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity duration-300"
+              style={{ opacity: 0 }}
+              onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
+              onClick={() => onOpenPost?.(post)}
+              onError={() => setImageError(true)}
+            />
+          </div>
         </div>
       )}
 
@@ -675,7 +694,7 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
         {/* Reaction pills */}
         <div className="flex items-center gap-2 flex-wrap">
           {REACTIONS.map((r) => {
-            const reactors = post.reactions?.[r.emoji] || [];
+            const reactors = optimisticReactions?.[r.emoji] || [];
             const count = reactors.length;
             const hasReacted = reactors.includes(user?.id || '');
 
@@ -811,3 +830,23 @@ export const PostCard: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }
     </div>
   );
 };
+
+
+export const PostCard = React.memo(PostCardComponent, (prev, next) => {
+  if (prev.post.id !== next.post.id) return false;
+  if (prev.post.content !== next.post.content) return false;
+  if (prev.post.isPinned !== next.post.isPinned) return false;
+  if (prev.post.isEdited !== next.post.isEdited) return false;
+  
+  const prevComments = prev.post.comments ? Object.keys(prev.post.comments).length : 0;
+  const nextComments = next.post.comments ? Object.keys(next.post.comments).length : 0;
+  if (prevComments !== nextComments) return false;
+
+  const prevSeenBy = prev.post.seenBy ? prev.post.seenBy.length : 0;
+  const nextSeenBy = next.post.seenBy ? next.post.seenBy.length : 0;
+  if (prevSeenBy !== nextSeenBy) return false;
+  
+  if (JSON.stringify(prev.post.reactions) !== JSON.stringify(next.post.reactions)) return false;
+  
+  return true;
+});

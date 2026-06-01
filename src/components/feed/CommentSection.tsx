@@ -131,11 +131,27 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
     if (e) e.preventDefault();
     if (!content.trim() || !user) return;
 
+    const newCommentContent = content.trim();
+    const tempId = `temp_${Date.now()}`;
+    const optimisticComment = {
+      id: tempId,
+      authorId: user.id,
+      content: newCommentContent,
+      createdAt: Date.now(),
+    };
+
+    setComments(prev => [...prev, optimisticComment as Comment]);
+    setContent('');
+    setShowMentionPicker(false);
+    
+    const savedMentions = [...mentions];
+    setMentions([]);
+
     setIsSubmitting(true);
     try {
       const newComment = {
         authorId: user.id,
-        content: content.trim(),
+        content: newCommentContent,
         createdAt: Date.now(),
       };
       await addDoc<Omit<Comment, 'id'>>(`posts/${postId}/comments`, newComment as any);
@@ -153,12 +169,12 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
               fromAvatarColor: user.accentColor || '#3b82f6',
               postId,
               message: `${user.displayName} commented on your post`,
-              preview: content.trim().slice(0, 60),
+              preview: newCommentContent.slice(0, 60),
             }, 'comments');
           }
         });
 
-        mentions.forEach(mentionedUid => {
+        savedMentions.forEach(mentionedUid => {
           writeNotification(mentionedUid, {
             type: 'mention',
             fromUid: user.id,
@@ -166,16 +182,15 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
             fromAvatarColor: user.accentColor || '#3b82f6',
             postId,
             message: `${user.displayName} mentioned you in a comment`,
-            preview: content.trim().slice(0, 60),
+            preview: newCommentContent.slice(0, 60),
           }, 'mentions');
         });
       });
 
-      setContent('');
-      setShowMentionPicker(false);
-      setMentions([]);
     } catch (error) {
       console.error('Failed to post comment', error);
+      setComments(prev => prev.filter(c => c.id !== tempId));
+      setContent(newCommentContent); // restore content
     } finally {
       setIsSubmitting(false);
     }

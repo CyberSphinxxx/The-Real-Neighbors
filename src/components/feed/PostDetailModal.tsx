@@ -443,7 +443,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                   style={{ background: author?.avatarUrl ? undefined : avatarBg }}
                 >
                   {author?.avatarUrl ? (
-                    <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                    <img src={author.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   ) : (
                     author ? author.displayName.charAt(0).toUpperCase() : '?'
                   )}
@@ -516,7 +516,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                   style={{ background: author?.avatarUrl ? undefined : avatarBg }}
                 >
                   {author?.avatarUrl ? (
-                    <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                    <img src={author.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   ) : (
                     author ? author.displayName.charAt(0).toUpperCase() : '?'
                   )}
@@ -623,7 +623,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                     style={{ background: author?.avatarUrl ? undefined : avatarBg }}
                   >
                     {author?.avatarUrl ? (
-                      <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                      <img src={author.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                     ) : (
                       author ? author.displayName.charAt(0).toUpperCase() : '?'
                     )}
@@ -771,7 +771,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               style={{ background: user?.avatarUrl ? undefined : (user ? getAvatarColor(user.displayName) : 'var(--color-primary)') }}
             >
               {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
               ) : (
                 user?.displayName?.charAt(0).toUpperCase()
               )}
@@ -849,7 +849,7 @@ const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ c
         style={{ background: author?.avatarUrl ? undefined : (author ? getAvatarColor(author.displayName) : 'var(--color-primary)') }}
       >
         {author?.avatarUrl ? (
-          <img src={author.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+          <img src={author.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
         ) : (
           author ? author.displayName.charAt(0).toUpperCase() : '?'
         )}

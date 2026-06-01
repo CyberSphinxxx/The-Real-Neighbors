@@ -412,7 +412,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
             }}
           >
             {user?.avatarUrl ? (
-              <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+              <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
             ) : (
               user?.displayName?.charAt(0).toUpperCase()
             )}
@@ -497,7 +497,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                   style={{ background: user?.avatarUrl ? undefined : avatarBg }}
                 >
                   {user?.avatarUrl ? (
-                    <img src={user.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" />
+                    <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   ) : (
                     user?.displayName?.charAt(0).toUpperCase()
                   )}
@@ -595,7 +595,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                           }}
                         >
                           <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-white text-[10px] shadow-sm flex-shrink-0" style={{ background: mu.avatarUrl ? undefined : getAvatarColor(mu.displayName) }}>
-                            {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" className="w-full h-full object-cover rounded-full" /> : mu.displayName.charAt(0).toUpperCase()}
+                            {mu.avatarUrl ? <img src={mu.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} /> : mu.displayName.charAt(0).toUpperCase()}
                           </div>
                           <span className="text-sm font-medium text-main">{mu.displayName}</span>
                         </div>
