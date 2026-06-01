@@ -1,7 +1,8 @@
-import React, { useEffect } from 'react';
-import { Outlet, useLocation } from 'react-router-dom';
+import React, { useEffect, useState } from 'react';
+import { Outlet } from 'react-router-dom';
+import { ArrowUp } from 'lucide-react';
 import { Sidebar } from './Sidebar';
-import { TopBar } from './TopBar';
+import { Header } from './Header';
 import { MobileNav } from './MobileNav';
 import { BirthdayWidget } from '../birthdays/BirthdayWidget';
 import { EventWidget } from '../events/EventWidget';
@@ -18,9 +19,23 @@ export const AppShell: React.FC = () => {
   usePresence();
   useStartupNotifications();
   
-  const location = useLocation();
-  const isProfile = location.pathname === '/profile';
   const { user } = useAuthStore();
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const container = document.getElementById('main-scroll-container');
+    if (!container) return;
+    const handleScroll = () => {
+      setShowScrollTop(container.scrollTop > 400);
+    };
+    container.addEventListener('scroll', handleScroll, { passive: true });
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToTop = () => {
+    const container = document.getElementById('main-scroll-container');
+    container?.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     if (user?.subreddits) {
@@ -29,19 +44,24 @@ export const AppShell: React.FC = () => {
   }, [user?.subreddits]);
 
   return (
-    <div className="flex flex-col h-screen bg-base md:flex-row overflow-hidden">
-      {/* Mobile Top Bar */}
-      <div className="md:hidden">
-        <TopBar />
-      </div>
+    <div className="flex flex-col h-screen bg-transparent md:flex-row overflow-hidden relative">
+      {/* Global Header — fixed, spans full width */}
+      <Header />
 
-      {/* Desktop Left Sidebar — fixed height, no scroll */}
-      <div className="hidden md:flex flex-col w-[240px] flex-shrink-0 bg-surface border-r border-border-subtle h-full overflow-hidden">
+      {/* Desktop Left Sidebar — offset below header */}
+      <div
+        className="hidden md:flex flex-col w-[240px] flex-shrink-0 bg-surface border-r border-border-subtle overflow-hidden"
+        style={{ paddingTop: '48px', height: '100vh' }}
+      >
         <Sidebar />
       </div>
 
-      {/* Center Content — scrolls independently */}
-      <main id="main-scroll-container" className="flex-1 overflow-y-auto h-full">
+      {/* Center Content — scrolls independently, offset below header */}
+      <main
+        id="main-scroll-container"
+        className="flex-1 overflow-y-auto"
+        style={{ paddingTop: '48px', height: '100vh' }}
+      >
         <div className="mx-auto max-w-[680px] px-4 py-6 md:px-6 w-full pb-24 md:pb-8">
           <ErrorBoundary>
             <div className="animate-in fade-in duration-300">
@@ -49,18 +69,30 @@ export const AppShell: React.FC = () => {
             </div>
           </ErrorBoundary>
         </div>
+
+        {/* Scroll to top button */}
+        <button
+          onClick={scrollToTop}
+          title="Back to top"
+          className={`fixed left-1/2 -translate-x-1/2 bottom-[80px] md:bottom-6 z-30 p-2 rounded-full shadow-md bg-surface border border-border-subtle text-muted hover:text-main hover:bg-elevated transition-all duration-200 ${
+            showScrollTop ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
+          }`}
+        >
+          <ArrowUp size={16} />
+        </button>
       </main>
 
       {/* Desktop Right Sidebar — sticky, scrolls independently */}
-      {!isProfile && (
-        <aside className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle h-full overflow-y-auto p-4 gap-4 custom-scrollbar">
+      <aside
+          className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle overflow-y-auto p-4 gap-4 custom-scrollbar"
+          style={{ paddingTop: 'calc(48px + 1rem)', height: '100vh' }}
+        >
           <BirthdayWidget />
           <EventWidget />
           <OnlineWidget />
           <GroupStreakWidget />
           <MiniPollWidget />
         </aside>
-      )}
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden">
