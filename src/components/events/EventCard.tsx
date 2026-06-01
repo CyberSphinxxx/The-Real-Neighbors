@@ -1,3 +1,4 @@
+import { useEventsStore } from '../../stores/eventsStore';
 import React, { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { updateDoc, deleteDoc } from '../../lib/firestore';
@@ -29,17 +30,19 @@ const TYPE_COLORS: Record<string, string> = {
 
 export const EventCard: React.FC<Props> = ({ event }) => {
   const { user } = useAuthStore();
+  const [optimisticEvent, setOptimisticEvent] = React.useState(event);
+  React.useEffect(() => setOptimisticEvent(event), [event]);
   const [showNotes, setShowNotes] = useState(false);
   const [showEdit, setShowEdit] = useState(false);
 
-  const canEdit = user?.role === 'admin' || user?.id === event.createdBy;
+  const canEdit = user?.role === 'admin' || user?.id === optimisticEvent.createdBy;
 
   const handleRSVP = async (status: 'going' | 'maybe' | 'cant') => {
     if (!user) return;
     
     // Toggle logic: if clicking the current status, remove it.
-    const currentStatus = event.rsvps[user.id];
-    const newRsvps = { ...event.rsvps };
+    const currentStatus = optimisticEvent.rsvps[user.id];
+    const newRsvps = { ...optimisticEvent.rsvps };
     
     if (currentStatus === status) {
       delete newRsvps[user.id];
@@ -48,9 +51,11 @@ export const EventCard: React.FC<Props> = ({ event }) => {
     }
 
     try {
+      setOptimisticEvent({ ...optimisticEvent, rsvps: newRsvps });
       await updateDoc('events', [event.id], { rsvps: newRsvps });
     } catch (error) {
       console.error(error);
+      setOptimisticEvent(event);
       toast.error('Failed to update RSVP');
     }
   };
@@ -68,6 +73,7 @@ export const EventCard: React.FC<Props> = ({ event }) => {
     if (isConfirmed) {
       try {
         await deleteDoc('events', event.id);
+        useEventsStore.getState().invalidate();
         toast.success('Event deleted');
       } catch (error) {
         console.error(error);
@@ -76,29 +82,29 @@ export const EventCard: React.FC<Props> = ({ event }) => {
     }
   };
 
-  const myRsvp = user ? event.rsvps[user.id] : undefined;
+  const myRsvp = user ? optimisticEvent.rsvps[user.id] : undefined;
   
   const counts = {
-    going: Object.values(event.rsvps).filter(v => v === 'going').length,
-    maybe: Object.values(event.rsvps).filter(v => v === 'maybe').length,
-    cant: Object.values(event.rsvps).filter(v => v === 'cant').length,
+    going: Object.values(optimisticEvent.rsvps).filter(v => v === 'going').length,
+    maybe: Object.values(optimisticEvent.rsvps).filter(v => v === 'maybe').length,
+    cant: Object.values(optimisticEvent.rsvps).filter(v => v === 'cant').length,
   };
 
-  const eventTime = typeof event.date === 'string' ? new Date(event.date).getTime() : typeof event.date === 'number' ? event.date : 0;
+  const eventTime = typeof optimisticEvent.date === 'string' ? new Date(optimisticEvent.date).getTime() : typeof optimisticEvent.date === 'number' ? optimisticEvent.date : 0;
   
   const dateObj = new Date(eventTime);
   const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: dateObj.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
   const timeStr = dateObj.getHours() === 12 && dateObj.getMinutes() === 0 ? '' : dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
 
-  const isCustomType = !['hangout', 'gaming', 'trip', 'online'].includes(event.type);
-  const badgeColor = isCustomType ? 'text-primary bg-primary/10 border-primary/20' : TYPE_COLORS[event.type];
-  const badgeIcon = isCustomType ? <Star size={16} /> : TYPE_ICONS[event.type];
+  const isCustomType = !['hangout', 'gaming', 'trip', 'online'].includes(optimisticEvent.type);
+  const badgeColor = isCustomType ? 'text-primary bg-primary/10 border-primary/20' : TYPE_COLORS[optimisticEvent.type];
+  const badgeIcon = isCustomType ? <Star size={16} /> : TYPE_ICONS[optimisticEvent.type];
 
   return (
     <div className="bg-surface border border-border-subtle rounded-2xl p-5 shadow-sm">
       <div className="flex justify-between items-start mb-3">
         <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wider border ${badgeColor}`}>
-          {badgeIcon} {event.type}
+          {badgeIcon} {optimisticEvent.type}
         </span>
         {canEdit && (
           <div className="flex items-center gap-1">
@@ -113,7 +119,7 @@ export const EventCard: React.FC<Props> = ({ event }) => {
       </div>
 
       <h3 className="text-xl font-heading font-bold text-main mb-2 hover:text-primary transition-colors w-fit">
-        <Link to={`/events/${event.id}`}>{event.title}</Link>
+        <Link to={`/events/${optimisticEvent.id}`}>{optimisticEvent.title}</Link>
       </h3>
       
       <div className="flex items-center gap-2 text-sm text-muted mb-4 font-medium">
@@ -121,8 +127,8 @@ export const EventCard: React.FC<Props> = ({ event }) => {
         <span>{dateStr} {timeStr && `• ${timeStr}`}</span>
       </div>
 
-      {event.description && (
-        <p className="text-main mb-6 whitespace-pre-wrap">{event.description}</p>
+      {optimisticEvent.description && (
+        <p className="text-main mb-6 whitespace-pre-wrap">{optimisticEvent.description}</p>
       )}
 
       {/* RSVP Section */}
@@ -169,7 +175,7 @@ export const EventCard: React.FC<Props> = ({ event }) => {
 
       {showNotes && (
         <div className="mt-4 animate-in fade-in slide-in-from-top-2 duration-200">
-          <EventNotes eventId={event.id} />
+          <EventNotes eventId={optimisticEvent.id} />
         </div>
       )}
 

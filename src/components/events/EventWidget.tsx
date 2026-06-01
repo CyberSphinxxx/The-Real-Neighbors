@@ -19,7 +19,7 @@ const TYPE_BADGE_STYLES: Record<string, React.CSSProperties> = {
   online: { color: '#10b981', background: 'rgba(16,185,129,0.1)', borderColor: 'rgba(16,185,129,0.25)' },
 };
 
-export const EventWidget: React.FC = () => {
+const EventWidgetComponent: React.FC = () => {
   const [nextEvent, setNextEvent] = useState<Event | null>(null);
 
   useEffect(() => {
@@ -168,3 +168,5 @@ export const EventWidget: React.FC = () => {
     </div>
   );
 };
+
+export const EventWidget = React.memo(EventWidgetComponent);

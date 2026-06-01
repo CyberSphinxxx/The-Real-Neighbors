@@ -1,3 +1,4 @@
+import { useEventsStore } from '../../stores/eventsStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
 import { db } from '../../lib/firebase';
@@ -64,6 +65,7 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit }) => {
 
       if (eventToEdit) {
         await firestoreUpdateDoc(doc(db, 'events', eventToEdit.id), eventData);
+        useEventsStore.getState().invalidate();
         toast.success('Event updated successfully!');
       } else {
         const newEvent: Omit<Event, 'id'> = {
@@ -85,6 +87,7 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit }) => {
           }, 'events');
         });
 
+        useEventsStore.getState().invalidate();
         toast.success('Event created successfully!');
       }
       onClose();

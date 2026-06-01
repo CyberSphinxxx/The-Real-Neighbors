@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { subscribeToCollection } from '../lib/firestore';
+import { useEventsStore } from '../stores/eventsStore';
+const CACHE_TTL = 2 * 60 * 1000;
 import type { Event } from '../types';
 import { EventCard } from '../components/events/EventCard';
 import { CreateEventModal } from '../components/events/CreateEventModal';
@@ -7,18 +8,35 @@ import { SharedCalendar } from '../components/calendar/SharedCalendar';
 import { Calendar, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const EventsPage: React.FC = () => {
-  const [events, setEvents] = useState<Event[]>([]);
+  const { events, fetchedAt, setEvents } = useEventsStore();
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showPast, setShowPast] = useState(false);
 
   useEffect(() => {
-    const unsub = subscribeToCollection<Event>('events', (data) => {
-      setEvents(data);
-      setIsLoading(false);
-    });
-    return () => unsub();
-  }, []);
+    let isMounted = true;
+    const fetchEvents = async () => {
+      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
+        setIsLoading(false);
+        return;
+      }
+      try {
+        const { collection, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        const snap = await getDocs(collection(db, 'events'));
+        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
+        if (isMounted) {
+          setEvents(data);
+          setIsLoading(false);
+        }
+      } catch (err) {
+        console.error('Failed to fetch events', err);
+        if (isMounted) setIsLoading(false);
+      }
+    };
+    fetchEvents();
+    return () => { isMounted = false; };
+  }, [fetchedAt, setEvents]);
 
   const { upcoming, past } = useMemo(() => {
     const today = new Date();
