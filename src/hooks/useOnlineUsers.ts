@@ -8,6 +8,7 @@ import type { User } from '../types';
 export interface PresenceUser {
   uid: string;
   displayName: string;
+  handle?: string;
   avatarColor: string;
   avatarUrl?: string;
   online: boolean;
@@ -33,6 +34,7 @@ export const useOnlineUsers = () => {
         allUsersMap.set(u.id, {
           uid: u.id,
           displayName: u.displayName,
+          handle: u.handle,
           avatarColor: getAvatarColor(u.displayName),
           avatarUrl: u.avatarUrl,
           online: false,

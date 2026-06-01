@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
-import { auth } from '../../lib/firebase';
+import { collection, query, where, getDocs } from 'firebase/firestore';
+import { auth, db } from '../../lib/firebase';
 import { getDoc, setDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 import type { User } from '../../types';
@@ -35,15 +36,37 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           return;
         }
 
+        // Helper to generate unique handle
+        const generateUniqueHandle = async (baseHandle: string) => {
+          let handle = baseHandle.toLowerCase().replace(/[^a-z0-9]/g, '');
+          if (!handle) handle = 'user';
+          let isUnique = false;
+          let counter = 1;
+          let currentHandle = handle;
+          while (!isUnique) {
+            const q = query(collection(db, 'users'), where('handle', '==', currentHandle));
+            const snap = await getDocs(q);
+            if (snap.empty) {
+              isUnique = true;
+            } else {
+              currentHandle = `${handle}${counter}`;
+              counter++;
+            }
+          }
+          return currentHandle;
+        };
+
         // 2. Check if users/{uid} profile exists
         let userProfile = await getDoc<User>('users', [firebaseUser.uid]);
         
         if (!userProfile) {
           // Extract display name from email (before @)
           const namePrefix = firebaseUser.email.split('@')[0];
+          const uniqueHandle = await generateUniqueHandle(namePrefix);
           
           userProfile = {
             id: firebaseUser.uid,
+            handle: uniqueHandle,
             displayName: namePrefix,
             email: firebaseUser.email,
             role: 'member',
@@ -52,6 +75,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           };
           
           // Create the user profile in Firestore
+          await setDoc<User>('users', [firebaseUser.uid], userProfile);
+        } else if (!userProfile.handle) {
+          // Backfill handle
+          const uniqueHandle = await generateUniqueHandle(userProfile.displayName || firebaseUser.email.split('@')[0]);
+          userProfile.handle = uniqueHandle;
           await setDoc<User>('users', [firebaseUser.uid], userProfile);
         }
         
