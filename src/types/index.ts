@@ -1,8 +1,30 @@
 export interface User {
   id: string;
+  handle?: string;
   displayName: string;
   email: string;
   avatarUrl?: string;
+  bannerUrl?: string;
+  bio?: string;
+  statusMessage?: string;
+  customTitle?: string;
+  gamerTags?: {
+    riot?: string;
+    facebook?: string;
+    steam?: string;
+  };
+  customLink?: {
+    name: string;
+    url: string;
+  };
+  topMovies?: {
+    tmdbId: string;
+    title: string;
+    posterUrl: string;
+  }[];
+  themeSongUrl?: string;
+  lore?: string;
+  badges?: string[];
   birthdate?: string;
   accentColor?: string;
   role: 'admin' | 'member';
@@ -51,6 +73,7 @@ export interface Post {
   isEdited?: boolean;
   seenBy?: string[];
   mentions?: string[];
+  sharedPostId?: string;
 }
 
 export interface Comment {
@@ -58,6 +81,8 @@ export interface Comment {
   authorId: string;
   content: string;
   createdAt: string | number | Date;
+  parentId?: string;
+  likes?: string[];
 }
 
 export interface Reaction {
