@@ -245,3 +245,40 @@ export interface Playlist {
   nowVibing: string[];
   description?: string;
 }
+
+export interface Channel {
+  id: string;
+  name: string;
+  emoji: string;
+  description: string;
+  category: 'General' | 'Interests' | 'Utility' | string;
+  isDefault: boolean;
+  createdAt: number;
+}
+
+export interface ChatMessage {
+  id: string;
+  content: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarColor: string;
+  type: 'text' | 'image' | 'system';
+  imageUrl?: string;
+  replyTo?: {
+    messageId: string;
+    authorName: string;
+    contentPreview: string;
+  };
+  reactions: Record<string, string[]>;
+  isEdited: boolean;
+  isDeleted: boolean;
+  createdAt: number;
+}
+
+export interface DirectMessage {
+  id: string;
+  participants: string[];
+  lastMessage: string;
+  lastMessageAt: number;
+  seenBy: Record<string, number>;
+}
