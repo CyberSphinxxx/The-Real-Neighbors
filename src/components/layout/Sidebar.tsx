@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings, UserCircle } from 'lucide-react';
+import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings, UserCircle, Music2 as Music2Icon } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -93,6 +93,7 @@ export const Sidebar: React.FC = () => {
     { name: 'Events', path: '/events', id: 'events', icon: Calendar },
     { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
     { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
+    { name: 'Playlist', path: '/playlist', id: 'playlist', icon: Music2Icon },
     { name: 'My Profile', path: `/profile/${user?.handle || user?.id || ''}`, id: 'profile', icon: UserCircle },
     { name: 'Settings', path: '/settings', id: 'settings', icon: Settings },
   ];
