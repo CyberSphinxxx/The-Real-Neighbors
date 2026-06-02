@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { WatchlistEntry } from '../../types';
 import { WatchlistCard } from './WatchlistCard';
 import { Play, CheckCircle2, ListTodo } from 'lucide-react';
@@ -8,45 +8,93 @@ interface Props {
   usersMap: Record<string, string>;
   onEdit: (entry: WatchlistEntry) => void;
   onDelete: (id: string) => void;
+  onCardClick?: (entry: WatchlistEntry) => void;
 }
 
-export const UserWatchlist: React.FC<Props> = ({ entries, usersMap, onEdit, onDelete }) => {
+export const UserWatchlist: React.FC<Props> = ({ entries, usersMap, onEdit, onDelete, onCardClick }) => {
+  const [activeTab, setActiveTab] = useState<'watching' | 'finished' | 'planned'>('watching');
+
   const watching = entries.filter(e => e.status === 'watching');
   const finished = entries.filter(e => e.status === 'finished');
   const planned = entries.filter(e => e.status === 'planned');
 
-  const renderColumn = (title: string, icon: React.ReactNode, items: WatchlistEntry[], colorClass: string) => (
-    <div className="flex flex-col flex-1 min-w-[280px]">
-      <div className={`flex items-center gap-2 pb-3 border-b-2 mb-4 ${colorClass}`}>
-        {icon}
-        <h2 className="font-heading font-bold text-lg">{title} <span className="text-sm font-normal text-muted ml-2">({items.length})</span></h2>
+  const getActiveEntries = () => {
+    switch (activeTab) {
+      case 'watching': return watching;
+      case 'finished': return finished;
+      case 'planned': return planned;
+      default: return [];
+    }
+  };
+
+  const activeEntries = getActiveEntries();
+
+  return (
+    <div className="flex flex-col gap-6 pt-2">
+      {/* Status Tabs */}
+      <div className="flex overflow-x-auto custom-scrollbar gap-2 pb-2">
+        <button
+          onClick={() => setActiveTab('watching')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+            activeTab === 'watching'
+              ? 'bg-primary/10 text-primary border-b-2 border-primary shadow-sm'
+              : 'bg-surface border-b-2 border-transparent text-muted hover:bg-base hover:text-main'
+          }`}
+        >
+          <Play size={16} className={activeTab === 'watching' ? 'fill-primary' : ''} /> 
+          Watching ({watching.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('finished')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+            activeTab === 'finished'
+              ? 'bg-success/10 text-success border-b-2 border-success shadow-sm'
+              : 'bg-surface border-b-2 border-transparent text-muted hover:bg-base hover:text-main'
+          }`}
+        >
+          <CheckCircle2 size={16} className={activeTab === 'finished' ? 'fill-success' : ''} /> 
+          Finished ({finished.length})
+        </button>
+
+        <button
+          onClick={() => setActiveTab('planned')}
+          className={`flex items-center gap-2 px-4 py-2 rounded-lg font-bold whitespace-nowrap transition-all flex-shrink-0 ${
+            activeTab === 'planned'
+              ? 'bg-elevated text-main border-b-2 border-border shadow-sm'
+              : 'bg-surface border-b-2 border-transparent text-muted hover:bg-base hover:text-main'
+          }`}
+        >
+          <ListTodo size={16} /> 
+          Planned ({planned.length})
+        </button>
       </div>
-      
-      <div className="flex flex-col gap-4">
-        {items.length === 0 ? (
-          <div className="py-8 text-center border-2 border-dashed border-border-subtle rounded-xl text-muted text-sm">
+
+      {/* Grid */}
+      <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+        {activeEntries.length === 0 ? (
+          <div className="py-12 text-center border-2 border-dashed border-border-subtle rounded-xl text-muted text-sm">
             Nothing here yet
           </div>
         ) : (
-          items.map(entry => (
-            <WatchlistCard 
-              key={entry.id} 
-              entry={entry} 
-              usersMap={usersMap}
-              onEdit={onEdit}
-              onDelete={onDelete}
-            />
-          ))
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+            {activeEntries.map(entry => (
+              <div 
+                key={entry.id} 
+                onClick={() => onCardClick?.(entry)}
+                className="cursor-pointer h-full"
+              >
+                <WatchlistCard 
+                  entry={entry} 
+                  usersMap={usersMap}
+                  onEdit={onEdit}
+                  onDelete={onDelete}
+                />
+              </div>
+            ))}
+          </div>
         )}
       </div>
-    </div>
-  );
-
-  return (
-    <div className="flex flex-col md:flex-row gap-6 md:gap-4 overflow-hidden pt-4">
-      {renderColumn('Watching', <Play className="fill-primary" size={20} />, watching, 'border-primary text-primary')}
-      {renderColumn('Finished', <CheckCircle2 className="fill-success text-base" size={20} />, finished, 'border-success text-success')}
-      {renderColumn('Planned', <ListTodo size={20} />, planned, 'border-border text-main')}
     </div>
   );
 };
