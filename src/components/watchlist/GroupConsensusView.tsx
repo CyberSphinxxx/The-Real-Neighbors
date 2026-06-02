@@ -5,10 +5,12 @@ import { Users, Star, StarHalf } from 'lucide-react';
 interface Props {
   entries: WatchlistEntry[];
   usersMap: Record<string, string>;
+  onCardClick?: (entry: WatchlistEntry) => void;
 }
 
 interface GroupedEntry {
   title: string;
+  type: string;
   coverUrl?: string;
   entries: WatchlistEntry[];
   averageRating: number;
@@ -16,16 +18,19 @@ interface GroupedEntry {
   isGroupPick: boolean;
 }
 
-export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap }) => {
+export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap, onCardClick }) => {
   const groupedData = useMemo(() => {
     const map = new Map<string, GroupedEntry>();
 
     entries.forEach(entry => {
       const normalizedTitle = entry.title.trim().toLowerCase();
+      const type = entry.type || 'movie';
+      const groupKey = `${normalizedTitle}-${type}`;
       
-      if (!map.has(normalizedTitle)) {
-        map.set(normalizedTitle, {
+      if (!map.has(groupKey)) {
+        map.set(groupKey, {
           title: entry.title,
+          type,
           coverUrl: entry.coverUrl,
           entries: [],
           averageRating: 0,
@@ -34,7 +39,7 @@ export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap }) => {
         });
       }
 
-      const group = map.get(normalizedTitle)!;
+      const group = map.get(groupKey)!;
       group.entries.push(entry);
       
       if (entry.coverUrl && !group.coverUrl) {
@@ -104,7 +109,11 @@ export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap }) => {
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 lg:gap-6 pt-4">
       {groupedData.map((group, idx) => (
-        <div key={idx} className="bg-surface border border-border-subtle rounded-xl overflow-hidden shadow-sm flex">
+        <div 
+          key={idx} 
+          onClick={() => onCardClick?.(group.entries[0])}
+          className="bg-surface border border-border-subtle rounded-xl overflow-hidden shadow-sm flex cursor-pointer hover:shadow-md transition-shadow"
+        >
           {/* Cover */}
           <div className="w-32 bg-base border-r border-border-subtle relative flex-shrink-0">
             {group.coverUrl ? (
@@ -120,6 +129,9 @@ export const GroupConsensusView: React.FC<Props> = ({ entries, usersMap }) => {
                 <Users size={12} /> Group Pick
               </div>
             )}
+            <div className="absolute top-2 right-2 bg-black/60 text-white text-[10px] rounded-full px-1.5 py-0.5 backdrop-blur-sm shadow-sm">
+              {group.type === 'movie' ? '🎬' : group.type === 'tv' ? '📺' : '🎌'}
+            </div>
           </div>
 
           {/* Details */}
