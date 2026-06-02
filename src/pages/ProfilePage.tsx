@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams } from 'react-router-dom';
 import { useAuthStore } from '../stores/authStore';
 import { doc, getDoc, updateDoc, collection, query, getDocs, limit, where } from 'firebase/firestore';
-import { Loader2, Edit2, CheckCircle, Save, X, Image as ImageIcon, MessageSquare, Gamepad2, Tv, Music, History, ShieldAlert, Cake, Hash, Camera, Link as LinkIcon, MoreHorizontal, Monitor } from 'lucide-react';
+import { Loader2, Edit2, CheckCircle, Save, X, Image as ImageIcon, MessageSquare, Gamepad2, Tv, Music, History, ShieldAlert, Cake, Hash, Camera, Link as LinkIcon, MoreHorizontal, Monitor, Flame } from 'lucide-react';
 import { Facebook, Youtube, Twitter, Instagram, Github, Twitch } from '../components/ui/BrandIcons';
 
 const getSiteIcon = (url: string) => {
@@ -664,6 +664,21 @@ const ProfilePage: React.FC = () => {
                       {daysUntilBirthday === 0 ? 'Birthday is today! 🎉' : `${daysUntilBirthday} days until birthday`}
                     </div>
                     {zodiac && <div className="text-xs text-muted">{zodiac}</div>}
+                  </div>
+                </div>
+              )}
+
+              {/* Login Streak */}
+              {(profileUser.loginStreak ?? 0) > 0 && (
+                <div className="flex items-center gap-3 bg-base p-3 rounded-xl border border-border-subtle">
+                  <Flame size={20} className="text-orange-500" />
+                  <div>
+                    <div className="text-sm font-bold text-main">
+                      {profileUser.loginStreak} Day Streak 🔥
+                    </div>
+                    <div className="text-xs text-muted">
+                      Personal login streak
+                    </div>
                   </div>
                 </div>
               )}
