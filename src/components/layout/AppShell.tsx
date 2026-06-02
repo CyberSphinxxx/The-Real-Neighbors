@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { ArrowUp } from 'lucide-react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
@@ -21,6 +21,7 @@ export const AppShell: React.FC = () => {
   
   const { user } = useAuthStore();
   const [showScrollTop, setShowScrollTop] = useState(false);
+  const location = useLocation();
 
   useEffect(() => {
     const container = document.getElementById('main-scroll-container');
@@ -83,16 +84,18 @@ export const AppShell: React.FC = () => {
       </main>
 
       {/* Desktop Right Sidebar — sticky, scrolls independently */}
-      <aside
-          className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle overflow-y-auto p-4 gap-4 custom-scrollbar"
-          style={{ paddingTop: 'calc(48px + 1rem)', height: '100vh' }}
-        >
-          <BirthdayWidget />
-          <EventWidget />
-          <OnlineWidget />
-          <GroupStreakWidget />
-          <MiniPollWidget />
-        </aside>
+      {location.pathname !== '/playlist' && (
+        <aside
+            className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle overflow-y-auto p-4 gap-4 custom-scrollbar"
+            style={{ paddingTop: 'calc(48px + 1rem)', height: '100vh' }}
+          >
+            <BirthdayWidget />
+            <EventWidget />
+            <OnlineWidget />
+            <GroupStreakWidget />
+            <MiniPollWidget />
+          </aside>
+      )}
 
       {/* Mobile Bottom Navigation */}
       <div className="md:hidden">
