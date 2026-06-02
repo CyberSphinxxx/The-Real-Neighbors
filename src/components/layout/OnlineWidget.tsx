@@ -1,12 +1,27 @@
 import React from 'react';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { useNowVibing } from '../../hooks/useNowVibing';
-import { Wifi, Music2 as Music2Icon } from 'lucide-react';
+import { Wifi, Music2 as Music2Icon, MessageSquare } from 'lucide-react';
 import { formatTimeAgo } from '../../utils/date';
+import { initializeDM } from '../../lib/chat';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../../stores/authStore';
 
 const OnlineWidgetComponent: React.FC = () => {
   const { onlineUsers, offlineUsers } = useOnlineUsers();
   const vibingMap = useNowVibing();
+  const navigate = useNavigate();
+  const { user: currentUser } = useAuthStore();
+
+  const handleMessageClick = async (otherUserId: string) => {
+    if (!currentUser) return;
+    try {
+      const dmId = await initializeDM(currentUser.id, otherUserId);
+      navigate(`/chat/dm/${dmId}`);
+    } catch (err) {
+      console.error(err);
+    }
+  };
   
   return (
     <div
@@ -52,18 +67,27 @@ const OnlineWidgetComponent: React.FC = () => {
                   }}
                 />
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm font-medium text-main">{u.displayName}</span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm font-medium text-main truncate">{u.displayName}</span>
                 <span className="text-xs text-faint">Online now</span>
                 {vibingPlaylist && (
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Music2Icon size={11} className="text-primary" />
-                    <span className="text-primary text-xs font-medium truncate max-w-[120px]">
-                      {vibingPlaylist.length > 18 ? `${vibingPlaylist.substring(0, 18)}...` : vibingPlaylist}
+                    <Music2Icon size={11} className="text-primary flex-shrink-0" />
+                    <span className="text-primary text-xs font-medium truncate">
+                      {vibingPlaylist}
                     </span>
                   </div>
                 )}
               </div>
+              {currentUser && currentUser.id !== u.uid && (
+                <button 
+                  onClick={() => handleMessageClick(u.uid)}
+                  className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0"
+                  title="Send Message"
+                >
+                  <MessageSquare size={16} />
+                </button>
+              )}
             </div>
           );
         })}
@@ -80,7 +104,7 @@ const OnlineWidgetComponent: React.FC = () => {
         {offlineUsers.map((u) => {
           const vibingPlaylist = vibingMap.get(u.uid);
           return (
-            <div key={u.uid} className="flex items-center gap-3">
+            <div key={u.uid} className="flex items-center gap-3 group">
               <div
                 className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-sm grayscale opacity-50 flex-shrink-0"
                 style={{ background: u.avatarUrl ? undefined : u.avatarColor || 'var(--color-primary)' }}
@@ -91,22 +115,31 @@ const OnlineWidgetComponent: React.FC = () => {
                   u.displayName.charAt(0).toUpperCase()
                 )}
               </div>
-              <div className="flex flex-col">
-                <span className="text-sm text-muted">{u.displayName}</span>
+              <div className="flex flex-col flex-1 min-w-0">
+                <span className="text-sm text-muted truncate">{u.displayName}</span>
                 {u.privacyPrefs?.showLastSeen !== false && (
-                  <span className="text-xs text-faint">
+                  <span className="text-xs text-faint truncate">
                     {u.lastSeen ? `Last seen ${formatTimeAgo(u.lastSeen)}` : 'Offline'}
                   </span>
                 )}
                 {vibingPlaylist && (
                   <div className="flex items-center gap-1 mt-0.5">
-                    <Music2Icon size={11} className="text-primary" />
-                    <span className="text-primary text-xs font-medium truncate max-w-[120px]">
-                      {vibingPlaylist.length > 18 ? `${vibingPlaylist.substring(0, 18)}...` : vibingPlaylist}
+                    <Music2Icon size={11} className="text-primary flex-shrink-0" />
+                    <span className="text-primary text-xs font-medium truncate">
+                      {vibingPlaylist}
                     </span>
                   </div>
                 )}
               </div>
+              {currentUser && currentUser.id !== u.uid && (
+                <button 
+                  onClick={() => handleMessageClick(u.uid)}
+                  className="p-1.5 text-muted hover:text-primary hover:bg-primary/10 rounded-lg transition-colors flex-shrink-0 opacity-0 group-hover:opacity-100 focus:opacity-100"
+                  title="Send Message"
+                >
+                  <MessageSquare size={16} />
+                </button>
+              )}
             </div>
           );
         })}
