@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Image as ImageIcon, X } from 'lucide-react';
+import { Send, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { sendMessage, setTypingStatus } from '../../lib/chat';
 import type { ChatMessage } from '../../types';

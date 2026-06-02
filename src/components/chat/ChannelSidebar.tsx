@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
-import { NavLink, useNavigate } from 'react-router-dom';
-import { Hash, X, Plus } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Hash, X } from 'lucide-react';
 import { subscribeToCollection } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';

@@ -2,10 +2,9 @@ import React, { useState, useEffect, useRef } from 'react';
 import ReactDOM from 'react-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/firestore';
-import { orderBy, arrayUnion, arrayRemove } from 'firebase/firestore';
+import { orderBy } from 'firebase/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { X, Send, Loader2, HeadphonesIcon, Music2 } from 'lucide-react';
-import { Tooltip } from '../ui/Tooltip';
 import { StarRating } from '../ui/StarRating';
 import { getEmbedUrl } from '../../lib/spotify';
 import { getAvatarColor } from '../../utils/avatarColor';
@@ -131,23 +130,7 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
     });
   };
 
-  const renderContentWithMentions = (content: string, users?: User[]) => {
-    if (!users || !content) return content;
-    const tokens = content.split(/(\s+)/);
-    return tokens.map((token, i) => {
-      if (token.startsWith('@') && token.length > 1) {
-        const name = token.slice(1);
-        if (users.some(u => u.displayName === name)) {
-          return (
-            <span key={i} className="font-medium cursor-default hover:underline" style={{ color: 'var(--color-primary)' }}>
-              {token}
-            </span>
-          );
-        }
-      }
-      return token;
-    });
-  };
+
 
   const modalContent = (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { X, Circle } from 'lucide-react';
+import { X } from 'lucide-react';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection } from '../../lib/firestore';

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
-import { Reply, Smile, MoreVertical, Edit2, Trash2, Hash } from 'lucide-react';
+import { Reply, Smile, Edit2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { deleteMessage, addReaction } from '../../lib/chat';
 import { getAvatarColor } from '../../utils/avatarColor';
-import type { ChatMessage, Channel } from '../../types';
+import type { ChatMessage } from '../../types';
 
 interface MessageItemProps {
   message: ChatMessage;

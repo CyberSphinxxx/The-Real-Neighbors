@@ -84,8 +84,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
     let lastDate = '';
     let lastAuthorId = '';
     let lastTimestamp = 0;
-
-    messages.forEach((msg, index) => {
+    messages.forEach((msg) => {
       const msgDate = new Date(msg.createdAt);
       const dateStr = msgDate.toLocaleDateString();
       
