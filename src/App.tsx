@@ -17,6 +17,7 @@ const LinksPage = React.lazy(() => import('./pages/LinksPage'));
 const PlaylistPage = React.lazy(() => import('./pages/PlaylistPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
+const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 
 function App() {
   return (
@@ -39,13 +40,11 @@ function App() {
           <Route path="links" element={<LinksPage />} />
           <Route path="playlist" element={<PlaylistPage />} />
           <Route path="profile/:handle" element={<ProfilePage />} />
+          <Route path="chat" element={<ChatPage />} />
+          <Route path="chat/:channelId" element={<ChatPage />} />
+          <Route path="chat/dm/:dmId" element={<ChatPage />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
-        
-        <Route path="/settings" element={
-          <ProtectedRoute>
-            <SettingsPage />
-          </ProtectedRoute>
-        } />
       </Routes></Suspense>
       <Toaster position="bottom-center" />
     </Router>
@@ -53,3 +52,4 @@ function App() {
 }
 
 export default App;
+
