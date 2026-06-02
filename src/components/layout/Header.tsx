@@ -410,9 +410,10 @@ export const Header: React.FC = () => {
             </div>
 
             {/* Desktop Tabs */}
-            <div className="hidden md:flex items-center h-full">
-            <button
-              onClick={() => handleTabClick('our_feed')}
+            {isFeedPage && (
+              <div className="hidden md:flex items-center h-full">
+              <button
+                onClick={() => handleTabClick('our_feed')}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -479,6 +480,7 @@ export const Header: React.FC = () => {
               Explore
             </button>
             </div>
+            )}
           </div>
 
           {/* ── RIGHT ZONE ────────────────────────────────────────────────── */}
