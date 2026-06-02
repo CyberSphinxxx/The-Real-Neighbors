@@ -2,11 +2,11 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { subscribeToCollection, deleteDoc } from '../lib/firestore';
 import { useWatchlistStore } from '../stores/watchlistStore';
-const CACHE_TTL = 2 * 60 * 1000;
 import type { User, WatchlistEntry } from '../types';
 import { UserWatchlist } from '../components/watchlist/UserWatchlist';
 import { GroupConsensusView } from '../components/watchlist/GroupConsensusView';
 import { AddWatchlistEntryModal } from '../components/watchlist/AddWatchlistEntryModal';
+import { MediaDetailModal } from '../components/watchlist/MediaDetailModal';
 import { WatchlistSkeleton } from '../components/watchlist/WatchlistSkeleton';
 import { Tv, Plus, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -15,43 +15,36 @@ import { useConfirm } from '../contexts/ConfirmContext';
 export const WatchlistPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
   const [users, setUsers] = useState<User[]>([]);
-  const { entries, fetchedAt, setEntries } = useWatchlistStore();
+  const { entries, setEntries } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState<string>('all');
+  const [activeTypeFilter, setActiveTypeFilter] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState<WatchlistEntry | undefined>(undefined);
+  const [selectedMedia, setSelectedMedia] = useState<WatchlistEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
   // Default tab to current user once loaded
   useEffect(() => {
     if (currentUser && activeTab === 'all' && isLoading) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setActiveTab(currentUser.id);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentUser, isLoading]);
 
   useEffect(() => {
     const unsubUsers = subscribeToCollection<User>('users', (data) => setUsers(data));
-    const fetchWatchlist = async () => {
-      if (fetchedAt && Date.now() - fetchedAt < CACHE_TTL) {
-        setIsLoading(false);
-        return;
-      }
-      try {
-        const { collection, getDocs } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        const snap = await getDocs(collection(db, 'watchlists'));
-        const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as WatchlistEntry));
-        setEntries(data);
-        setIsLoading(false);
-      } catch (err) {
-        console.error('Failed to fetch watchlists', err);
-        setIsLoading(false);
-      }
-    };
-    fetchWatchlist();
+    
+    const unsubWatchlists = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
+      setEntries(data);
+      setIsLoading(false);
+    });
 
     return () => {
       unsubUsers();
+      unsubWatchlists();
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const usersMap = useMemo(() => {
@@ -59,6 +52,15 @@ export const WatchlistPage: React.FC = () => {
     users.forEach(u => map[u.id] = u.displayName);
     return map;
   }, [users]);
+  const filteredEntries = useMemo(() => {
+    if (activeTypeFilter === 'all') return entries;
+    // Treat undefined type as 'movie' for legacy compatibility, or just strictly match. 
+    // Plan: Treat undefined as 'movie'
+    return entries.filter(e => {
+      const type = e.type || 'movie';
+      return type === activeTypeFilter;
+    });
+  }, [entries, activeTypeFilter]);
 
   const { confirm } = useConfirm();
 
@@ -161,16 +163,42 @@ export const WatchlistPage: React.FC = () => {
         ))}
       </div>
 
+      {/* Content Type Filter */}
+      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 custom-scrollbar">
+        {(['all', 'movie', 'tv', 'anime'] as const).map(type => {
+          const isSelected = activeTypeFilter === type;
+          const label = type === 'all' ? '🎬 All' : type === 'movie' ? '🎬 Movies' : type === 'tv' ? '📺 TV Shows' : '🎌 Anime';
+          return (
+            <button
+              key={type}
+              onClick={() => setActiveTypeFilter(type)}
+              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                isSelected 
+                  ? 'bg-primary text-on-primary border-primary' 
+                  : 'bg-surface text-muted hover:text-main hover:bg-elevated border-border-subtle'
+              }`}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+
       {/* Content */}
       <div className="animate-in fade-in duration-300">
         {activeTab === 'all' ? (
-          <GroupConsensusView entries={entries} usersMap={usersMap} />
+          <GroupConsensusView 
+            entries={filteredEntries} 
+            usersMap={usersMap} 
+            onCardClick={setSelectedMedia} 
+          />
         ) : (
           <UserWatchlist 
-            entries={entries.filter(e => e.userId === activeTab)} 
+            entries={filteredEntries.filter(e => e.userId === activeTab)} 
             usersMap={usersMap}
             onEdit={handleEdit}
             onDelete={handleDelete}
+            onCardClick={setSelectedMedia}
           />
         )}
       </div>
@@ -181,6 +209,14 @@ export const WatchlistPage: React.FC = () => {
           onClose={() => { setShowAddModal(false); setEntryToEdit(undefined); }}
           users={users}
           entryToEdit={entryToEdit}
+        />
+      )}
+
+      {selectedMedia && (
+        <MediaDetailModal
+          entry={selectedMedia}
+          users={users}
+          onClose={() => setSelectedMedia(null)}
         />
       )}
     </div>
