@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Menu, Users, X } from 'lucide-react';
+import { Menu, Users } from 'lucide-react';
 import { ChannelSidebar } from '../components/chat/ChannelSidebar';
 import { MessageArea } from '../components/chat/MessageArea';
 import { MembersSidebar } from '../components/chat/MembersSidebar';

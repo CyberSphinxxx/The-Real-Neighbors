@@ -1,4 +1,4 @@
-import { collection, doc, query, orderBy, onSnapshot, addDoc, updateDoc, deleteDoc, serverTimestamp, getDocs, limit, where, setDoc, getDoc } from 'firebase/firestore';
+import { collection, doc, query, orderBy, onSnapshot, addDoc, updateDoc, limit, where, setDoc, getDoc } from 'firebase/firestore';
 import { ref, onValue, set, onDisconnect, serverTimestamp as rtdbServerTimestamp } from 'firebase/database';
 import { db, rtdb } from './firebase';
 import type { Channel, ChatMessage, DirectMessage } from '../types';

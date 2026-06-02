@@ -2,13 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
-import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { subscribeToCollection } from '../../lib/firestore';
 import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuthStore();
-  const { onlineUsers } = useOnlineUsers();
   const location = useLocation();
   const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
   const [latestDates, setLatestDates] = useState<Record<string, string>>({});
