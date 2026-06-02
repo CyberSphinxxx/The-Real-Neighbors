@@ -52,6 +52,8 @@ export interface User {
   postCount?: number;
   commentCount?: number;
   reactionCount?: number;
+  lastLoginDate?: string;
+  loginStreak?: number;
 }
 
 export interface Post {
@@ -94,12 +96,31 @@ export interface WatchlistEntry {
   id: string;
   userId: string;
   title: string;
+  type: 'movie' | 'tv' | 'anime';
   status: 'watching' | 'finished' | 'planned';
   rating?: number;
   recommendedBy?: string;
-  tmdbId?: string;
+  recommendedByName?: string;
+  tmdbId?: number;
+  malId?: number;
   coverUrl?: string;
+  backdropUrl?: string;
+  overview?: string;
+  year?: string;
+  episodes?: number;
+  genres?: string[];
+  externalScore?: number;
   createdAt: string | number | Date;
+}
+
+export interface WatchlistReview {
+  id: string;
+  authorId: string;
+  authorName: string;
+  authorAvatarColor: string;
+  rating?: number;
+  comment: string;
+  createdAt: number;
 }
 
 export interface BirthdayEntry {
@@ -200,4 +221,27 @@ export interface Notification {
   preview?: string;
   isRead: boolean;
   createdAt: number;
+}
+
+export interface SpotifyMeta {
+  title: string;
+  thumbnailUrl: string;
+  providerName: string;
+}
+
+export interface Playlist {
+  id: string;
+  spotifyId: string;
+  spotifyUrl: string;
+  title: string;
+  thumbnailUrl: string;
+  addedBy: string;
+  addedByName: string;
+  addedByAvatarColor: string;
+  addedAt: number;
+  vibeTag?: { emoji: string; label: string; color: string };
+  ratings: Record<string, number>;
+  reactions: Record<string, string[]>;
+  nowVibing: string[];
+  description?: string;
 }
