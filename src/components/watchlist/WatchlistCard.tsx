@@ -1,7 +1,7 @@
 import React from 'react';
 import type { WatchlistEntry } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
-import { Star, StarHalf, Edit2, Trash2 } from 'lucide-react';
+import { Star, Edit2, Trash2 } from 'lucide-react';
 
 interface Props {
   entry: WatchlistEntry;
@@ -14,23 +14,18 @@ export const WatchlistCard: React.FC<Props> = ({ entry, onEdit, onDelete, usersM
   const { user } = useAuthStore();
   const isOwner = user?.id === entry.userId;
 
-  const renderStars = (rating?: number) => {
+  const renderRatingBadge = (rating?: number) => {
     if (!rating) return null;
-    const stars = [];
-    const fullStars = Math.floor(rating);
-    const hasHalfStar = rating % 1 !== 0;
-
-    for (let i = 0; i < fullStars; i++) {
-      stars.push(<Star key={`full-${i}`} size={14} className="fill-warning text-warning" />);
-    }
-    if (hasHalfStar) {
-      stars.push(<StarHalf key="half" size={14} className="fill-warning text-warning" />);
-    }
-    const emptyStars = 5 - Math.ceil(rating);
-    for (let i = 0; i < emptyStars; i++) {
-      stars.push(<Star key={`empty-${i}`} size={14} className="text-muted" />);
-    }
-    return <div className="flex items-center gap-0.5">{stars}</div>;
+    let colorClass = 'bg-success text-on-success';
+    if (rating <= 3) colorClass = 'bg-danger text-on-danger';
+    else if (rating <= 6) colorClass = 'bg-warning text-black';
+    else if (rating <= 8) colorClass = 'bg-primary text-on-primary';
+    
+    return (
+      <div className={`px-2 py-0.5 rounded text-[10px] font-bold shadow-sm ${colorClass}`}>
+        {rating}/10
+      </div>
+    );
   };
 
   const getStatusColor = (status: string) => {
@@ -67,18 +62,25 @@ export const WatchlistCard: React.FC<Props> = ({ entry, onEdit, onDelete, usersM
           </span>
         </div>
 
+        {/* Type Badge */}
+        <div className="absolute top-2 right-2">
+          <span className="px-1.5 py-0.5 rounded-full text-xs bg-black/60 text-white backdrop-blur-sm shadow-sm">
+            {(entry.type || 'movie') === 'movie' ? '🎬' : entry.type === 'tv' ? '📺' : '🎌'}
+          </span>
+        </div>
+
         {/* Actions overlay */}
         {isOwner && (
           <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
             <button 
-              onClick={() => onEdit?.(entry)}
+              onClick={(e) => { e.stopPropagation(); onEdit?.(entry); }}
               className="p-1.5 rounded-lg bg-surface/80 backdrop-blur text-main hover:text-primary transition-colors shadow-sm"
               title="Edit entry"
             >
               <Edit2 size={14} />
             </button>
             <button 
-              onClick={() => onDelete?.(entry.id)}
+              onClick={(e) => { e.stopPropagation(); onDelete?.(entry.id); }}
               className="p-1.5 rounded-lg bg-surface/80 backdrop-blur text-main hover:text-danger transition-colors shadow-sm"
               title="Delete entry"
             >
@@ -93,9 +95,31 @@ export const WatchlistCard: React.FC<Props> = ({ entry, onEdit, onDelete, usersM
         <div>
           <h3 className="font-bold text-main leading-tight line-clamp-2">{entry.title}</h3>
           
+          {(entry.externalScore || entry.year || entry.episodes) && (
+            <div className="flex flex-col gap-0.5 mt-1">
+              {entry.externalScore && (
+                <div className="flex items-center gap-1 text-faint text-xs">
+                  <Star size={10} className="fill-amber-500 text-amber-500" />
+                  <span>{entry.externalScore}/10</span>
+                </div>
+              )}
+              {(entry.year || entry.episodes) && (
+                <div className="text-faint text-xs">
+                  {entry.year}{entry.year && entry.episodes ? ' · ' : ''}{entry.episodes ? `${entry.episodes} eps` : ''}
+                </div>
+              )}
+            </div>
+          )}
+
+          {entry.overview && (
+            <p className="text-muted text-xs line-clamp-2 mt-1">
+              {entry.overview}
+            </p>
+          )}
+          
           {entry.status === 'finished' && entry.rating && (
-            <div className="mt-1.5">
-              {renderStars(entry.rating)}
+            <div className="mt-2 flex">
+              {renderRatingBadge(entry.rating)}
             </div>
           )}
         </div>
