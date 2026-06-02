@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, Link, useLocation } from 'react-router-dom';
-import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings, UserCircle, Music2 as Music2Icon } from 'lucide-react';
+import { Home, Tv, Calendar, Cake, Link as LinkIcon, ChevronRight, Settings, UserCircle, Music2 as Music2Icon, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -28,8 +28,8 @@ export const Sidebar: React.FC = () => {
 
   useEffect(() => {
     if (!user) return;
-    const path = location.pathname.substring(1);
-    if (['events', 'birthdays', 'watchlist', 'links', 'settings'].includes(path)) {
+    const path = location.pathname.substring(1).split('/')[0];
+    if (['events', 'birthdays', 'watchlist', 'links', 'settings', 'chat'].includes(path)) {
       setLastVisited(prev => {
         const next = { ...prev, [path]: new Date().toISOString() };
         localStorage.setItem(`lastVisited_${user.id}`, JSON.stringify(next));
@@ -87,13 +87,32 @@ export const Sidebar: React.FC = () => {
     };
   }, [user]);
 
-  const navItems = [
-    { name: 'Feed', path: '/', id: 'feed', icon: Home },
-    { name: 'Watchlist', path: '/watchlist', id: 'watchlist', icon: Tv },
-    { name: 'Events', path: '/events', id: 'events', icon: Calendar },
-    { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
-    { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
-    { name: 'Playlist', path: '/playlist', id: 'playlist', icon: Music2Icon },
+  const groups = [
+    {
+      title: 'MAIN',
+      items: [
+        { name: 'Feed', path: '/', id: 'feed', icon: Home },
+        { name: 'Chat', path: '/chat', id: 'chat', icon: MessageSquare },
+      ]
+    },
+    {
+      title: 'ENTERTAINMENT',
+      items: [
+        { name: 'Watchlist', path: '/watchlist', id: 'watchlist', icon: Tv },
+        { name: 'Playlist', path: '/playlist', id: 'playlist', icon: Music2Icon },
+      ]
+    },
+    {
+      title: 'NEIGHBORHOOD',
+      items: [
+        { name: 'Events', path: '/events', id: 'events', icon: Calendar },
+        { name: 'Birthdays', path: '/birthdays', id: 'birthdays', icon: Cake },
+        { name: 'Links', path: '/links', id: 'links', icon: LinkIcon },
+      ]
+    }
+  ];
+
+  const bottomItems = [
     { name: 'My Profile', path: `/profile/${user?.handle || user?.id || ''}`, id: 'profile', icon: UserCircle },
     { name: 'Settings', path: '/settings', id: 'settings', icon: Settings },
   ];
@@ -122,13 +141,67 @@ export const Sidebar: React.FC = () => {
     <div className="flex flex-col h-full justify-between py-6 px-4">
       {/* App name */}
       {/* Nav items */}
-      <div className="pt-4">
-        <nav className="flex flex-col gap-1.5">
-          {navItems.map((item) => (
+      <div className="pt-2 flex-1 overflow-y-auto custom-scrollbar">
+        {groups.map((group, idx) => (
+          <div key={group.title} className={idx > 0 ? "mt-4" : ""}>
+            <h3 className="text-xs font-semibold text-faint uppercase tracking-wider px-4 mb-2">
+              {group.title}
+            </h3>
+            <nav className="flex flex-col gap-1.5">
+              {group.items.map((item) => (
+                <NavLink
+                  key={item.name}
+                  to={item.path}
+                  end={item.path === '/'}
+                  className={({ isActive }) =>
+                    `group relative flex items-center gap-3 w-full transition-all duration-150 py-2.5 pr-3 pl-4 ${
+                      isActive
+                        ? 'bg-primary/10 text-primary font-semibold rounded-r-lg'
+                        : 'text-muted font-normal hover:bg-elevated hover:text-main rounded-lg'
+                    }`
+                  }
+                >
+                  {({ isActive }) => (
+                    <>
+                      {isActive && (
+                        <div 
+                          className="absolute left-0 top-0 bottom-0 w-1" 
+                          style={{ 
+                            background: 'var(--color-primary)',
+                            borderRadius: '0 2px 2px 0' 
+                          }} 
+                        />
+                      )}
+                      <div className="relative flex-shrink-0 flex items-center justify-center">
+                        <item.icon 
+                          className={`w-[18px] h-[18px] transition-colors ${
+                            isActive 
+                              ? 'text-primary' 
+                              : 'text-muted group-hover:text-main'
+                          }`} 
+                          strokeWidth={isActive ? 2 : 1.8} 
+                        />
+                        {!isActive && hasUnread(item.id) && (
+                          <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-surface" />
+                        )}
+                      </div>
+                      <span className="text-sm">{item.name}</span>
+                    </>
+                  )}
+                </NavLink>
+              ))}
+            </nav>
+          </div>
+        ))}
+      </div>
+
+      {/* Bottom Anchor */}
+      <div className="mt-auto pt-4 pb-2 border-t border-border-subtle">
+        <nav className="flex flex-col gap-1.5 mb-3">
+          {bottomItems.map((item) => (
             <NavLink
               key={item.name}
               to={item.path}
-              end={item.path === '/'}
               className={({ isActive }) =>
                 `group relative flex items-center gap-3 w-full transition-all duration-150 py-2.5 pr-3 pl-4 ${
                   isActive
@@ -157,9 +230,6 @@ export const Sidebar: React.FC = () => {
                       }`} 
                       strokeWidth={isActive ? 2 : 1.8} 
                     />
-                    {!isActive && hasUnread(item.id) && (
-                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-surface" />
-                    )}
                   </div>
                   <span className="text-sm">{item.name}</span>
                 </>
@@ -167,55 +237,9 @@ export const Sidebar: React.FC = () => {
             </NavLink>
           ))}
         </nav>
+
+
       </div>
-
-      {/* User card at bottom */}
-      {user && (
-        <div className="mt-auto pt-3 border-t border-border-subtle">
-          <Link 
-            to={`/profile/${user.handle || user.id}`}
-            className="group flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-elevated transition-colors w-full"
-          >
-            {/* Avatar */}
-            <div className="relative flex-shrink-0">
-              <div
-                className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white overflow-hidden"
-                style={{
-                  background: user.avatarUrl
-                    ? undefined
-                    : getAvatarColor(user.displayName),
-                }}
-              >
-                {user.avatarUrl ? (
-                  <img src={user.avatarUrl} alt="" className="w-full h-full object-cover" />
-                ) : (
-                  user.displayName.charAt(0).toUpperCase()
-                )}
-              </div>
-              {isOnline && (
-                <div
-                  className="absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full animate-pulse z-10"
-                  style={{
-                    background: 'var(--color-success)',
-                    border: '2px solid var(--color-bg-surface)',
-                  }}
-                />
-              )}
-            </div>
-
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-medium text-main line-clamp-1">
-                {user.displayName}
-              </p>
-              <p className="text-xs text-faint line-clamp-1">
-                {user.role === 'admin' ? 'Admin' : 'Member'}
-              </p>
-            </div>
-            
-            <ChevronRight size={14} className="text-faint group-hover:text-main transition-colors flex-shrink-0" />
-          </Link>
-        </div>
-      )}
     </div>
   );
 };
