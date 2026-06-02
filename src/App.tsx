@@ -14,6 +14,7 @@ const EventsPage = React.lazy(() => import('./pages/EventsPage'));
 const EventDetailPage = React.lazy(() => import('./pages/EventDetailPage'));
 const WatchlistPage = React.lazy(() => import('./pages/WatchlistPage'));
 const LinksPage = React.lazy(() => import('./pages/LinksPage'));
+const PlaylistPage = React.lazy(() => import('./pages/PlaylistPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 
@@ -36,6 +37,7 @@ function App() {
           <Route path="events/:id" element={<EventDetailPage />} />
           <Route path="birthdays" element={<BirthdaysPage />} />
           <Route path="links" element={<LinksPage />} />
+          <Route path="playlist" element={<PlaylistPage />} />
           <Route path="profile/:handle" element={<ProfilePage />} />
         </Route>
         
