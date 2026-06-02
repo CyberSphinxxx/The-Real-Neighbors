@@ -3,7 +3,7 @@ import { Navigate } from 'react-router-dom';
 import { onAuthStateChanged, signOut } from 'firebase/auth';
 import { collection, query, where, getDocs } from 'firebase/firestore';
 import { auth, db } from '../../lib/firebase';
-import { getDoc, setDoc } from '../../lib/firestore';
+import { getDoc, setDoc, updateDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 import type { User } from '../../types';
 import toast from 'react-hot-toast';
@@ -81,6 +81,38 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
           const uniqueHandle = await generateUniqueHandle(userProfile.displayName || firebaseUser.email.split('@')[0]);
           userProfile.handle = uniqueHandle;
           await setDoc<User>('users', [firebaseUser.uid], userProfile);
+        }
+
+        // 3. Login Streak Logic
+        const today = new Date();
+        const todayStr = today.toLocaleDateString('en-CA'); // YYYY-MM-DD local time
+        
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        const yesterdayStr = yesterday.toLocaleDateString('en-CA');
+
+        let needsUpdate = false;
+
+        if (!userProfile.lastLoginDate) {
+          userProfile.lastLoginDate = todayStr;
+          userProfile.loginStreak = 1;
+          needsUpdate = true;
+        } else if (userProfile.lastLoginDate === yesterdayStr) {
+          userProfile.lastLoginDate = todayStr;
+          userProfile.loginStreak = (userProfile.loginStreak || 0) + 1;
+          needsUpdate = true;
+        } else if (userProfile.lastLoginDate !== todayStr) {
+          // It's older than yesterday (or invalid), reset streak
+          userProfile.lastLoginDate = todayStr;
+          userProfile.loginStreak = 1;
+          needsUpdate = true;
+        }
+
+        if (needsUpdate) {
+          await updateDoc<User>('users', [firebaseUser.uid], {
+            lastLoginDate: userProfile.lastLoginDate,
+            loginStreak: userProfile.loginStreak
+          });
         }
         
         setUser(userProfile);
