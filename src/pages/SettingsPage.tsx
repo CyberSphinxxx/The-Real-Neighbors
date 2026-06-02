@@ -230,26 +230,27 @@ export const SettingsPage: React.FC = () => {
 
 
   return (
-    <div className="flex flex-col h-screen bg-transparent overflow-hidden">
-      {/* Header Bar */}
-      <div className="h-14 bg-surface border-b border-border-subtle flex items-center px-4 shrink-0 z-10">
-        <button 
-          onClick={() => navigate('/feed')}
-          className="p-2 hover:bg-elevated rounded-full transition-colors mr-3"
-        >
-          <ArrowLeft size={20} className="text-main" />
-        </button>
-        <div className="flex flex-col">
-          <h1 className="font-heading font-bold text-lg leading-tight text-main">Settings</h1>
-          <span className="text-faint text-sm leading-tight">Customize your experience</span>
+    <div className="w-full max-w-6xl mx-auto animate-in fade-in duration-300 flex flex-col md:flex-row gap-8 py-6 px-2 md:px-0">
+      {/* Left Column: Header & Tabs */}
+      <div className="w-full md:w-[280px] flex-shrink-0 flex flex-col gap-8">
+        {/* Page Header */}
+        <div className="flex items-start gap-3 px-2 md:px-0">
+          <button 
+            onClick={() => navigate(-1)} 
+            className="mt-1 p-1.5 hover:bg-elevated rounded-full text-muted hover:text-main transition-colors"
+          >
+            <ArrowLeft size={20} />
+          </button>
+          <div className="flex flex-col">
+            <h1 className="font-heading font-bold text-2xl text-main flex items-center gap-2">
+              <Sliders size={20} className="text-primary hidden md:inline-block" /> Settings
+            </h1>
+            <p className="text-faint text-sm mt-0.5">Customize your experience</p>
+          </div>
         </div>
-      </div>
 
-      {/* Two Column Layout on Desktop, Vertical on Mobile */}
-      <div className="flex flex-col md:flex-row flex-1 overflow-hidden relative z-10">
-        
-        {/* Mobile Tab Nav (Horizontal Scroll) */}
-        <div className="md:hidden flex overflow-x-auto custom-scrollbar border-b border-border-subtle bg-surface shrink-0 px-2">
+        {/* Mobile Tabs (Horizontal Pills) */}
+        <div className="md:hidden flex overflow-x-auto custom-scrollbar pb-4 -mx-4 px-4 snap-x">
           {TABS.map(tab => {
             const isActive = activeTab === tab.id;
             const Icon = tab.icon;
@@ -257,51 +258,49 @@ export const SettingsPage: React.FC = () => {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex items-center gap-2 whitespace-nowrap px-4 py-3 border-b-2 font-medium text-sm transition-colors ${
-                  isActive ? 'border-primary text-primary' : 'border-transparent text-muted hover:text-main'
+                className={`flex items-center gap-2 whitespace-nowrap px-4 py-2 border rounded-full font-medium text-sm transition-colors mr-2 snap-start ${
+                  isActive ? 'border-primary bg-primary/10 text-primary' : 'border-border-subtle text-muted hover:text-main bg-surface'
                 }`}
               >
-                <Icon size={16} className={isActive ? 'text-primary' : 'text-muted'} />
+                <Icon size={14} className={isActive ? 'text-primary' : 'text-muted'} />
                 {tab.label}
               </button>
             );
           })}
         </div>
 
-        {/* Left Column - Tab Nav (Desktop) */}
-        <div className="w-[260px] bg-surface border-r border-border-subtle p-4 overflow-y-auto hidden md:block shrink-0">
-          <nav className="flex flex-col gap-1">
-            {TABS.map(tab => {
-              const isActive = activeTab === tab.id;
-              const Icon = tab.icon;
-              return (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-start gap-3 w-full text-left px-3 py-3 rounded-xl transition-all relative ${
-                    isActive ? 'bg-primary/10 text-primary rounded-r-xl rounded-l-none ml-1' : 'text-muted hover:bg-elevated text-main'
-                  }`}
-                >
-                  {isActive && (
-                    <div className="absolute left-[-4px] top-0 bottom-0 w-1 bg-primary rounded-r" />
-                  )}
-                  <Icon size={20} className={isActive ? 'text-primary' : 'text-muted'} />
-                  <div className="flex flex-col">
-                    <span className={`text-sm font-medium ${isActive ? 'text-primary' : 'text-main'}`}>{tab.label}</span>
-                    <span className="text-xs text-faint">{tab.subtitle}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </nav>
-        </div>
+        {/* Desktop Tabs (Vertical) */}
+        <nav className="hidden md:flex flex-col gap-2">
+          {TABS.map(tab => {
+            const isActive = activeTab === tab.id;
+            const Icon = tab.icon;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id)}
+                className={`flex items-start gap-3 w-full text-left px-4 py-3.5 rounded-2xl transition-all relative group border ${
+                  isActive 
+                    ? 'bg-primary/5 border-primary/50 ring-1 ring-primary/20' 
+                    : 'bg-transparent border-transparent hover:bg-elevated hover:border-border-subtle'
+                }`}
+              >
+                <div className={`mt-0.5 p-2 rounded-xl transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'bg-surface text-muted group-hover:text-main shadow-sm border border-border-subtle'}`}>
+                  <Icon size={18} />
+                </div>
+                <div className="flex flex-col">
+                  <span className={`text-sm font-semibold transition-colors ${isActive ? 'text-primary' : 'text-main'}`}>{tab.label}</span>
+                  <span className="text-xs text-faint mt-0.5">{tab.subtitle}</span>
+                </div>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
 
-        {/* Right Scrollable Content */}
-        <div 
-          className="flex-1 overflow-y-auto custom-scrollbar relative bg-transparent"
-        >
-          <div className="max-w-3xl mx-auto p-4 md:p-8 space-y-8 pb-24">         
-            {/* PROFILE TAB */}
+      {/* Right Column: Tab Content */}
+      <div className="flex-1 min-w-0 bg-surface md:bg-transparent rounded-3xl md:rounded-none p-4 md:p-0 border border-border-subtle md:border-none shadow-sm md:shadow-none mb-24 md:mb-0">
+        <div className="space-y-8 max-w-3xl">         
+        {/* PROFILE TAB */}
             {activeTab === 'profile' && (
               <div className="animate-in fade-in duration-300">
                 <h2 className="font-heading font-bold text-xl text-main mb-1">Profile</h2>
@@ -992,7 +991,6 @@ export const SettingsPage: React.FC = () => {
               </div>
             )}
 
-          </div>
         </div>
       </div>
     </div>
