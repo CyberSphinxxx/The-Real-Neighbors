@@ -25,9 +25,12 @@ import { PostCard } from '../components/feed/PostCard';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { TopMoviesSelector } from '../components/profile/TopMoviesSelector';
 import { subscribeToCollection } from '../lib/firestore';
+import { initializeDM } from '../lib/chat';
+import { useNavigate } from 'react-router-dom';
 
 const ProfilePage: React.FC = () => {
   const { handle } = useParams<{ handle: string }>();
+  const navigate = useNavigate();
   const { user: currentUser, isLoading: authLoading } = useAuthStore();
   
   const [profileUser, setProfileUser] = useState<User | null>(null);
@@ -243,6 +246,17 @@ const ProfilePage: React.FC = () => {
     }
   };
 
+  const handleMessageClick = async () => {
+    if (!currentUser || !profileUser?.id) return;
+    try {
+      const dmId = await initializeDM(currentUser.id, profileUser.id);
+      navigate(`/chat/dm/${dmId}`);
+    } catch (err) {
+      console.error(err);
+      toast.error('Failed to start conversation');
+    }
+  };
+
   const calculateDaysUntilBirthday = (birthdate?: string) => {
     if (!birthdate) return null;
     const [_, month, day] = birthdate.split('-');
@@ -384,9 +398,9 @@ const ProfilePage: React.FC = () => {
           )}
           
           {/* Edit Actions in Banner */}
-          {isOwner && (
-            <div className="absolute bottom-4 right-4 z-10 flex gap-2">
-              {isEditing ? (
+          <div className="absolute bottom-4 right-4 z-10 flex gap-2">
+            {isOwner ? (
+              isEditing ? (
                 <>
                   <button onClick={handleEditToggle} className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-sm bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-colors text-sm font-semibold">
                     <X size={16} /> Cancel
@@ -400,9 +414,13 @@ const ProfilePage: React.FC = () => {
                 <button onClick={handleEditToggle} className="flex items-center gap-2 rounded-lg px-3 py-1.5 shadow-sm bg-black/40 backdrop-blur-md text-white hover:bg-black/60 transition-colors text-sm font-semibold border border-white/10">
                   <Camera size={16} /> Edit Cover Photo
                 </button>
-              )}
-            </div>
-          )}
+              )
+            ) : currentUser ? (
+              <button onClick={handleMessageClick} className="flex items-center gap-2 rounded-lg px-4 py-1.5 shadow-sm bg-primary text-on-primary hover:brightness-110 transition-colors text-sm font-bold">
+                <MessageSquare size={16} /> Message
+              </button>
+            ) : null}
+          </div>
         </div>
 
         {/* Profile Info Overlay */}
