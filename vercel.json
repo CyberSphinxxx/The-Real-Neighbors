@@ -1,6 +1,10 @@
 {
   "rewrites": [
     {
+      "source": "/reddit-api/:path*",
+      "destination": "/api/reddit-proxy?path=/:path*"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }
