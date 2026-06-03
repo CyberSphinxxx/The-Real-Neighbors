@@ -690,6 +690,80 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
         </div>
       )}
 
+      {/* Nested Shared Reddit Post */}
+      {post.sharedRedditPost && (
+        <div 
+          className="mb-4 rounded-xl border border-border-subtle overflow-hidden cursor-pointer hover:border-primary/50 transition-colors"
+          style={{ background: 'color-mix(in srgb, var(--color-bg-surface) 90%, transparent)' }}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (onOpenPost) onOpenPost(post);
+          }}
+        >
+          <div className="p-3 bg-surface border-b border-border-subtle flex items-center gap-2">
+            <div className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0" style={{ background: '#FF4500' }}>
+              <span className="text-[10px]">🤖</span>
+            </div>
+            <span className="font-semibold text-sm text-main">r/{post.sharedRedditPost.subreddit}</span>
+            <span className="text-xs text-faint">&middot; u/{post.sharedRedditPost.author}</span>
+          </div>
+          <div className="p-3">
+            <h4 className="font-semibold text-main text-sm mb-1">{post.sharedRedditPost.title}</h4>
+            {post.sharedRedditPost.selftext && (
+              <p className="text-sm text-muted line-clamp-3 whitespace-pre-wrap break-words">
+                {post.sharedRedditPost.selftext}
+              </p>
+            )}
+            {(post.sharedRedditPost.is_reddit_media_domain || post.sharedRedditPost.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) && (
+              <div className="mt-3 relative w-full rounded-lg overflow-hidden bg-elevated border border-border-subtle" style={{ aspectRatio: '16/9' }}>
+                <img 
+                  src={post.sharedRedditPost.url} 
+                  alt="Reddit media" 
+                  loading="lazy"
+                  decoding="async"
+                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  style={{ opacity: 0 }}
+                  onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
+                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                />
+              </div>
+            )}
+            {post.sharedRedditPost.is_video && (
+              <div className="mt-3 relative w-full pt-[56.25%] bg-black rounded-lg border border-border-subtle overflow-hidden flex items-center justify-center group">
+                {post.sharedRedditPost.thumbnail && post.sharedRedditPost.thumbnail.startsWith('http') && (
+                  <img src={post.sharedRedditPost.thumbnail} alt="Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-40 transition-opacity" />
+                )}
+                <div className="absolute inset-0 flex flex-col items-center justify-center">
+                  <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white mb-2 group-hover:scale-110 transition-transform">
+                    <span className="text-xl ml-1">▶</span>
+                  </div>
+                  <span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">Video ↗</span>
+                </div>
+              </div>
+            )}
+            {!post.sharedRedditPost.is_reddit_media_domain && !post.sharedRedditPost.is_video && post.sharedRedditPost.url && !post.sharedRedditPost.url.includes('reddit.com/r/') && !post.sharedRedditPost.url.match(/\.(jpeg|jpg|gif|png|webp)$/i) && (
+              <a 
+                href={post.sharedRedditPost.url}
+                target="_blank"
+                rel="noreferrer"
+                onClick={(e) => e.stopPropagation()}
+                className="mt-3 flex items-center gap-3 p-3 rounded-lg border border-border hover:bg-elevated transition-colors"
+              >
+                {post.sharedRedditPost.thumbnail && post.sharedRedditPost.thumbnail.startsWith('http') && (
+                  <img src={post.sharedRedditPost.thumbnail} alt="" className="w-12 h-12 rounded object-cover flex-shrink-0" />
+                )}
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-main truncate">{post.sharedRedditPost.title}</p>
+                  <p className="text-xs text-muted truncate mt-0.5">{new URL(post.sharedRedditPost.url).hostname}</p>
+                </div>
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+
+
       {/* Image Attachment */}
       {post.imageUrl && !imageError && (
         <div className="mb-4">

@@ -1,8 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink, ArrowUp, Play } from 'lucide-react';
-import { subscribeToCollection } from '../../lib/firestore';
+import { MessageSquare, ExternalLink, ArrowUp, Play, Share2 } from 'lucide-react';
+import { subscribeToCollection, addDoc } from '../../lib/firestore';
+import { useAuthStore } from '../../stores/authStore';
+import toast from 'react-hot-toast';
 import { formatTimeAgo } from '../../utils/date';
-import type { RedditPost, Comment } from '../../types';
+import type { RedditPost, Comment, Post } from '../../types';
+import { ShareRedditPostModal } from './ShareRedditPostModal';
 
 interface RedditPostCardProps {
   post: RedditPost;
@@ -10,7 +13,10 @@ interface RedditPostCardProps {
 }
 
 export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost }) => {
+  const { user } = useAuthStore();
   const [ourCommentCount, setOurCommentCount] = useState(0);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [isSharing, setIsSharing] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToCollection<Comment>(
@@ -19,6 +25,30 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
     );
     return () => unsubscribe();
   }, [post.id]);
+
+  const handleShareSubmit = async (caption: string) => {
+    if (!user || isSharing) return;
+    setIsSharing(true);
+    try {
+      const newPost: Omit<Post, 'id'> = {
+        authorId: user.id,
+        content: caption || '',
+        createdAt: Date.now(),
+        isPinned: false,
+        reactions: {},
+        comments: [],
+        sharedRedditPost: post,
+      };
+      await addDoc('posts', newPost as any);
+      toast.success('Shared to feed!');
+      setShowShareModal(false);
+    } catch (error) {
+      console.error(error);
+      toast.error('Failed to share to feed.');
+    } finally {
+      setIsSharing(false);
+    }
+  };
 
   const isImage = post.is_reddit_media_domain || post.url.match(/\.(jpeg|jpg|gif|png|webp)$/i);
   const isVideo = post.is_video;
@@ -136,6 +166,14 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
         </div>
 
         <div className="flex items-center gap-3">
+          <button 
+            onClick={(e) => { e.stopPropagation(); setShowShareModal(true); }}
+            disabled={isSharing}
+            className="px-3 py-1.5 hover:bg-elevated text-primary rounded-full text-xs font-semibold transition-colors flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            <Share2 size={14} />
+            Share
+          </button>
           <div className="flex items-center gap-1.5 text-primary text-xs font-semibold">
             <MessageSquare size={14} />
             <span>{ourCommentCount} Friends</span>
@@ -148,6 +186,15 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
           </button>
         </div>
       </div>
+
+      {showShareModal && (
+        <ShareRedditPostModal
+          post={post}
+          onClose={() => setShowShareModal(false)}
+          onShare={handleShareSubmit}
+        />
+      )}
     </div>
   );
 };
+

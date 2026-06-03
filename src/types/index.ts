@@ -76,6 +76,7 @@ export interface Post {
   seenBy?: string[];
   mentions?: string[];
   sharedPostId?: string;
+  sharedRedditPost?: RedditPost;
 }
 
 export interface Comment {

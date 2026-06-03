@@ -5,10 +5,11 @@ import { getDoc, updateDoc, subscribeToCollection, addDoc } from '../../lib/fire
 import { formatTimeAgo } from '../../utils/date';
 import { X, ChevronLeft, ChevronRight, Send, Loader2, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
-import type { User, Comment } from '../../types';
+import type { User, Comment, Post } from '../../types';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { orderBy } from 'firebase/firestore';
+import { ShareRedditPostModal } from './ShareRedditPostModal';
 
 interface PostDetailModalProps {
   post: any;
@@ -38,6 +39,11 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState('');
   const [isSavingEdit, setIsSavingEdit] = useState(false);
+  
+  const [isRedditPostShared, setIsRedditPostShared] = useState(false);
+  const [isSharingFromModal, setIsSharingFromModal] = useState(false);
+  const [showRedditShareModal, setShowRedditShareModal] = useState(false);
+
   const menuRef = useRef<HTMLDivElement>(null);
   
   const commentsEndRef = useRef<HTMLDivElement>(null);
@@ -144,6 +150,51 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     fetchAuthor();
     return () => { isMounted = false; };
   }, [post.authorId, isRedditPost]);
+
+  useEffect(() => {
+    if (!isRedditPost) return;
+    let isMounted = true;
+    const checkShared = async () => {
+      try {
+        const { collection, query, where, getDocs } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const q = query(collection(db, 'posts'), where('sharedRedditPost.id', '==', post.id));
+        const snapshot = await getDocs(q);
+        if (isMounted) {
+          setIsRedditPostShared(!snapshot.empty);
+        }
+      } catch (err) {
+        console.error('Failed to check shared status', err);
+      }
+    };
+    checkShared();
+    return () => { isMounted = false; };
+  }, [post.id, isRedditPost]);
+
+  const handleShareToFeedFromModal = async (caption: string) => {
+    if (!user || isSharingFromModal) return;
+    setIsSharingFromModal(true);
+    try {
+      const newPost: Omit<Post, 'id'> = {
+        authorId: user.id,
+        content: caption || '',
+        createdAt: Date.now(),
+        isPinned: false,
+        reactions: {},
+        comments: [],
+        sharedRedditPost: post,
+      };
+      await addDoc('posts', newPost as any);
+      import('react-hot-toast').then(({ default: toast }) => toast.success('Shared to feed!'));
+      setIsRedditPostShared(true);
+      setShowRedditShareModal(false);
+    } catch (error) {
+      console.error(error);
+      import('react-hot-toast').then(({ default: toast }) => toast.error('Failed to share to feed.'));
+    } finally {
+      setIsSharingFromModal(false);
+    }
+  };
 
   const hasSeen = user && post.seenBy?.includes(user.id);
 
@@ -478,6 +529,59 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                   </span>
                 </div>
               )}
+
+              {post.sharedRedditPost && (
+                <div className="mt-8 bg-surface rounded-xl border border-border-subtle overflow-hidden w-full text-left">
+                  <div className="p-3 bg-surface border-b border-border-subtle flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <div className="w-6 h-6 rounded-full flex items-center justify-center font-bold text-white shadow-sm flex-shrink-0" style={{ background: '#FF4500' }}>
+                        <span className="text-[12px]">🤖</span>
+                      </div>
+                      <span className="font-semibold text-sm text-main truncate">r/{post.sharedRedditPost.subreddit}</span>
+                      <span className="text-xs text-faint truncate">&middot; u/{post.sharedRedditPost.author}</span>
+                    </div>
+                    <a 
+                      href={`https://reddit.com${post.sharedRedditPost.permalink}`} 
+                      target="_blank" 
+                      rel="noreferrer"
+                      className="flex-shrink-0 flex items-center gap-1 px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider transition-colors hover:opacity-80"
+                      style={{ background: 'rgba(255, 69, 0, 0.15)', color: '#FF4500', border: '1px solid rgba(255, 69, 0, 0.3)' }}
+                    >
+                      Reddit ↗
+                    </a>
+                  </div>
+                  <div className="p-4">
+                    <h4 className="font-semibold text-main text-base mb-2 leading-snug">{post.sharedRedditPost.title}</h4>
+                    {post.sharedRedditPost.selftext && (
+                      <p className="text-sm text-muted whitespace-pre-wrap break-words overflow-y-auto max-h-[30vh] custom-scrollbar">
+                        {post.sharedRedditPost.selftext}
+                      </p>
+                    )}
+                    {(post.sharedRedditPost.is_reddit_media_domain || post.sharedRedditPost.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) && (
+                      <div className="mt-4 rounded-lg overflow-hidden bg-elevated">
+                        <img 
+                          src={post.sharedRedditPost.url} 
+                          alt="Reddit media" 
+                          className="w-full h-auto object-contain max-h-[40vh]"
+                        />
+                      </div>
+                    )}
+                    {post.sharedRedditPost.is_video && (
+                       <div className="mt-4 w-full pt-[56.25%] relative bg-black rounded-lg overflow-hidden border border-border-subtle">
+                         {post.sharedRedditPost.thumbnail && post.sharedRedditPost.thumbnail.startsWith('http') && (
+                           <img src={post.sharedRedditPost.thumbnail} alt="" className="absolute inset-0 w-full h-full object-cover opacity-40" />
+                         )}
+                         <div className="absolute inset-0 flex flex-col items-center justify-center">
+                           <span className="text-4xl mb-2">🎬</span>
+                           <a href={`https://reddit.com${post.sharedRedditPost.permalink}`} target="_blank" rel="noreferrer" className="px-4 py-2 bg-white/20 hover:bg-white/30 text-white rounded-full text-sm font-semibold transition-colors backdrop-blur">
+                             Watch on Reddit ↗
+                           </a>
+                         </div>
+                       </div>
+                    )}
+                  </div>
+                </div>
+              )}
                 </>
               )}
             </div>
@@ -697,68 +801,72 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                   )
                 )}
 
-                <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-wrap">
-                  {REACTIONS.map((r) => {
-                    const reactors = post.reactions?.[r.emoji] || [];
-                    const count = reactors.length;
-                    const hasReacted = reactors.includes(user?.id || '');
+                {(!isRedditPost || isRedditPostShared) && (
+                  <>
+                    <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar pb-1 flex-wrap mt-2">
+                      {REACTIONS.map((r) => {
+                        const reactors = post.reactions?.[r.emoji] || [];
+                        const count = reactors.length;
+                        const hasReacted = reactors.includes(user?.id || '');
 
-                    let reactorNamesString = '';
-                    if (count > 0 && allUsers) {
-                      const names = reactors.map((uid: string) => {
-                        const reactorUser = allUsers.find(u => u.id === uid);
-                        if (reactorUser?.privacyPrefs?.showReactions === false && reactorUser.id !== user?.id) {
-                          return 'Someone';
+                        let reactorNamesString = '';
+                        if (count > 0 && allUsers) {
+                          const names = reactors.map((uid: string) => {
+                            const reactorUser = allUsers.find(u => u.id === uid);
+                            if (reactorUser?.privacyPrefs?.showReactions === false && reactorUser.id !== user?.id) {
+                              return 'Someone';
+                            }
+                            return reactorUser?.displayName || 'Unknown';
+                          });
+                          if (names.length > 3) {
+                            reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
+                          } else {
+                            reactorNamesString = names.join(', ');
+                          }
                         }
-                        return reactorUser?.displayName || 'Unknown';
-                      });
-                      if (names.length > 3) {
-                        reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
-                      } else {
-                        reactorNamesString = names.join(', ');
-                      }
-                    }
 
-                    return (
-                      <Tooltip
-                        key={r.emoji}
-                        disabled={count === 0}
-                        content={
-                          <>
-                            <div className="text-lg mb-1 leading-none">{r.emoji}</div>
-                            <div className="whitespace-pre-wrap">{reactorNamesString}</div>
-                          </>
-                        }
-                      >
-                        <button
-                          onClick={() => handleToggleReaction(r.emoji)}
-                          className="flex items-center gap-1 rounded-full font-medium text-xs transition-transform active:scale-95"
-                          style={{
-                            padding: '0.25rem 0.5rem',
-                            background: hasReacted ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-bg-base)',
-                            border: hasReacted ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
-                            color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)',
-                          }}
-                        >
-                          <span>{r.emoji}</span>
-                        </button>
-                      </Tooltip>
-                    );
-                  })}
-                </div>
-                
-                {totalReactionsCount > 0 && (
-                  <p className="text-xs text-muted mt-2 font-medium">
-                    {reactionSummary}
-                  </p>
-                )}
-                <div className="min-h-[24px]">
-                  {seenByText && (
-                    <div className={`text-xs text-right pt-2 text-faint cursor-help`} title={seenByNames}>
-                      {seenByText}
+                        return (
+                          <Tooltip
+                            key={r.emoji}
+                            disabled={count === 0}
+                            content={
+                              <>
+                                <div className="text-lg mb-1 leading-none">{r.emoji}</div>
+                                <div className="whitespace-pre-wrap">{reactorNamesString}</div>
+                              </>
+                            }
+                          >
+                            <button
+                              onClick={() => handleToggleReaction(r.emoji)}
+                              className="flex items-center gap-1 rounded-full font-medium text-xs transition-transform active:scale-95"
+                              style={{
+                                padding: '0.25rem 0.5rem',
+                                background: hasReacted ? 'color-mix(in srgb, var(--color-primary) 12%, transparent)' : 'var(--color-bg-base)',
+                                border: hasReacted ? '1px solid var(--color-primary)' : '1px solid var(--color-border)',
+                                color: hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                              }}
+                            >
+                              <span>{r.emoji}</span>
+                            </button>
+                          </Tooltip>
+                        );
+                      })}
                     </div>
-                  )}
-                </div>
+                    
+                    {totalReactionsCount > 0 && (
+                      <p className="text-xs text-muted mt-2 font-medium">
+                        {reactionSummary}
+                      </p>
+                    )}
+                    <div className="min-h-[24px]">
+                      {seenByText && (
+                        <div className={`text-xs text-right pt-2 text-faint cursor-help`} title={seenByNames}>
+                          {seenByText}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
               </>
             )}
           </div>
@@ -769,7 +877,11 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               {isRedditPost ? 'Friends Comments' : 'Comments'}
             </h4>
             {comments.length === 0 ? (
-              <p className="text-center text-sm text-faint my-auto">No comments yet. Say something! 💬</p>
+              <p className="text-center text-sm text-faint my-auto">
+                {isRedditPost && !isRedditPostShared 
+                  ? 'Comments are locked until this is shared.' 
+                  : 'No comments yet. Say something! 💬'}
+              </p>
             ) : (
               comments.map(comment => (
                 <ModalCommentItem key={comment.id} comment={comment} allUsers={allUsers} />
@@ -780,64 +892,89 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
 
           {/* Comment Input */}
           <div className="p-3 border-t border-border flex items-end gap-2 bg-surface">
-            <div 
-              className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs shadow-sm flex-shrink-0 mb-0.5"
-              style={{ background: user?.avatarUrl ? undefined : (user ? getAvatarColor(user.displayName) : 'var(--color-primary)') }}
-            >
-              {user?.avatarUrl ? (
-                <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-              ) : (
-                user?.displayName?.charAt(0).toUpperCase()
-              )}
-            </div>
-            <div className="flex-1 relative">
-              {showMentionPicker && filteredMentions.length > 0 && (
-                <div 
-                  className="absolute bottom-full mb-2 left-0 z-50 rounded-xl shadow-lg border max-h-[150px] overflow-y-auto custom-scrollbar"
-                  style={{
-                    background: 'var(--color-bg-elevated)',
-                    borderColor: 'var(--color-border-border-subtle)',
-                    minWidth: '200px'
-                  }}
+            {isRedditPost && !isRedditPostShared ? (
+              <div className="w-full text-center py-4 flex flex-col items-center">
+                <p className="text-sm text-main font-medium mb-1">Share to Unlock Comments</p>
+                <p className="text-xs text-muted mb-4 max-w-[250px]">You must share this to the feed before anyone can comment on or react to it.</p>
+                <button
+                  onClick={() => setShowRedditShareModal(true)}
+                  disabled={isSharingFromModal}
+                  className="px-5 py-2 bg-primary hover:bg-primary-hover transition-colors text-on-primary rounded-full text-sm font-bold shadow-sm disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
                 >
-                  {filteredMentions.map((mu, i) => (
+                  {isSharingFromModal ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  Share to Feed
+                </button>
+              </div>
+            ) : (
+              <>
+                <div 
+                  className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white text-xs shadow-sm flex-shrink-0 mb-0.5"
+                  style={{ background: user?.avatarUrl ? undefined : (user ? getAvatarColor(user.displayName) : 'var(--color-primary)') }}
+                >
+                  {user?.avatarUrl ? (
+                    <img src={user.avatarUrl} alt="" loading="lazy" decoding="async" className="w-full h-full object-cover rounded-full" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  ) : (
+                    user?.displayName?.charAt(0).toUpperCase()
+                  )}
+                </div>
+                <div className="flex-1 relative">
+                  {showMentionPicker && filteredMentions.length > 0 && (
                     <div 
-                      key={mu.id}
-                      onClick={() => insertMention(mu)}
-                      className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${i === mentionSelectedIndex ? 'bg-surface' : 'hover:bg-surface'}`}
+                      className="absolute bottom-full mb-2 left-0 z-50 rounded-xl shadow-lg border max-h-[150px] overflow-y-auto custom-scrollbar"
                       style={{
-                        background: i === mentionSelectedIndex ? 'var(--color-bg-surface)' : 'transparent'
+                        background: 'var(--color-bg-elevated)',
+                        borderColor: 'var(--color-border-border-subtle)',
+                        minWidth: '200px'
                       }}
                     >
-                      <div className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-white text-[9px] shadow-sm flex-shrink-0 bg-primary">
-                        {mu.displayName.charAt(0).toUpperCase()}
-                      </div>
-                      <span className="text-xs font-medium text-main">{mu.displayName}</span>
+                      {filteredMentions.map((mu, i) => (
+                        <div 
+                          key={mu.id}
+                          onClick={() => insertMention(mu)}
+                          className={`flex items-center gap-2 px-3 py-2 cursor-pointer transition-colors ${i === mentionSelectedIndex ? 'bg-surface' : 'hover:bg-surface'}`}
+                          style={{
+                            background: i === mentionSelectedIndex ? 'var(--color-bg-surface)' : 'transparent'
+                          }}
+                        >
+                          <div className="w-5 h-5 rounded-full flex items-center justify-center font-bold text-white text-[9px] shadow-sm flex-shrink-0 bg-primary">
+                            {mu.displayName.charAt(0).toUpperCase()}
+                          </div>
+                          <span className="text-xs font-medium text-main">{mu.displayName}</span>
+                        </div>
+                      ))}
                     </div>
-                  ))}
+                  )}
+                  <input
+                    ref={inputRef}
+                    type="text"
+                    value={newComment}
+                    onChange={handleInputChange}
+                    onKeyDown={handleInputKeyDown}
+                    placeholder="Write a comment..."
+                    className="w-full bg-elevated border border-border-subtle rounded-full pl-4 pr-10 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
+                  />
+                  <button
+                    onClick={() => handleCommentSubmit()}
+                    disabled={!newComment.trim() || isSubmitting}
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-primary disabled:opacity-50 disabled:text-muted transition-colors hover:bg-primary/10"
+                  >
+                    {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
+                  </button>
                 </div>
-              )}
-              <input
-                ref={inputRef}
-                type="text"
-                value={newComment}
-                onChange={handleInputChange}
-                onKeyDown={handleInputKeyDown}
-                placeholder="Write a comment..."
-                className="w-full bg-elevated border border-border-subtle rounded-full pl-4 pr-10 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none"
-              />
-              <button
-                onClick={() => handleCommentSubmit()}
-                disabled={!newComment.trim() || isSubmitting}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 p-1.5 rounded-full text-primary disabled:opacity-50 disabled:text-muted transition-colors hover:bg-primary/10"
-              >
-                {isSubmitting ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}
-              </button>
-            </div>
+              </>
+            )}
           </div>
         </div>
 
       </div>
+
+      {showRedditShareModal && isRedditPost && (
+        <ShareRedditPostModal
+          post={post}
+          onClose={() => setShowRedditShareModal(false)}
+          onShare={handleShareToFeedFromModal}
+        />
+      )}
     </div>
   );
 
