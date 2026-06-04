@@ -89,12 +89,15 @@ export const prefetchSubreddit = async (subreddit: string): Promise<void> => {
       tempDiv.innerHTML = content;
       
       let imageUrl = '';
+      let hasVideo = false;
       const allLinks = tempDiv.querySelectorAll('a');
       for (const a of Array.from(allLinks)) {
         const href = a.getAttribute('href') || '';
         if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(href) && href.includes('redd.it')) {
           imageUrl = href;
-          break;
+        }
+        if (href.includes('v.redd.it') || href.includes('youtube.com') || href.includes('youtu.be')) {
+          hasVideo = true;
         }
       }
       
@@ -108,9 +111,17 @@ export const prefetchSubreddit = async (subreddit: string): Promise<void> => {
         }
       }
       
-      const isImage = !!imageUrl;
+      if (imageUrl.includes('preview.redd.it')) {
+        imageUrl = imageUrl.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+      }
       
       const selftextRaw = tempDiv.textContent?.trim() || '';
+      if (selftextRaw.toLowerCase().includes('[video]') || title.toLowerCase().includes('[video]')) {
+          hasVideo = true;
+      }
+      
+      const isImage = !!imageUrl;
+      
       const selftext = selftextRaw
         .replace(/submitted by\s+\/u\/\S+\s*/g, '')
         .replace(/\[link\]/g, '')
@@ -125,7 +136,7 @@ export const prefetchSubreddit = async (subreddit: string): Promise<void> => {
         subreddit: category,
         selftext: selftext !== title ? selftext : '',
         url: isImage ? imageUrl : link,
-        is_video: false,
+        is_video: hasVideo,
         is_reddit_media_domain: isImage,
         thumbnail: isImage ? imageUrl : 'self',
         score: 0,
