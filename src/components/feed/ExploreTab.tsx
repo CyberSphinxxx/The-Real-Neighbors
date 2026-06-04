@@ -108,11 +108,16 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
           
           let imageUrl = '';
           const allLinks = tempDiv.querySelectorAll('a');
+          let hasVideo = false;
+          
           for (const a of Array.from(allLinks)) {
             const href = a.getAttribute('href') || '';
             if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(href) && href.includes('redd.it')) {
               imageUrl = href;
-              break;
+            }
+            // Heuristics for video detection in RSS:
+            if (href.includes('v.redd.it') || href.includes('youtube.com') || href.includes('youtu.be')) {
+              hasVideo = true;
             }
           }
           
@@ -126,9 +131,18 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
             }
           }
           
+          if (imageUrl.includes('preview.redd.it')) {
+            imageUrl = imageUrl.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+          }
+          
+          // Another heuristic: look for [video] in the title or text
+          const selftextRaw = tempDiv.textContent?.trim() || '';
+          if (selftextRaw.toLowerCase().includes('[video]') || title.toLowerCase().includes('[video]')) {
+              hasVideo = true;
+          }
+          
           const isImage = !!imageUrl;
           
-          const selftextRaw = tempDiv.textContent?.trim() || '';
           const selftext = selftextRaw
             .replace(/submitted by\s+\/u\/\S+\s*/g, '')
             .replace(/\[link\]/g, '')
@@ -143,7 +157,7 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
             subreddit: category,
             selftext: selftext !== title ? selftext : '',
             url: isImage ? imageUrl : link,
-            is_video: false,
+            is_video: hasVideo,
             is_reddit_media_domain: isImage,
             thumbnail: isImage ? imageUrl : 'self',
             score: 0,
@@ -153,23 +167,29 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
           };
         });
 
+        // We don't get 'after' from RSS easily in the same way, but let's just clear it for now or rely on the old behavior
+        const after = '';
+
         // Set cache if it's not a load more request and it's a specific sub (or All sub limits)
-        // Wait, for All it fetches 10 from each, so caching might be weird. Let's just cache specific subs.
         if (!isLoadMore && subreddit !== 'All') {
           setCached(sub, posts);
         }
 
-        return { sub, after: '', posts };
+        return { sub, after, posts };
       });
 
-      const results = await Promise.all(fetchPromises);
+      const results = await Promise.allSettled(fetchPromises);
       
       let allFetchedPosts: RedditPost[] = [];
       const newAfterTokens = { ...afterTokens };
 
       results.forEach(result => {
-        allFetchedPosts = [...allFetchedPosts, ...result.posts];
-        newAfterTokens[result.sub] = result.after;
+        if (result.status === 'fulfilled') {
+          allFetchedPosts = [...allFetchedPosts, ...result.value.posts];
+          newAfterTokens[result.value.sub] = result.value.after;
+        } else {
+          console.error('Failed to fetch a subreddit:', result.reason);
+        }
       });
 
       allFetchedPosts.sort((a, b) => b.created_utc - a.created_utc);
@@ -197,52 +217,105 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
   }, [activeSub, subreddits.length]); 
 
   return (
-    <div className="flex flex-col animate-in fade-in slide-in-from-bottom-4 duration-500">
-      {/* Subreddit Bar */}
-      <div className="mb-3 border-b border-border-subtle py-2 bg-transparent flex items-center gap-2 overflow-x-auto custom-scrollbar relative z-20">
+    <div className="flex flex-col md:flex-row gap-6 justify-center w-full animate-in fade-in slide-in-from-bottom-4 duration-500 relative">
+      
+      {/* ── DESKTOP SIDEBAR ── */}
+      <div className="hidden md:flex flex-col w-[200px] flex-shrink-0 sticky top-20 gap-1.5 z-20 self-start">
+        <h3 className="font-heading font-bold text-lg text-main mb-3 px-2">Subreddits</h3>
+        
         <button
           onClick={() => setActiveSub('All')}
-          className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+          className={`flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors font-medium ${
             activeSub === 'All'
-              ? 'bg-primary/15 border-primary text-primary font-semibold'
-              : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+              ? 'bg-primary/15 text-primary'
+              : 'text-muted hover:bg-surface hover:text-main'
           }`}
         >
-          🌐 All
+          <span className="text-lg">🌐</span> All
         </button>
+        
         {subreddits.map(sub => (
           <button
             key={sub}
             onClick={() => setActiveSub(sub)}
-            className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+            className={`flex items-center px-3 py-2 text-sm rounded-lg transition-colors font-medium text-left truncate ${
               activeSub === sub
-                ? 'bg-primary/15 border-primary text-primary font-semibold'
-                : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+                ? 'bg-primary/15 text-primary'
+                : 'text-muted hover:bg-surface hover:text-main'
             }`}
           >
             r/{sub}
           </button>
         ))}
         
-        <div className="relative">
+        <div className="relative mt-2">
           <button
             onClick={() => setShowManager(!showManager)}
-            className="flex-shrink-0 flex items-center gap-1 px-3 py-1.5 text-sm rounded-full border border-dashed border-border-subtle text-muted hover:text-main hover:border-border transition-colors ml-2"
+            className="flex items-center gap-2 px-3 py-2 text-sm rounded-lg border border-dashed border-border-subtle text-muted hover:text-main hover:bg-surface hover:border-border transition-colors w-full"
           >
-            <Plus size={14} /> Add
+            <Plus size={16} /> Add Subreddit
           </button>
           
           {showManager && (
             <SubredditManager 
               subreddits={subreddits} 
-              onClose={() => setShowManager(false)} 
+              onClose={() => setShowManager(false)}
+              align="left"
             />
           )}
         </div>
       </div>
 
-      {/* Feed */}
-      <div className="flex flex-col gap-3">
+      {/* ── MAIN FEED COLUMN ── */}
+      <div className="flex-1 w-full max-w-[680px] flex flex-col gap-3">
+        
+        {/* MOBILE SUBREDDIT BAR */}
+        <div className="md:hidden mb-1 border-b border-border-subtle py-2 bg-transparent flex items-center relative z-20">
+          <div className="flex-1 flex items-center gap-2 overflow-x-auto custom-scrollbar pr-2">
+            <button
+              onClick={() => setActiveSub('All')}
+              className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                activeSub === 'All'
+                  ? 'bg-primary/15 border-primary text-primary font-semibold'
+                  : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+              }`}
+            >
+              🌐 All
+            </button>
+            {subreddits.map(sub => (
+              <button
+                key={sub}
+                onClick={() => setActiveSub(sub)}
+                className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                  activeSub === sub
+                    ? 'bg-primary/15 border-primary text-primary font-semibold'
+                    : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+                }`}
+              >
+                r/{sub}
+              </button>
+            ))}
+          </div>
+          
+          <div className="relative border-l border-border pl-3 flex-shrink-0">
+            <button
+              onClick={() => setShowManager(!showManager)}
+              className="flex items-center gap-1 px-3 py-1.5 text-sm rounded-full border border-dashed border-border-subtle text-muted hover:text-main hover:border-border transition-colors bg-surface shadow-sm"
+              title="Manage Subreddits"
+            >
+              <Plus size={14} /> Add
+            </button>
+            
+            {showManager && (
+              <SubredditManager 
+                subreddits={subreddits} 
+                onClose={() => setShowManager(false)} 
+              />
+            )}
+          </div>
+        </div>
+
+        {/* FEED CONTENT */}
         {error ? (
           <div className="text-center py-12">
             <p className="text-red-500 mb-4 font-medium">{error}</p>

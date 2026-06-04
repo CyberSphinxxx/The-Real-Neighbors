@@ -385,29 +385,31 @@ export const FeedPage: React.FC = () => {
   };
 
   return (
-    <div className="max-w-[680px] mx-auto relative pb-12">
-      {/* MOBILE TAB SWITCHER */}
-      <div className="md:hidden flex items-center bg-surface border border-border-subtle rounded-full p-1 mb-4 mt-4 shadow-sm mx-2 sm:mx-0">
-        <button
-          onClick={() => useFeedTabStore.getState().setActiveTab('our_feed')}
-          className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
-            activeTab === 'our_feed' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
-          }`}
-        >
-          Our Feed
-        </button>
-        <button
-          onClick={() => useFeedTabStore.getState().setActiveTab('explore')}
-          className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
-            activeTab === 'explore' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
-          }`}
-        >
-          Explore
-        </button>
+    <div className="w-full h-full relative pb-12">
+      <div className="max-w-[680px] mx-auto relative">
+        {/* MOBILE TAB SWITCHER */}
+        <div className="md:hidden flex items-center bg-surface border border-border-subtle rounded-full p-1 mb-4 mt-4 shadow-sm mx-2 sm:mx-0">
+          <button
+            onClick={() => useFeedTabStore.getState().setActiveTab('our_feed')}
+            className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
+              activeTab === 'our_feed' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
+            }`}
+          >
+            Our Feed
+          </button>
+          <button
+            onClick={() => useFeedTabStore.getState().setActiveTab('explore')}
+            className={`flex-1 py-2 text-sm rounded-full font-bold transition-all ${
+              activeTab === 'explore' ? 'bg-primary text-on-primary shadow-sm' : 'text-muted hover:text-main'
+            }`}
+          >
+            Explore
+          </button>
+        </div>
       </div>
 
       {/* New Posts Pill */}
-      {pendingNewPostsCount > 0 && (
+      {pendingNewPostsCount > 0 && activeTab === 'our_feed' && (
         <div className="sticky top-[60px] z-30 flex justify-center w-full pointer-events-none mb-2 -mt-4">
           <button
             onClick={() => {
@@ -422,7 +424,7 @@ export const FeedPage: React.FC = () => {
       )}
 
       {activeTab === 'our_feed' ? (
-        <>
+        <div className="max-w-[680px] mx-auto relative">
           {/* Feed Heading Section */}
           <div className="pt-6 mb-4">
             <h1 className="font-heading font-bold text-2xl text-main">What's Up 👀</h1>
@@ -661,7 +663,7 @@ export const FeedPage: React.FC = () => {
         )}
       </div>
 
-        </>
+        </div>
       ) : (
         <ExploreTab onOpenPost={setOpenPost} />
       )}

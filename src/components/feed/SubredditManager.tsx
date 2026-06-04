@@ -6,9 +6,10 @@ import { useAuthStore } from '../../stores/authStore';
 interface SubredditManagerProps {
   onClose: () => void;
   subreddits: string[];
+  align?: 'left' | 'right';
 }
 
-export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, subreddits }) => {
+export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, subreddits, align = 'right' }) => {
   const { user } = useAuthStore();
   const [newSub, setNewSub] = useState('');
   const [isAdding, setIsAdding] = useState(false);
@@ -59,7 +60,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, sub
   };
 
   return (
-    <div className="absolute top-full right-0 mt-2 w-[300px] bg-elevated rounded-xl border border-border shadow-lg p-4 z-50 animate-in fade-in zoom-in-95 duration-200">
+    <div className={`absolute top-full mt-2 w-[300px] bg-elevated rounded-xl border border-border shadow-lg p-4 z-50 animate-in fade-in zoom-in-95 duration-200 ${align === 'left' ? 'left-0' : 'right-0'}`}>
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-main">Your Subreddits</h3>
         <button onClick={onClose} className="text-muted hover:text-main p-1 rounded-full transition-colors hover:bg-surface">
