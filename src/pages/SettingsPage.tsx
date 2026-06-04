@@ -4,7 +4,7 @@ import {
   ArrowLeft, User, Palette, LayoutGrid, Bell, Shield, Database, Info, 
   Pencil, Sparkles, Moon, Sun, Type, Layout, Sliders, Activity, Calendar, Zap,
   EyeOff, Download, ShieldAlert, Cake,
-  Radio, HardDrive, Cpu, MapPin
+  Radio, HardDrive, Cpu, MapPin, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc } from '../lib/firestore';
@@ -13,6 +13,54 @@ import { getAvatarColor } from '../utils/avatarColor';
 import toast from 'react-hot-toast';
 import { collection, addDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
+import { useWhatsNewStore } from '../stores/whatsNewStore';
+import { formatReleaseDate } from '../lib/github';
+import type { GitHubRelease } from '../lib/github';
+import { marked } from 'marked';
+
+const ReleaseAccordion: React.FC<{ release: GitHubRelease; isLatest: boolean }> = ({ release, isLatest }) => {
+  const [isExpanded, setIsExpanded] = useState(isLatest);
+  const parsedBody = release.body ? marked.parse(release.body) : '';
+
+  return (
+    <div className="bg-elevated rounded-xl border border-border-subtle overflow-hidden mb-3 hover:border-primary/30 transition-colors">
+      <div 
+        className="px-4 py-3 cursor-pointer flex items-center justify-between"
+        onClick={() => setIsExpanded(!isExpanded)}
+      >
+        <div className="flex items-center gap-3 overflow-hidden">
+          <div className="bg-primary/15 text-primary rounded-full px-3 py-1 text-sm font-mono font-medium shrink-0">
+            {release.tagName}
+          </div>
+          {isLatest && (
+            <div className="bg-success/15 text-success rounded-full px-2 py-0.5 text-xs font-semibold shrink-0">
+              Latest
+            </div>
+          )}
+          <div className="font-medium text-main truncate">{release.name}</div>
+        </div>
+        <div className="flex items-center gap-4 shrink-0 pl-2">
+          <div className="text-sm text-faint hidden sm:block">{formatReleaseDate(release.publishedAt)}</div>
+          {isExpanded ? <ChevronUp size={18} className="text-muted" /> : <ChevronDown size={18} className="text-muted" />}
+        </div>
+      </div>
+      
+      {isExpanded && (
+        <div className="px-4 pb-4">
+          {parsedBody ? (
+            <div 
+              className="release-notes mt-2 border-t border-border-subtle pt-4"
+              dangerouslySetInnerHTML={{ __html: parsedBody as string }}
+            />
+          ) : (
+            <p className="text-muted text-sm mt-2 border-t border-border-subtle pt-4">No release notes for this version.</p>
+          )}
+        </div>
+      )}
+    </div>
+  );
+};
+
 
 const TABS = [
   { id: 'profile', label: 'Profile', subtitle: 'Personal info & avatar', icon: User },
@@ -41,6 +89,9 @@ export const SettingsPage: React.FC = () => {
   const [bgPattern, setBgPattern] = useState(localStorage.getItem('bg-pattern') || 'none');
   const [bgAnimation, setBgAnimation] = useState(localStorage.getItem('bg-animation') || 'none');
   const [fontSize, setFontSize] = useState(localStorage.getItem('font-size') || '14px');
+
+  // WhatsNew State
+  const { allReleases, latestRelease, isLoading: whatsNewLoading, openManually: openWhatsNew } = useWhatsNewStore();
 
   // Load user data
   useEffect(() => {
@@ -921,48 +972,77 @@ export const SettingsPage: React.FC = () => {
                 <h2 className="font-heading font-bold text-xl text-main mb-1">About</h2>
                 <p className="text-faint text-sm mb-6">The Real Neighbors App</p>
 
-                <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4 flex items-center gap-6">
-                  <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
-                    <MapPin size={40} />
-                  </div>
-                  <div>
-                    <h3 className="font-heading font-bold text-2xl text-main">The Real Neighbors</h3>
-                    <p className="text-sm text-faint mb-2">Version 2.0.0-beta</p>
-                    <div className="flex gap-2">
-                      <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Cpu size={12} /> React 18</span>
-                      <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Database size={12} /> Firebase</span>
-                      <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Palette size={12} /> Tailwind</span>
+                <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4 flex items-center justify-between gap-6">
+                  <div className="flex items-center gap-6">
+                    <div className="w-20 h-20 bg-primary rounded-2xl flex items-center justify-center text-white shadow-lg shrink-0">
+                      <MapPin size={40} />
+                    </div>
+                    <div>
+                      <h3 className="font-heading font-bold text-2xl text-main">The Real Neighbors</h3>
+                      <p className="text-sm text-faint mb-2">
+                        {whatsNewLoading ? (
+                          <span className="inline-block w-24 h-4 bg-border animate-pulse rounded" />
+                        ) : (
+                          `Version ${latestRelease?.tagName || '1.0.0'}`
+                        )}
+                      </p>
+                      <div className="flex gap-2">
+                        <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Cpu size={12} /> React 18</span>
+                        <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Database size={12} /> Firebase</span>
+                        <span className="px-2 py-1 bg-elevated border border-border-subtle rounded-md text-xs font-medium text-muted flex items-center gap-1"><Palette size={12} /> Tailwind</span>
+                      </div>
                     </div>
                   </div>
+                  
+                  <button 
+                    onClick={openWhatsNew}
+                    className="hidden sm:flex px-4 py-2 bg-surface border border-primary text-primary hover:bg-primary/5 rounded-full text-sm font-medium transition-colors items-center gap-2"
+                  >
+                    <Sparkles size={16} /> What's New
+                  </button>
                 </div>
+                
+                <button 
+                    onClick={openWhatsNew}
+                    className="sm:hidden w-full flex mb-4 px-4 py-3 bg-surface border border-primary text-primary hover:bg-primary/5 rounded-xl text-sm font-medium transition-colors justify-center items-center gap-2"
+                  >
+                    <Sparkles size={16} /> What's New
+                </button>
 
                 <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4">
-                  <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-4 flex items-center gap-2">
-                    <Sparkles size={14} /> What's New
-                  </h3>
-                  <ul className="space-y-3">
-                    <li className="flex gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-main">Phase 2 Settings</div>
-                        <div className="text-xs text-faint">Privacy controls, data export, and animated backgrounds.</div>
-                      </div>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-main">Reactions & Mentions</div>
-                        <div className="text-xs text-faint">React to posts and tag your friends in comments.</div>
-                      </div>
-                    </li>
-                    <li className="flex gap-3">
-                      <div className="w-1.5 h-1.5 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div>
-                        <div className="text-sm font-medium text-main">Reddit Integrations</div>
-                        <div className="text-xs text-faint">Read-only feeds from your favorite subreddits.</div>
-                      </div>
-                    </li>
-                  </ul>
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-base font-semibold text-main flex items-center gap-2">
+                      📋 Changelog
+                    </h3>
+                    <a 
+                      href={`https://github.com/${import.meta.env.VITE_GITHUB_OWNER}/${import.meta.env.VITE_GITHUB_REPO}/releases`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="text-primary text-sm hover:underline"
+                    >
+                      View on GitHub ↗
+                    </a>
+                  </div>
+                  
+                  {whatsNewLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(i => (
+                        <div key={i} className="h-14 bg-elevated animate-pulse rounded-xl border border-border-subtle" />
+                      ))}
+                    </div>
+                  ) : allReleases.length === 0 ? (
+                    <p className="text-muted text-sm text-center py-6">
+                      {!import.meta.env.VITE_GITHUB_OWNER ? (
+                        <>Could not load changelog. <a href="https://github.com/settings" className="text-primary hover:underline">View on GitHub ↗</a></>
+                      ) : 'No releases published yet. Check back soon!'}
+                    </p>
+                  ) : (
+                    <div>
+                      {allReleases.map((release, idx) => (
+                        <ReleaseAccordion key={release.id} release={release} isLatest={idx === 0} />
+                      ))}
+                    </div>
+                  )}
                 </div>
 
                 {user?.role === 'admin' && (
