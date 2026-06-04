@@ -14,10 +14,13 @@ import { usePresence } from '../../hooks/usePresence';
 import { useStartupNotifications } from '../../hooks/useStartupNotifications';
 import { useAuthStore } from '../../stores/authStore';
 import { loadFromStorage } from '../../lib/redditCache';
+import { useWhatsNew } from '../../hooks/useWhatsNew';
+import { WhatsNewModal } from '../ui/WhatsNewModal';
 
 export const AppShell: React.FC = () => {
   usePresence();
   useStartupNotifications();
+  useWhatsNew();
   
   const { user } = useAuthStore();
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -46,6 +49,8 @@ export const AppShell: React.FC = () => {
 
   return (
     <div className="flex flex-col h-screen bg-transparent md:flex-row overflow-hidden relative">
+      <WhatsNewModal />
+      
       {/* Global Header — fixed, spans full width */}
       <Header />
 
