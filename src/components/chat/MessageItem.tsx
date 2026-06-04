@@ -12,9 +12,10 @@ interface MessageItemProps {
   isGrouped: boolean;
   onReply: () => void;
   seenByAvatar?: React.ReactNode;
+  authorAvatarUrl?: string;
 }
 
-export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, threadType, isGrouped, onReply, seenByAvatar }) => {
+export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, threadType, isGrouped, onReply, seenByAvatar, authorAvatarUrl }) => {
   const { user } = useAuthStore();
   const [showActions, setShowActions] = useState(false);
   const isAuthor = user?.id === message.authorId;
@@ -46,9 +47,13 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
         {!isGrouped ? (
           <div
             className="w-10 h-10 rounded-full flex items-center justify-center font-bold text-white overflow-hidden flex-shrink-0 cursor-pointer hover:opacity-90 transition-opacity"
-            style={{ backgroundColor: message.authorAvatarColor || getAvatarColor(message.authorName) }}
+            style={{ backgroundColor: authorAvatarUrl ? undefined : (message.authorAvatarColor || getAvatarColor(message.authorName)) }}
           >
-            {message.authorName.charAt(0).toUpperCase()}
+            {authorAvatarUrl ? (
+              <img src={authorAvatarUrl} alt={message.authorName} className="w-full h-full object-cover" />
+            ) : (
+              message.authorName.charAt(0).toUpperCase()
+            )}
           </div>
         ) : (
           <span className="text-[10px] text-faint opacity-0 group-hover:opacity-100 transition-opacity mt-1 cursor-default">

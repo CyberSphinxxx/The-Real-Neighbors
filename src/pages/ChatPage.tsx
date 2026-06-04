@@ -32,15 +32,31 @@ export default function ChatPage() {
     return () => unsubscribe();
   }, [user]);
 
-  // Pre-seed default channels if empty
+  // Cleanup duplicate Neighborhood channels
   useEffect(() => {
-    if (channels.length === 0) {
-      // It's possible the snapshot is empty but the DB has items if we don't wait for loading,
-      // but assuming if it's truly empty we might want to seed.
-      // Better to have an explicit seed button or assume admin creates them.
-      // For now, let's just make sure we handle routing if there are channels but no channelId
-    }
+    const cleanupDuplicates = async () => {
+      try {
+        const { getDocs, collection, deleteDoc, doc } = await import('firebase/firestore');
+        const { db } = await import('../lib/firebase');
+        
+        const snapshot = await getDocs(collection(db, 'channels'));
+        const channels = snapshot.docs.map(d => ({ id: d.id, ...d.data() })) as Channel[];
+        const neighborhoods = channels.filter(c => c.name === 'Neighborhood');
+        
+        // If there are duplicates, keep the first one and delete the rest
+        if (neighborhoods.length > 1) {
+          for (let i = 1; i < neighborhoods.length; i++) {
+            await deleteDoc(doc(db, 'channels', neighborhoods[i].id));
+          }
+        }
+      } catch (error) {
+        console.error("Failed to cleanup channels", error);
+      }
+    };
     
+    cleanupDuplicates();
+  }, []);
+  useEffect(() => {
     if (channels.length > 0 && !channelId && !dmId) {
       const defaultChannel = channels.find(c => c.isDefault) || channels[0];
       if (defaultChannel) {

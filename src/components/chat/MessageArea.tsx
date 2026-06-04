@@ -27,16 +27,18 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const { onlineUsers } = useOnlineUsers();
 
+  const [users, setUsers] = useState<User[]>([]);
+
   useEffect(() => {
-    if (threadType === 'dms' && dm && user) {
-      const otherUserId = dm.participants.find(id => id !== user.id);
-      if (!otherUserId) return;
-      const unsub = subscribeToCollection<User>('users', (data) => {
+    const unsub = subscribeToCollection<User>('users', (data) => {
+      setUsers(data);
+      if (threadType === 'dms' && dm && user) {
+        const otherUserId = dm.participants.find(id => id !== user.id);
         const other = data.find(u => u.id === otherUserId);
         setOtherUser(other || null);
-      });
-      return () => unsub();
-    }
+      }
+    });
+    return () => unsub();
   }, [threadType, dm, user]);
 
   const isOtherUserOnline = otherUser && onlineUsers.some(u => u.uid === otherUser.id);
@@ -143,6 +145,8 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
         }
       }
 
+      const authorUser = users.find(u => u.id === msg.authorId);
+
       processed.push(
         <MessageItem 
           key={msg.id} 
@@ -152,6 +156,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
           isGrouped={isGrouped} 
           onReply={() => setReplyingTo(msg)}
           seenByAvatar={seenByAvatar}
+          authorAvatarUrl={authorUser?.avatarUrl}
         />
       );
 
