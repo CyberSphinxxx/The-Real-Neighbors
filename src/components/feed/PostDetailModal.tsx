@@ -431,18 +431,16 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           )}
 
           {isRedditVideo && (
-            <div className="text-center flex flex-col items-center justify-center p-8 animate-in zoom-in-95 duration-200">
-              <span className="text-6xl mb-4">🎬</span>
-              <h3 className="text-white text-2xl font-bold mb-6">Reddit Video</h3>
-              <a 
-                href={`https://reddit.com${post.permalink}`}
-                target="_blank"
-                rel="noreferrer"
-                className="px-6 py-2 bg-white text-black font-semibold rounded-full hover:bg-gray-200 transition-colors"
-              >
-                Open on Reddit ↗
-              </a>
-            </div>
+             <div className="w-full h-full relative flex items-center justify-center bg-black">
+                <iframe
+                  src={`https://www.redditmedia.com/mediaembed/${post.id.replace('t3_', '')}`}
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  style={{ width: '100%', height: '100%', border: 'none' }}
+                  scrolling="no"
+                  allowFullScreen
+                  title="Reddit Video Player"
+                />
+             </div>
           )}
 
           {isYoutube && (

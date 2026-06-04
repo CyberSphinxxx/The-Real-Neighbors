@@ -668,7 +668,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
                 <span className="font-semibold text-sm text-main">{sharedPostAuthor?.displayName || 'Loading...'}</span>
                 <span className="text-xs text-faint">&middot; {formatTimeAgo(sharedPost.createdAt)}</span>
               </div>
-              <p className="text-sm text-main whitespace-pre-wrap break-words line-clamp-4">
+              <p className="text-sm text-main whitespace-pre-wrap break-words">
                 {renderContentWithMentions(sharedPost.content, allUsers)}
               </p>
               {sharedPost.imageUrl && (
@@ -710,18 +710,18 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
           <div className="p-3">
             <h4 className="font-semibold text-main text-sm mb-1">{post.sharedRedditPost.title}</h4>
             {post.sharedRedditPost.selftext && (
-              <p className="text-sm text-muted line-clamp-3 whitespace-pre-wrap break-words">
+              <p className="text-sm text-muted whitespace-pre-wrap break-words">
                 {post.sharedRedditPost.selftext}
               </p>
             )}
             {(post.sharedRedditPost.is_reddit_media_domain || post.sharedRedditPost.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) && (
-              <div className="mt-3 relative w-full rounded-lg overflow-hidden bg-elevated border border-border-subtle" style={{ aspectRatio: '16/9' }}>
+              <div className="mt-3 w-full rounded-lg overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5 border border-border-subtle">
                 <img 
                   src={post.sharedRedditPost.url} 
                   alt="Reddit media" 
                   loading="lazy"
                   decoding="async"
-                  className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+                  className="w-full h-auto max-h-[700px] object-contain transition-opacity duration-300"
                   style={{ opacity: 0 }}
                   onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
                   onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -767,13 +767,13 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
       {/* Image Attachment */}
       {post.imageUrl && !imageError && (
         <div className="mb-4">
-          <div className="relative w-full rounded-lg overflow-hidden bg-elevated" style={{ aspectRatio: '16/9' }}>
+          <div className="w-full rounded-lg overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5">
             <img 
               src={post.imageUrl} 
               alt="Post attachment" 
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full object-cover cursor-pointer hover:opacity-95 transition-opacity duration-300"
+              className="w-full h-auto max-h-[700px] object-contain cursor-pointer hover:opacity-95 transition-opacity duration-300"
               style={{ opacity: 0 }}
               onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
               onClick={() => onOpenPost?.(post)}

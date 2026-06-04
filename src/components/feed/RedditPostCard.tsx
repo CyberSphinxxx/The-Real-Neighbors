@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { MessageSquare, ExternalLink, ArrowUp, Play, Share2 } from 'lucide-react';
+import { MessageSquare, ExternalLink, ArrowUp, Share2 } from 'lucide-react';
 import { subscribeToCollection, addDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 import toast from 'react-hot-toast';
@@ -84,7 +84,7 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
       <div className="px-4 pb-3 cursor-pointer" onClick={() => onOpenPost(post)}>
         <h2 className="text-base font-semibold text-main mb-1.5 leading-snug">{post.title}</h2>
         {post.selftext && (
-          <p className="text-sm text-muted line-clamp-3 whitespace-pre-wrap break-words">
+          <p className="text-sm text-muted whitespace-pre-wrap break-words">
             {post.selftext}
           </p>
         )}
@@ -94,13 +94,13 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
       <div className="w-full cursor-pointer" onClick={() => onOpenPost(post)}>
         {isImage && (
           <div className="w-full px-4 pb-3">
-            <div className="relative w-full rounded-lg overflow-hidden bg-elevated" style={{ aspectRatio: '16/9' }}>
+            <div className="w-full rounded-lg overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5">
             <img 
               src={post.url} 
               alt="Post attachment" 
               loading="lazy"
               decoding="async"
-              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-300"
+              className="w-full h-auto max-h-[700px] object-contain transition-opacity duration-300"
               style={{ opacity: 0 }}
               onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
@@ -110,24 +110,17 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
         )}
 
         {isVideo && (
-          <div className="w-full px-4 pb-3">
-            <a 
-              href={`https://reddit.com${post.permalink}`}
-              target="_blank"
-              rel="noreferrer"
-              onClick={(e) => e.stopPropagation()}
-              className="relative w-full pt-[56.25%] bg-black rounded-lg border border-border-subtle overflow-hidden flex items-center justify-center group block"
-            >
-              {post.thumbnail && post.thumbnail.startsWith('http') && (
-                <img src={post.thumbnail} alt="Thumbnail" className="absolute inset-0 w-full h-full object-cover opacity-50 group-hover:opacity-40 transition-opacity" />
-              )}
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <div className="w-12 h-12 bg-white/20 backdrop-blur rounded-full flex items-center justify-center text-white mb-2 group-hover:scale-110 transition-transform">
-                  <Play size={24} className="ml-1" />
-                </div>
-                <span className="text-white text-sm font-medium bg-black/50 px-3 py-1 rounded-full">View on Reddit ↗</span>
-              </div>
-            </a>
+          <div className="w-full px-4 pb-3" onClick={(e) => e.stopPropagation()}>
+            <div className="relative w-full bg-black rounded-lg border border-border-subtle overflow-hidden" style={{ paddingTop: '100%' }}>
+              <iframe
+                src={`https://www.redditmedia.com/mediaembed/${post.id.replace('t3_', '')}`}
+                sandbox="allow-scripts allow-same-origin allow-popups"
+                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                scrolling="no"
+                allowFullScreen
+                title="Reddit Video Player"
+              />
+            </div>
           </div>
         )}
 
