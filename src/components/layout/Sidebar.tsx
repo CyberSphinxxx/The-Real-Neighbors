@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useWhatsNewStore } from '../../stores/whatsNewStore';
 import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
 
 export const Sidebar: React.FC = () => {
@@ -11,6 +12,7 @@ export const Sidebar: React.FC = () => {
   const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
   const [latestDates, setLatestDates] = useState<Record<string, string>>({});
   const [hasUpcomingBirthdays, setHasUpcomingBirthdays] = useState(false);
+  const { shouldShow: hasNewRelease } = useWhatsNewStore();
 
   useEffect(() => {
     if (!user) return;
@@ -224,6 +226,9 @@ export const Sidebar: React.FC = () => {
                       }`} 
                       strokeWidth={isActive ? 2 : 1.8} 
                     />
+                    {!isActive && item.id === 'settings' && hasNewRelease && (
+                      <span className="absolute -top-1 -right-1 w-2 h-2 bg-primary rounded-full border-2 border-surface" />
+                    )}
                   </div>
                   <span className="text-sm">{item.name}</span>
                 </>
