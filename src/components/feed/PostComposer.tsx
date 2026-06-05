@@ -1,10 +1,13 @@
 import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { addDoc } from '../../lib/firestore';
 import { fetchLinkPreview } from '../../utils/linkPreview';
 import type { LinkMetadata } from '../../utils/linkPreview';
 import toast from 'react-hot-toast';
-import { Link2, X, Loader2, Send, Image as ImageIcon, Palette as PaletteIcon, SmilePlus, Timer } from 'lucide-react';
+import { Link2, X, Loader2, Send, Image as ImageIcon, Palette as PaletteIcon, SmilePlus, Timer, Sparkles } from 'lucide-react';
+import { callDeepSeek } from '../../lib/deepseek';
+import { Botbot_SYSTEM_PROMPT } from '../../lib/botbotPersonality';
 import type { Post, User } from '../../types';
 import { getAvatarColor } from '../../utils/avatarColor';
 
@@ -47,6 +50,8 @@ const DURATIONS = [
 
 export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUsers }) => {
   const { user } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [content, setContent] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -66,7 +71,11 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
   const [imagePreviewError, setImagePreviewError] = useState(false);
 
   const [selectedDuration, setSelectedDuration] = useState<number | null>(null);
-  const [activePopover, setActivePopover] = useState<'feeling' | 'background' | 'timer' | null>(null);
+  const [activePopover, setActivePopover] = useState<'feeling' | 'background' | 'timer' | 'caption' | null>(null);
+  const [captionKeywords, setCaptionKeywords] = useState('');
+  const [captionTone, setCaptionTone] = useState('😂 Funny');
+  const [isGeneratingCaption, setIsGeneratingCaption] = useState(false);
+  const [captionResults, setCaptionResults] = useState<string[]>([]);
   const cardRef = useRef<HTMLDivElement>(null);
   const internalTextareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -89,6 +98,19 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
       }, 50);
     }
   }, [isModalOpen, composerRef]);
+
+  // Handle prefillCaption from navigation state
+  useEffect(() => {
+    const state = location.state as { prefillCaption?: string } | null;
+    if (state?.prefillCaption) {
+      setContent(state.prefillCaption);
+      setIsModalOpen(true);
+      // Clear state so it doesn't trigger again on refresh
+      const newState = { ...state };
+      delete newState.prefillCaption;
+      navigate(location.pathname, { state: newState, replace: true });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -274,6 +296,9 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
       setActivePopover(null);
       setShowMentionPicker(false);
       setMentions([]);
+      setCaptionKeywords('');
+      setCaptionResults([]);
+      setCaptionTone('😂 Funny');
 
       toast.success('Posted! 🎉');
     } catch (error) {
@@ -295,6 +320,43 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
     setImageUrl(null);
     setImagePreviewError(false);
     setShowImageInput(false);
+  };
+
+  const handleGenerateCaption = async () => {
+    if (!captionKeywords.trim() || isGeneratingCaption) return;
+    setIsGeneratingCaption(true);
+    setCaptionResults([]);
+    try {
+      const prompt = `Generate exactly 3 different captions for a social media post in a Filipino friend group. Each caption should be on its own line, numbered 1. 2. 3.
+
+Post description: ${captionKeywords.trim()}
+Tone requested: ${captionTone.split(' ')[1]}
+
+Rules:
+- Write in Taglish (mix of Filipino and English naturally)
+- Each caption should be different in style and length
+- Keep them under 100 characters each
+- No hashtags
+- Make them feel authentic, not generic
+- At least one should have an emoji
+- Match the requested tone
+- Return ONLY the 3 captions, numbered. No explanation.`;
+
+      const response = await callDeepSeek([
+        { role: 'system', content: Botbot_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ]);
+
+      const lines = response.content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+      const parsedCaptions = lines.slice(0, 3).map(line => line.replace(/^[\d.)]+\s*/, '').trim());
+      
+      setCaptionResults(parsedCaptions);
+    } catch (error) {
+      console.error('Failed to generate caption:', error);
+      toast.error('Failed to generate caption');
+    } finally {
+      setIsGeneratingCaption(false);
+    }
   };
 
   const charsLeft = 500 - content.length;
@@ -857,6 +919,80 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                 </div>
               )}
 
+              {activePopover === 'caption' && (
+                <div 
+                  className="absolute bottom-full mb-3 left-40 z-50 p-3 rounded-xl shadow-lg"
+                  style={{
+                    background: 'var(--color-bg-elevated)',
+                    border: '1px solid var(--color-border-border-subtle)',
+                    width: '300px'
+                  }}
+                >
+                  <h4 className="text-sm font-semibold mb-2" style={{ color: 'var(--color-text-main)' }}>✨ Caption Generator</h4>
+                  <input
+                    type="text"
+                    value={captionKeywords}
+                    onChange={(e) => setCaptionKeywords(e.target.value)}
+                    placeholder="Describe your post..."
+                    className="w-full bg-base rounded-lg border px-3 py-2 text-sm mb-2 outline-none focus:border-primary transition-colors"
+                    style={{ borderColor: 'var(--color-border-subtle)', color: 'var(--color-text-main)' }}
+                  />
+                  <div className="grid grid-cols-2 gap-1 mb-2">
+                    {['😂 Funny', '😌 Chill', '🔥 Hype', '🥺 Feels'].map(tone => (
+                      <button
+                        key={tone}
+                        type="button"
+                        onClick={() => setCaptionTone(tone)}
+                        className={`text-xs py-1 rounded-full transition-colors border ${
+                          captionTone === tone
+                            ? 'bg-primary/15 border-primary text-primary font-medium'
+                            : 'border-transparent text-muted hover:bg-base hover:text-main'
+                        }`}
+                      >
+                        {tone}
+                      </button>
+                    ))}
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleGenerateCaption}
+                    disabled={!captionKeywords.trim() || isGeneratingCaption}
+                    className="w-full bg-primary text-on-primary rounded-full px-4 py-1.5 text-sm font-medium transition-colors hover:bg-primary-hover disabled:opacity-50 flex items-center justify-center"
+                  >
+                    Generate
+                  </button>
+                  
+                  {isGeneratingCaption && (
+                     <div className="mt-3 flex flex-col items-center justify-center py-2">
+                       <div className="w-full h-1 bg-primary/20 rounded-full overflow-hidden">
+                         <div className="h-full bg-primary rounded-full animate-[progress_1s_ease-in-out_infinite]" style={{ width: '50%' }} />
+                       </div>
+                       <span className="text-xs text-faint italic mt-2">Thinking... 🤔</span>
+                     </div>
+                  )}
+                  
+                  {captionResults.length > 0 && !isGeneratingCaption && (
+                    <div className="mt-2 flex flex-col">
+                      {captionResults.map((res, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setContent(prev => (prev ? prev + '\n' + res : res).slice(0, 500));
+                            setActivePopover(null);
+                          }}
+                          className="text-sm py-2 border-b last:border-0 cursor-pointer transition-colors"
+                          style={{ borderColor: 'var(--color-border-subtle)', color: 'var(--color-text-main)' }}
+                          onMouseEnter={(e) => e.currentTarget.style.color = 'var(--color-primary)'}
+                          onMouseLeave={(e) => e.currentTarget.style.color = 'var(--color-text-main)'}
+                        >
+                          {res}
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center gap-1">
                 <button
                   type="button"
@@ -903,6 +1039,20 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
                   ) : (
                      <SmilePlus size={20} />
                   )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setActivePopover(activePopover === 'caption' ? null : 'caption')}
+                  title="Generate caption with Botbot"
+                  className="p-2 rounded-md transition-colors flex items-center justify-center relative"
+                  style={{
+                    color: activePopover === 'caption' ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                    background: activePopover === 'caption' ? 'color-mix(in srgb, var(--color-primary) 10%, transparent)' : 'transparent'
+                  }}
+                  onMouseEnter={(e) => { if (activePopover !== 'caption') { e.currentTarget.style.background = 'var(--color-bg-elevated)'; e.currentTarget.style.color = 'var(--color-text-main)'; } }}
+                  onMouseLeave={(e) => { if (activePopover !== 'caption') { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.color = 'var(--color-text-muted)'; } }}
+                >
+                  <Sparkles size={20} />
                 </button>
                 <div className="relative flex items-center justify-center">
                   <button
