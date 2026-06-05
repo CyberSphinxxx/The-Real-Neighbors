@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from 'react';
+import { CalendarDays, HelpCircle } from 'lucide-react';
+import { Select } from '../ui/Select';
 
 interface BirthdayPickerProps {
   value: string; // YYYY-MM-DD
@@ -37,39 +39,28 @@ export const BirthdayPicker: React.FC<BirthdayPickerProps> = ({ value, onChange 
   };
 
   return (
-    <div className="flex items-center gap-2">
-      <select
-        value={month}
-        onChange={(e) => { setMonth(e.target.value); handleUpdate(e.target.value, day, year); }}
-        className="bg-base border border-border-subtle rounded-lg px-2 py-1.5 text-sm text-main focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer appearance-none min-w-[100px]"
-      >
-        <option value="" disabled>Month</option>
-        {MONTHS.map((m, i) => (
-          <option key={m} value={i + 1}>{m}</option>
-        ))}
-      </select>
-
-      <select
-        value={day}
-        onChange={(e) => { setDay(e.target.value); handleUpdate(month, e.target.value, year); }}
-        className="bg-base border border-border-subtle rounded-lg px-2 py-1.5 text-sm text-main focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer appearance-none min-w-[60px]"
-      >
-        <option value="" disabled>Day</option>
-        {days.map(d => (
-          <option key={d} value={d}>{d}</option>
-        ))}
-      </select>
-
-      <select
-        value={year}
-        onChange={(e) => { setYear(e.target.value); handleUpdate(month, day, e.target.value); }}
-        className="bg-base border border-border-subtle rounded-lg px-2 py-1.5 text-sm text-main focus:border-primary focus:ring-1 focus:ring-primary outline-none cursor-pointer appearance-none min-w-[70px]"
-      >
-        <option value="" disabled>Year</option>
-        {years.map(y => (
-          <option key={y} value={y}>{y}</option>
-        ))}
-      </select>
-    </div>
+      <div className="flex gap-2">
+        <Select
+          value={month}
+          placeholder="Month"
+          onChange={(val) => { setMonth(val); handleUpdate(val, day, year); }}
+          options={MONTHS.map((m, i) => ({ value: String(i + 1), label: m }))}
+          className="bg-base border border-border-subtle rounded-lg text-sm text-main w-[110px]"
+        />
+        <Select
+          value={day}
+          placeholder="Day"
+          onChange={(val) => { setDay(val); handleUpdate(month, val, year); }}
+          options={days.map(d => ({ value: String(d), label: String(d) }))}
+          className="bg-base border border-border-subtle rounded-lg text-sm text-main w-[80px]"
+        />
+        <Select
+          value={year}
+          placeholder="Year"
+          onChange={(val) => { setYear(val); handleUpdate(month, day, val); }}
+          options={years.map(y => ({ value: String(y), label: String(y) }))}
+          className="bg-base border border-border-subtle rounded-lg text-sm text-main w-[90px]"
+        />
+      </div>
   );
 };
