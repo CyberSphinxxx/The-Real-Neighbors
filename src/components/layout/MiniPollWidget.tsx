@@ -1,11 +1,16 @@
 import React, { useState, useEffect } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { updateDoc, subscribeToCollection, getDoc, addDoc } from '../../lib/firestore';
 import type { Poll, User } from '../../types';
-import { Plus, Check, Loader2, BarChart2 } from 'lucide-react';
+import { Plus, Check, Loader2, BarChart2, Sparkles, RefreshCw } from 'lucide-react';
+import { Select } from '../ui/Select';
+import toast from 'react-hot-toast';
 
 const MiniPollWidgetComponent: React.FC = () => {
   const { user } = useAuthStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [poll, setPoll] = useState<Poll | null>(null);
   const [pollAuthor, setPollAuthor] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -16,6 +21,12 @@ const MiniPollWidgetComponent: React.FC = () => {
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState([{ id: '1', label: '' }, { id: '2', label: '' }]);
   const [durationStr, setDurationStr] = useState((24 * 60 * 60 * 1000).toString());
+
+  // AI Generator state
+  const [showSuggest, setShowSuggest] = useState(false);
+  const [suggestTopic, setSuggestTopic] = useState('');
+  const [suggestStyle, setSuggestStyle] = useState('😂 Funny');
+  const [isGeneratingPoll, setIsGeneratingPoll] = useState(false);
 
 
   useEffect(() => {
@@ -42,8 +53,27 @@ const MiniPollWidgetComponent: React.FC = () => {
         setIsLoading(false);
       }
     );
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
+
+  // Handle openPoll navigation state
+  useEffect(() => {
+    const state = location.state as { openPoll?: boolean; pollData?: any } | null;
+    if (state?.openPoll && state?.pollData) {
+      setQuestion(state.pollData.question);
+      const newOpts = state.pollData.options.map((o: string, i: number) => ({ id: Date.now().toString() + i, label: o }));
+      while (newOpts.length < 2) {
+        newOpts.push({ id: Date.now().toString() + newOpts.length, label: '' });
+      }
+      setOptions(newOpts);
+      setIsCreating(true);
+      
+      const newState = { ...state };
+      delete newState.openPoll;
+      delete newState.pollData;
+      navigate(location.pathname, { state: newState, replace: true });
+    }
+  }, [location.state, navigate, location.pathname]);
 
   useEffect(() => {
     if (poll?.createdBy) {
@@ -125,6 +155,61 @@ const MiniPollWidgetComponent: React.FC = () => {
     }
   };
 
+  const handleSuggestPoll = async () => {
+    if (!suggestTopic.trim() || isGeneratingPoll) return;
+    setIsGeneratingPoll(true);
+    try {
+      const prompt = `Create a poll for a Filipino friend group about: ${suggestTopic.trim()}
+Style: ${suggestStyle.split(' ')[1]}
+
+Respond with ONLY a JSON object:
+{
+  "question": "The poll question ending with ?",
+  "options": ["Option 1", "Option 2", "Option 3", "Option 4"]
+}
+
+Rules:
+- question should be direct and engaging
+- 3-4 options (4 max)
+- Options should be distinct and cover the main choices
+- Write in Taglish naturally
+- Options max 40 chars each
+- Return ONLY valid JSON`;
+
+      const { callDeepSeek } = await import('../../lib/deepseek');
+      const { Botbot_SYSTEM_PROMPT } = await import('../../lib/botbotPersonality');
+      const response = await callDeepSeek([
+        { role: 'system', content: Botbot_SYSTEM_PROMPT },
+        { role: 'user', content: prompt }
+      ]);
+      
+      let parsed;
+      try {
+        let jsonStr = response.content;
+        if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '');
+        else if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '');
+        parsed = JSON.parse(jsonStr.trim());
+      } catch (err: unknown) {
+        throw new Error('Failed to parse response', { cause: err });
+      }
+
+      setQuestion(parsed.question);
+      const newOpts = parsed.options.slice(0, 4).map((o: string, i: number) => ({ id: Date.now().toString() + i, label: o }));
+      // ensure we have at least 2
+      while (newOpts.length < 2) {
+        newOpts.push({ id: Date.now().toString() + newOpts.length, label: '' });
+      }
+      setOptions(newOpts);
+      setShowSuggest(false);
+      toast.success('Poll suggested! ✨');
+    } catch (e) {
+      console.error(e);
+      toast.error('Failed to suggest poll');
+    } finally {
+      setIsGeneratingPoll(false);
+    }
+  };
+
   if (isLoading) return null;
   if (!poll && !isCreating) return (
     <div 
@@ -151,12 +236,54 @@ const MiniPollWidgetComponent: React.FC = () => {
 
   const renderCreateForm = () => (
     <div className="flex flex-col gap-3 animate-in fade-in zoom-in-95 duration-200">
+      <div className="flex justify-between items-center relative">
+        <label className="text-xs font-semibold text-main">New Poll</label>
+        <button
+          onClick={() => setShowSuggest(!showSuggest)}
+          className="flex items-center gap-1 text-[11px] font-semibold text-primary hover:underline"
+        >
+          <Sparkles size={12} /> Suggest
+        </button>
+        {showSuggest && (
+          <div className="absolute top-full mt-2 right-0 z-50 w-[240px] bg-elevated border border-border-subtle rounded-xl shadow-lg p-3">
+            <h4 className="text-[11px] font-semibold text-muted mb-2">✨ AI Poll Suggestion</h4>
+            <input
+              type="text"
+              value={suggestTopic}
+              onChange={e => setSuggestTopic(e.target.value)}
+              placeholder="Topic (e.g. food, games)"
+              className="w-full bg-base border border-border-subtle rounded text-xs px-2 py-1.5 mb-2 focus:border-primary outline-none"
+              style={{ color: 'var(--color-text-main)' }}
+            />
+            <div className="flex gap-1 mb-2">
+              {['😂 Funny', '⚖️ Serious', '🎲 Random'].map(s => (
+                <button
+                  key={s}
+                  onClick={() => setSuggestStyle(s)}
+                  className={`text-[10px] px-1.5 py-0.5 rounded-full border ${suggestStyle === s ? 'border-primary text-primary bg-primary/10' : 'border-transparent text-muted hover:bg-base'}`}
+                >
+                  {s.split(' ')[0]}
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={handleSuggestPoll}
+              disabled={isGeneratingPoll || !suggestTopic.trim()}
+              className="w-full bg-primary text-on-primary rounded text-xs py-1.5 font-medium flex items-center justify-center gap-1 hover:bg-primary-hover disabled:opacity-50"
+            >
+              {isGeneratingPoll ? <RefreshCw size={12} className="animate-spin" /> : 'Generate'}
+            </button>
+          </div>
+        )}
+      </div>
+
       <input
         type="text"
         placeholder="Ask a question..."
         value={question}
         onChange={(e) => setQuestion(e.target.value)}
         className="w-full bg-base border border-border-subtle rounded-lg px-3 py-2 text-sm focus:border-primary outline-none"
+        style={{ color: 'var(--color-text-main)' }}
       />
       
       <div className="flex flex-col gap-2">
@@ -172,6 +299,7 @@ const MiniPollWidgetComponent: React.FC = () => {
               setOptions(newOpts);
             }}
             className="w-full bg-base border border-border-subtle rounded-lg px-3 py-1.5 text-sm focus:border-primary outline-none"
+            style={{ color: 'var(--color-text-main)' }}
           />
         ))}
       </div>
@@ -186,19 +314,20 @@ const MiniPollWidgetComponent: React.FC = () => {
       )}
 
       <div className="flex items-center gap-2 mt-1">
-        <select 
+        <Select 
           value={durationStr}
-          onChange={(e) => setDurationStr(e.target.value)}
-          className="bg-base border border-border-subtle rounded-lg px-2 py-1.5 text-xs outline-none"
-        >
-          <option value={30 * 60 * 1000}>30 minutes</option>
-          <option value={60 * 60 * 1000}>1 hour</option>
-          <option value={3 * 60 * 60 * 1000}>3 hours</option>
-          <option value={6 * 60 * 60 * 1000}>6 hours</option>
-          <option value={12 * 60 * 60 * 1000}>12 hours</option>
-          <option value={24 * 60 * 60 * 1000}>24 hours</option>
-          <option value={3 * 24 * 60 * 60 * 1000}>3 days</option>
-        </select>
+          onChange={setDurationStr}
+          options={[
+            { value: String(30 * 60 * 1000), label: '30 minutes' },
+            { value: String(60 * 60 * 1000), label: '1 hour' },
+            { value: String(3 * 60 * 60 * 1000), label: '3 hours' },
+            { value: String(6 * 60 * 60 * 1000), label: '6 hours' },
+            { value: String(12 * 60 * 60 * 1000), label: '12 hours' },
+            { value: String(24 * 60 * 60 * 1000), label: '24 hours' },
+            { value: String(3 * 24 * 60 * 60 * 1000), label: '3 days' }
+          ]}
+          className="w-[120px] bg-base border border-border-subtle rounded-lg text-xs"
+        />
         <button
           onClick={handleCreatePoll}
           disabled={isSubmitting || !question.trim() || options.some(o => !o.label.trim())}
