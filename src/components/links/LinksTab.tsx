@@ -5,6 +5,7 @@ import { useLinksStore } from '../../stores/linksStore';
 const CACHE_TTL = 2 * 60 * 1000;
 import type { User, SavedLink } from '../../types';
 import { LinkCard } from './LinkCard';
+import { Select } from '../ui/Select';
 import { SaveLinkModal } from './SaveLinkModal';
 import { LinkSkeleton } from './LinkSkeleton';
 import { Plus, Filter, ArrowUpDown } from 'lucide-react';
@@ -137,28 +138,32 @@ export const LinksTab: React.FC = () => {
         <div className="flex flex-wrap items-center gap-4">
           <div className="flex items-center gap-2 text-sm">
             <Filter size={16} className="text-muted" />
-            <select
-              value={selectedTag || ''}
-              onChange={(e) => setSelectedTag(e.target.value || null)}
-              className="bg-surface border border-border-subtle rounded-lg px-2 py-1 text-main focus:outline-none focus:border-primary"
-            >
-              <option value="">All Tags</option>
-              {allTags.map(t => (
-                <option key={t} value={t}>{t}</option>
-              ))}
-            </select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={selectedTag || ''}
+                onChange={(val) => setSelectedTag(val || null)}
+                options={[
+                  { value: '', label: 'All Tags' },
+                  ...allTags.map(t => ({ value: t, label: t }))
+                ]}
+                className="bg-surface border border-border-subtle rounded-lg text-main focus-within:border-primary w-[120px]"
+              />
+            </div>
           </div>
 
           <div className="flex items-center gap-2 text-sm">
             <ArrowUpDown size={16} className="text-muted" />
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              className="bg-surface border border-border-subtle rounded-lg px-2 py-1 text-main focus:outline-none focus:border-primary"
-            >
-              <option value="recent">Most Recent</option>
-              <option value="upvoted">Most Upvoted</option>
-            </select>
+            <div className="flex items-center gap-2">
+              <Select
+                value={sortBy}
+                onChange={(val) => setSortBy(val as any)}
+                options={[
+                  { value: 'recent', label: 'Most Recent' },
+                  { value: 'upvoted', label: 'Most Upvoted' }
+                ]}
+                className="bg-surface border border-border-subtle rounded-lg text-main focus-within:border-primary w-[140px]"
+              />
+            </div>
           </div>
         </div>
 
