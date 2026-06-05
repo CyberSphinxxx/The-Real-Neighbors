@@ -8,9 +8,11 @@ import { GroupConsensusView } from '../components/watchlist/GroupConsensusView';
 import { AddWatchlistEntryModal } from '../components/watchlist/AddWatchlistEntryModal';
 import { MediaDetailModal } from '../components/watchlist/MediaDetailModal';
 import { WatchlistSkeleton } from '../components/watchlist/WatchlistSkeleton';
-import { Tv, Plus, Users } from 'lucide-react';
+import { Tv, Plus, Users, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { useConfirm } from '../contexts/ConfirmContext';
+import { useNavigate } from 'react-router-dom';
+import { Select } from '../components/ui/Select';
 
 export const WatchlistPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
@@ -18,10 +20,12 @@ export const WatchlistPage: React.FC = () => {
   const { entries, setEntries } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [activeTypeFilter, setActiveTypeFilter] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
+  const [activeGenre, setActiveGenre] = useState<string>('all');
   const [showAddModal, setShowAddModal] = useState(false);
   const [entryToEdit, setEntryToEdit] = useState<WatchlistEntry | undefined>(undefined);
   const [selectedMedia, setSelectedMedia] = useState<WatchlistEntry | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const navigate = useNavigate();
 
   // Default tab to current user once loaded
   useEffect(() => {
@@ -52,15 +56,37 @@ export const WatchlistPage: React.FC = () => {
     users.forEach(u => map[u.id] = u.displayName);
     return map;
   }, [users]);
-  const filteredEntries = useMemo(() => {
-    if (activeTypeFilter === 'all') return entries;
-    // Treat undefined type as 'movie' for legacy compatibility, or just strictly match. 
-    // Plan: Treat undefined as 'movie'
-    return entries.filter(e => {
-      const type = e.type || 'movie';
-      return type === activeTypeFilter;
+  const availableGenres = useMemo(() => {
+    const genres = new Set<string>();
+    entries.forEach(e => {
+      if (activeTypeFilter === 'all' || (e.type || 'movie') === activeTypeFilter) {
+        if (e.genres && Array.isArray(e.genres)) {
+          e.genres.forEach(g => genres.add(g));
+        }
+      }
     });
+    return Array.from(genres).sort();
   }, [entries, activeTypeFilter]);
+
+  useEffect(() => {
+    if (activeGenre !== 'all' && !availableGenres.includes(activeGenre)) {
+      setActiveGenre('all');
+    }
+  }, [availableGenres, activeGenre]);
+
+  const filteredEntries = useMemo(() => {
+    let result = entries;
+    if (activeTypeFilter !== 'all') {
+      result = result.filter(e => {
+        const type = e.type || 'movie';
+        return type === activeTypeFilter;
+      });
+    }
+    if (activeGenre !== 'all') {
+      result = result.filter(e => e.genres?.includes(activeGenre));
+    }
+    return result;
+  }, [entries, activeTypeFilter, activeGenre]);
 
   const { confirm } = useConfirm();
 
@@ -119,12 +145,20 @@ export const WatchlistPage: React.FC = () => {
         </div>
 
         {isViewingOwn && (
-          <button
-            onClick={() => { setEntryToEdit(undefined); setShowAddModal(true); }}
-            className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-on-primary font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm"
-          >
-            <Plus size={18} /> Add Entry
-          </button>
+          <div className="flex gap-2">
+            <button
+              onClick={() => navigate('/ai?tool=watchlist')}
+              className="flex items-center justify-center gap-2 bg-base border border-border hover:border-primary text-main font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm"
+            >
+              <Sparkles size={18} className="text-primary" /> <span className="hidden sm:inline">Botbot Picks</span>
+            </button>
+            <button
+              onClick={() => { setEntryToEdit(undefined); setShowAddModal(true); }}
+              className="flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-on-primary font-bold py-2.5 px-4 rounded-xl transition-colors shadow-sm"
+            >
+              <Plus size={18} /> Add Entry
+            </button>
+          </div>
         )}
       </div>
 
@@ -163,25 +197,42 @@ export const WatchlistPage: React.FC = () => {
         ))}
       </div>
 
-      {/* Content Type Filter */}
-      <div className="flex gap-2 overflow-x-auto pb-4 mb-2 custom-scrollbar">
-        {(['all', 'movie', 'tv', 'anime'] as const).map(type => {
-          const isSelected = activeTypeFilter === type;
-          const label = type === 'all' ? '🎬 All' : type === 'movie' ? '🎬 Movies' : type === 'tv' ? '📺 TV Shows' : '🎌 Anime';
-          return (
-            <button
-              key={type}
-              onClick={() => setActiveTypeFilter(type)}
-              className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
-                isSelected 
-                  ? 'bg-primary text-on-primary border-primary' 
-                  : 'bg-surface text-muted hover:text-main hover:bg-elevated border-border-subtle'
-              }`}
-            >
-              {label}
-            </button>
-          );
-        })}
+      {/* Filters */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+        <div className="flex gap-2 overflow-x-auto pb-2 custom-scrollbar flex-1">
+          {(['all', 'movie', 'tv', 'anime'] as const).map(type => {
+            const isSelected = activeTypeFilter === type;
+            const label = type === 'all' ? '🎬 All' : type === 'movie' ? '🎬 Movies' : type === 'tv' ? '📺 TV Shows' : '🎌 Anime';
+            return (
+              <button
+                key={type}
+                onClick={() => setActiveTypeFilter(type)}
+                className={`flex-shrink-0 px-4 py-1.5 rounded-full text-sm font-medium transition-colors border ${
+                  isSelected 
+                    ? 'bg-primary text-on-primary border-primary' 
+                    : 'bg-surface text-muted hover:text-main hover:bg-elevated border-border-subtle'
+                }`}
+              >
+                {label}
+              </button>
+            );
+          })}
+        </div>
+
+        {availableGenres.length > 0 && (
+          <div className="shrink-0 flex items-center gap-2 text-sm">
+            <span className="text-muted font-medium">Genre:</span>
+            <Select
+              value={activeGenre}
+              onChange={setActiveGenre}
+              options={[
+                { value: 'all', label: 'All Genres' },
+                ...availableGenres.map(g => ({ value: g, label: g }))
+              ]}
+              className="bg-surface border border-border-subtle rounded-lg text-main focus-within:border-primary focus-within:ring-1 focus-within:ring-primary outline-none transition-colors w-[160px]"
+            />
+          </div>
+        )}
       </div>
 
       {/* Content */}
