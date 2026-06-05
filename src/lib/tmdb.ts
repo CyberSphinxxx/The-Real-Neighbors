@@ -8,15 +8,17 @@ export interface TMDBResult {
   type: 'movie' | 'tv';
   voteAverage: number;
   genreIds: number[];
+  genres?: string[];
 }
 
 const tmdbCache = new Map<string, TMDBResult[]>();
+import { getTMDBGenres } from './tmdbGenres';
 
-export async function searchTMDB(query: string, type: 'movie' | 'tv'): Promise<TMDBResult[]> {
+export async function searchTMDB(query: string, type: 'movie' | 'tv', page = 1): Promise<TMDBResult[]> {
   const trimmed = query.trim();
   if (trimmed.length < 2) return [];
 
-  const cacheKey = `${type}:${trimmed.toLowerCase()}`;
+  const cacheKey = `${type}:${trimmed.toLowerCase()}:${page}`;
   if (tmdbCache.has(cacheKey)) {
     return tmdbCache.get(cacheKey)!;
   }
@@ -28,12 +30,12 @@ export async function searchTMDB(query: string, type: 'movie' | 'tv'): Promise<T
   }
 
   try {
-    const url = `https://api.themoviedb.org/3/search/${type}?api_key=${API_KEY}&query=${encodeURIComponent(trimmed)}&limit=8`;
+    const url = `https://api.themoviedb.org/3/search/${type}?api_key=${API_KEY}&query=${encodeURIComponent(trimmed)}&page=${page}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error('Failed to fetch from TMDB');
     
     const data = await res.json();
-    const results: TMDBResult[] = (data.results || []).slice(0, 8).map((item: Record<string, unknown>) => {
+    const results: TMDBResult[] = (data.results || []).slice(0, 20).map((item: Record<string, unknown>) => {
       const year = type === 'movie' 
         ? (item.release_date as string)?.slice(0, 4) 
         : (item.first_air_date as string)?.slice(0, 4);
@@ -47,7 +49,8 @@ export async function searchTMDB(query: string, type: 'movie' | 'tv'): Promise<T
         year: year || '',
         type,
         voteAverage: Math.round(((item.vote_average as number) || 0) * 10) / 10,
-        genreIds: (item.genre_ids as number[]) || []
+        genreIds: (item.genre_ids as number[]) || [],
+        genres: getTMDBGenres((item.genre_ids as number[]) || [])
       };
     });
 
@@ -98,7 +101,8 @@ export async function searchTMDBMulti(query: string): Promise<TMDBResult[]> {
           year: year || '',
           type,
           voteAverage: Math.round(((item.vote_average as number) || 0) * 10) / 10,
-          genreIds: (item.genre_ids as number[]) || []
+          genreIds: (item.genre_ids as number[]) || [],
+          genres: getTMDBGenres((item.genre_ids as number[]) || [])
         };
       });
 
@@ -106,6 +110,51 @@ export async function searchTMDBMulti(query: string): Promise<TMDBResult[]> {
     return results;
   } catch (error) {
     console.error('TMDB Multi Search Error:', error);
+    return [];
+  }
+}
+
+export async function discoverTMDB(type: 'movie' | 'tv', genreId: string, page = 1): Promise<TMDBResult[]> {
+  const cacheKey = `discover:${type}:${genreId}:${page}`;
+  if (tmdbCache.has(cacheKey)) {
+    return tmdbCache.get(cacheKey)!;
+  }
+
+  const API_KEY = import.meta.env.VITE_TMDB_API_KEY;
+  if (!API_KEY) {
+    console.error('Missing TMDB API Key');
+    return [];
+  }
+
+  try {
+    const url = `https://api.themoviedb.org/3/discover/${type}?api_key=${API_KEY}&with_genres=${genreId}&sort_by=popularity.desc&page=${page}`;
+    const res = await fetch(url);
+    if (!res.ok) throw new Error('Failed to fetch from TMDB');
+    
+    const data = await res.json();
+    const results: TMDBResult[] = (data.results || []).slice(0, 20).map((item: Record<string, unknown>) => {
+      const year = type === 'movie' 
+        ? (item.release_date as string)?.slice(0, 4) 
+        : (item.first_air_date as string)?.slice(0, 4);
+
+      return {
+        id: item.id as number,
+        title: (type === 'movie' ? item.title : item.name) as string,
+        posterUrl: item.poster_path ? `https://image.tmdb.org/t/p/w300${item.poster_path}` : null,
+        backdropUrl: item.backdrop_path ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}` : null,
+        overview: (item.overview as string) || '',
+        year: year || '',
+        type,
+        voteAverage: Math.round(((item.vote_average as number) || 0) * 10) / 10,
+        genreIds: (item.genre_ids as number[]) || [],
+        genres: getTMDBGenres((item.genre_ids as number[]) || [])
+      };
+    });
+
+    tmdbCache.set(cacheKey, results);
+    return results;
+  } catch (error) {
+    console.error('TMDB Discover Error:', error);
     return [];
   }
 }
