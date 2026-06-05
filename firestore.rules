@@ -207,19 +207,7 @@ service cloud.firestore {
 
     // 17. ai_usage (Rate Limiting)
     match /ai_usage/{usageId} {
-      // User can only access a document that starts with their own uid
-      allow read: if isAuthenticated() && usageId.startsWith(request.auth.uid);
-      
-      // Allow creation if it's the first request of the day (count == 1)
-      allow create: if isAuthenticated() 
-                    && usageId.startsWith(request.auth.uid)
-                    && request.resource.data.count == 1;
-                    
-      // Allow update if incrementing by exactly 1, and the new count is <= 50
-      allow update: if isAuthenticated() 
-                    && usageId.startsWith(request.auth.uid)
-                    && request.resource.data.count == resource.data.count + 1
-                    && request.resource.data.count <= 50;
+      allow read, write: if isAuthenticated() && usageId.split('_')[0] == request.auth.uid;
     }
   }
 }

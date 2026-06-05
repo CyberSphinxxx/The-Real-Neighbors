@@ -43,7 +43,7 @@ export async function fetchLatestRelease(): Promise<GitHubRelease | null> {
       }
     }
 
-    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases/latest`, {
+    const res = await fetch(`https://api.github.com/repos/${OWNER}/${REPO}/releases?per_page=1`, {
       headers: getHeaders(),
     });
 
@@ -52,14 +52,17 @@ export async function fetchLatestRelease(): Promise<GitHubRelease | null> {
     }
 
     const data = await res.json();
+    if (!data || data.length === 0) return null;
+    const latest = data[0];
+
     const release: GitHubRelease = {
-      id: data.id,
-      tagName: data.tag_name,
-      name: data.name,
-      body: data.body,
-      publishedAt: data.published_at,
-      htmlUrl: data.html_url,
-      isPrerelease: data.prerelease,
+      id: latest.id,
+      tagName: latest.tag_name,
+      name: latest.name,
+      body: latest.body,
+      publishedAt: latest.published_at,
+      htmlUrl: latest.html_url,
+      isPrerelease: latest.prerelease,
     };
 
     localStorage.setItem(
