@@ -205,9 +205,8 @@ service cloud.firestore {
       }
     }
 
-    // 17. ai_usage (Rate Limiting)
-    match /ai_usage/{usageId} {
-      allow read, write: if isAuthenticated() && usageId.split('_')[0] == request.auth.uid;
+    match /ai_usage/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
   }
 }

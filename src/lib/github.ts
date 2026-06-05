@@ -28,8 +28,17 @@ function getHeaders() {
   return headers;
 }
 
-const OWNER = import.meta.env.VITE_GITHUB_OWNER;
-const REPO = import.meta.env.VITE_GITHUB_REPO;
+const getCleanEnvVar = (value: string | undefined) => {
+  if (!value) return undefined;
+  if (value.includes('/')) {
+    const parts = value.split('/').filter(Boolean);
+    return parts[parts.length - 1];
+  }
+  return value;
+};
+
+const OWNER = getCleanEnvVar(import.meta.env.VITE_GITHUB_OWNER);
+const REPO = getCleanEnvVar(import.meta.env.VITE_GITHUB_REPO);
 
 export async function fetchLatestRelease(): Promise<GitHubRelease | null> {
   if (!OWNER || !REPO) return null;

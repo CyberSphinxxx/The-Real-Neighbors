@@ -25,14 +25,19 @@ async function checkRateLimit(): Promise<void> {
   if (!user) throw new AIError("Must be logged in to use AI");
   
   const today = new Date().toISOString().split('T')[0];
-  const usageRef = doc(db, 'ai_usage', `${user.uid}_${today}`);
+  const usageRef = doc(db, 'ai_usage', user.uid);
   
   try {
     const snap = await getDoc(usageRef);
     if (!snap.exists()) {
-      await setDoc(usageRef, { count: 1 });
+      await setDoc(usageRef, { [today]: 1 });
     } else {
-      await updateDoc(usageRef, { count: increment(1) });
+      const data = snap.data();
+      const currentCount = data[today] || 0;
+      if (currentCount >= 50) {
+        throw new Error("Daily limit reached");
+      }
+      await updateDoc(usageRef, { [today]: increment(1) });
     }
   } catch (error) {
     console.error("Rate limit check failed:", error);
