@@ -195,5 +195,31 @@ service cloud.firestore {
         allow delete: if isAuthenticated() && (resource.data.authorId == request.auth.uid || isAdmin());
       }
     }
+
+    // 16. aiChats
+    match /aiChats/{userId} {
+      allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      
+      match /sessions/{sessionId} {
+        allow read, write: if isAuthenticated() && request.auth.uid == userId;
+      }
+    }
+
+    // 17. ai_usage (Rate Limiting)
+    match /ai_usage/{usageId} {
+      // User can only access a document that starts with their own uid
+      allow read: if isAuthenticated() && usageId.startsWith(request.auth.uid);
+      
+      // Allow creation if it's the first request of the day (count == 1)
+      allow create: if isAuthenticated() 
+                    && usageId.startsWith(request.auth.uid)
+                    && request.resource.data.count == 1;
+                    
+      // Allow update if incrementing by exactly 1, and the new count is <= 50
+      allow update: if isAuthenticated() 
+                    && usageId.startsWith(request.auth.uid)
+                    && request.resource.data.count == resource.data.count + 1
+                    && request.resource.data.count <= 50;
+    }
   }
 }
