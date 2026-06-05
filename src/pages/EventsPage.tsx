@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEventsStore } from '../stores/eventsStore';
+import { useLocation, useNavigate } from 'react-router-dom';
 const CACHE_TTL = 2 * 60 * 1000;
 import type { Event } from '../types';
 import { EventCard } from '../components/events/EventCard';
@@ -9,9 +10,21 @@ import { Calendar, Plus, Loader2, ChevronDown, ChevronUp } from 'lucide-react';
 
 export const EventsPage: React.FC = () => {
   const { events, fetchedAt, setEvents } = useEventsStore();
+  const location = useLocation();
+  const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [showPast, setShowPast] = useState(false);
+  const [prefillEvent, setPrefillEvent] = useState<Partial<Event> | undefined>(undefined);
+
+  useEffect(() => {
+    if ((location.state as any)?.prefillEvent) {
+      setPrefillEvent((location.state as any).prefillEvent);
+      setShowModal(true);
+      // Clean up state
+      navigate('/events', { replace: true });
+    }
+  }, [location, navigate]);
 
   useEffect(() => {
     let isMounted = true;
@@ -127,8 +140,16 @@ export const EventsPage: React.FC = () => {
         <span className="hidden sm:inline">New Event</span>
       </button>
 
-      {showModal && <CreateEventModal onClose={() => setShowModal(false)} />}
-    </div>
+      {showModal && (
+        <CreateEventModal 
+          onClose={() => {
+            setShowModal(false);
+            setPrefillEvent(undefined);
+          }} 
+          eventToEdit={undefined}
+          prefillEvent={prefillEvent}
+        />
+      )}</div>
   );
 };
 

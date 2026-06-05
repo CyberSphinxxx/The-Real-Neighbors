@@ -11,20 +11,22 @@ import { DateTimePicker } from './DateTimePicker';
 interface Props {
   onClose: () => void;
   eventToEdit?: Event;
+  prefillEvent?: Partial<Event>;
 }
 
-export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit }) => {
+export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit, prefillEvent }) => {
   const { user } = useAuthStore();
-  const [title, setTitle] = useState(eventToEdit?.title || '');
-  const [type, setType] = useState<string>(eventToEdit?.type || 'hangout');
+  const [title, setTitle] = useState(eventToEdit?.title || prefillEvent?.title || '');
+  const initialType = eventToEdit?.type || prefillEvent?.type || 'hangout';
+  const [type, setType] = useState<string>(initialType);
   const [customType, setCustomType] = useState(
-    eventToEdit && !['hangout', 'gaming', 'trip', 'online'].includes(eventToEdit.type) ? eventToEdit.type : ''
+    !['hangout', 'gaming', 'trip', 'online'].includes(initialType) ? initialType : ''
   );
   
   const [dateStr, setDateStr] = useState('');
   const [timeStr, setTimeStr] = useState('');
   
-  const [description, setDescription] = useState(eventToEdit?.description || '');
+  const [description, setDescription] = useState(eventToEdit?.description || prefillEvent?.description || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   useEffect(() => {
