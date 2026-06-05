@@ -7,8 +7,9 @@ import { PostSkeleton } from '../components/feed/PostSkeleton';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { ExploreTab } from '../components/feed/ExploreTab';
 import { FilterBottomSheet } from '../components/feed/FilterBottomSheet';
+import { FeedCatchUp } from '../components/ai/FeedCatchUp';
 import { subscribeToCollection } from '../lib/firestore';
-import { Users, Filter } from 'lucide-react';
+import { Users, Filter, Sparkles } from 'lucide-react';
 import { getAvatarColor } from '../utils/avatarColor';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedTabStore } from '../stores/feedTabStore';
@@ -59,6 +60,7 @@ export const FeedPage: React.FC = () => {
   const [users, setUsers] = useState<User[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [openPost, setOpenPost] = useState<Post | RedditPost | null>(null);
+  const [showCatchUpModal, setShowCatchUpModal] = useState(false);
 
   // Pagination State
   const [lastVisible, setLastVisible] = useState<any>(null);
@@ -426,17 +428,25 @@ export const FeedPage: React.FC = () => {
       {activeTab === 'our_feed' ? (
         <div className="max-w-[680px] mx-auto relative">
           {/* Feed Heading Section */}
-          <div className="pt-6 mb-4">
-            <h1 className="font-heading font-bold text-2xl text-main">What's Up 👀</h1>
-            <p 
-              className={`text-sm mt-1 italic ${
-                splashData.isRare 
-                  ? 'text-rose-500 font-mono tracking-widest font-semibold animate-pulse uppercase' 
-                  : 'text-faint'
-              }`} 
+          <div className="pt-6 mb-4 flex justify-between items-start">
+            <div>
+              <h1 className="font-heading font-bold text-2xl text-main">What's Up 👀</h1>
+              <p 
+                className={`text-sm mt-1 italic ${
+                  splashData.isRare 
+                    ? 'text-rose-500 font-mono tracking-widest font-semibold animate-pulse uppercase' 
+                    : 'text-faint'
+                }`} 
+              >
+                {splashData.text}
+              </p>
+            </div>
+            <button
+              onClick={() => setShowCatchUpModal(true)}
+              className="flex items-center gap-1.5 px-3 py-1 rounded-full border border-primary text-primary text-sm font-semibold hover:bg-primary/10 transition-colors"
             >
-              {splashData.text}
-            </p>
+              <Sparkles size={14} /> Catch me up
+            </button>
           </div>
 
           {/* Composer */}
@@ -467,32 +477,51 @@ export const FeedPage: React.FC = () => {
               </div>
 
               {/* DESKTOP FILTER BAR */}
-              <div className="hidden md:flex items-center gap-4 bg-transparent py-2 border-b border-border-subtle w-full">
-                {/* LEFT: Type Filter Pills (Scrollable) */}
-                <div className="relative flex-1 min-w-0">
-                  <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full pr-8">
-                    {FILTER_TYPES.map(type => (
+              <div className="hidden md:flex flex-col gap-3 py-3 border-b border-border-subtle w-full bg-transparent">
+                {/* TOP ROW: Type Filter & Sort Toggle */}
+                <div className="flex items-center justify-between gap-4 w-full">
+                  {/* LEFT: Type Filter Pills (Scrollable) */}
+                  <div className="relative flex-1 min-w-0">
+                    <div className="flex items-center gap-2 overflow-x-auto custom-scrollbar pb-1 w-full pr-8">
+                      {FILTER_TYPES.map(type => (
+                        <button
+                          key={type}
+                          onClick={() => setActiveType(type)}
+                          className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
+                            activeType === type
+                              ? 'bg-primary/15 border-primary text-primary font-semibold'
+                              : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+                          }`}
+                        >
+                          {type}
+                        </button>
+                      ))}
+                    </div>
+                    {/* Fade gradient for scrolling edge */}
+                    <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-base to-transparent pointer-events-none" />
+                  </div>
+
+                  {/* RIGHT: Sort Toggle */}
+                  <div className="flex items-center bg-surface border border-border-subtle rounded-full p-0.5 flex-shrink-0 shadow-sm">
+                    {(['Latest', 'Most Reacted'] as const).map(s => (
                       <button
-                        key={type}
-                        onClick={() => setActiveType(type)}
-                        className={`flex-shrink-0 px-3 py-1.5 text-sm rounded-full border transition-colors ${
-                          activeType === type
-                            ? 'bg-primary/15 border-primary text-primary font-semibold'
-                            : 'border-border text-muted bg-surface hover:text-main hover:border-border-subtle'
+                        key={s}
+                        onClick={() => setSortBy(s)}
+                        className={`px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs rounded-full font-bold transition-all ${
+                          sortBy === s
+                            ? 'bg-primary text-on-primary shadow-sm'
+                            : 'text-muted hover:text-main'
                         }`}
                       >
-                        {type}
+                        {s === 'Latest' ? '✨ Latest' : '🔥 Most Reacted'}
                       </button>
                     ))}
                   </div>
-                  {/* Fade gradient for scrolling edge */}
-                  <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-base to-transparent pointer-events-none" />
                 </div>
 
-                {/* RIGHT: Member Filter & Sort Toggle */}
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  {/* Member Avatars */}
-                  <div className="flex items-center gap-1">
+                {/* BOTTOM ROW: Member Avatars */}
+                <div className="relative w-full">
+                  <div className="flex items-center gap-1.5 overflow-x-auto custom-scrollbar p-1 pb-2 w-full pr-8 -ml-1">
                     <button
                       onClick={() => setActiveMember(null)}
                       className={`w-6 h-6 md:w-7 md:h-7 rounded-full flex items-center justify-center flex-shrink-0 transition-transform active:scale-95 ${
@@ -521,23 +550,8 @@ export const FeedPage: React.FC = () => {
                       </button>
                     ))}
                   </div>
-
-                  {/* Sort Toggle */}
-                  <div className="flex items-center bg-surface border border-border-subtle rounded-full p-0.5 flex-shrink-0 shadow-sm">
-                    {(['Latest', 'Most Reacted'] as const).map(s => (
-                      <button
-                        key={s}
-                        onClick={() => setSortBy(s)}
-                        className={`px-2 py-1 md:px-3 md:py-1.5 text-[10px] md:text-xs rounded-full font-bold transition-all ${
-                          sortBy === s
-                            ? 'bg-primary text-on-primary shadow-sm'
-                            : 'text-muted hover:text-main'
-                        }`}
-                      >
-                        {s === 'Latest' ? '✨ Latest' : '🔥 Most Reacted'}
-                      </button>
-                    ))}
-                  </div>
+                  {/* Fade gradient for scrolling edge */}
+                  <div className="absolute right-0 top-0 bottom-1 w-8 bg-gradient-to-l from-base to-transparent pointer-events-none" />
                 </div>
               </div>
               
@@ -685,6 +699,10 @@ export const FeedPage: React.FC = () => {
               : undefined
           }
         />
+      )}
+
+      {showCatchUpModal && (
+        <FeedCatchUp isModal onClose={() => setShowCatchUpModal(false)} />
       )}
 
       {/* Mobile Filter Bottom Sheet */}
