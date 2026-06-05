@@ -1,5 +1,7 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { subscribeToCollection } from '../lib/firestore';
+import { useAuthStore } from '../stores/authStore';
+import { Select } from '../components/ui/Select';
 import { PlaylistCard } from '../components/playlist/PlaylistCard';
 import { AddPlaylistModal } from '../components/playlist/AddPlaylistModal';
 import { Plus, Search, Shuffle, Music2, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
@@ -223,7 +225,7 @@ export default function PlaylistPage() {
                   style={{
                     background: isSelected ? `color-mix(in srgb, ${genre.color} 15%, transparent)` : 'var(--color-bg-surface)',
                     color: isSelected ? genre.color : 'var(--color-text-muted)',
-                    border: `1px solid ${isSelected ? genre.color : 'var(--color-border-default)'}`,
+                    border: `1px solid ${isSelected ? genre.color : 'var(--color-border-border-subtle)'}`,
                   }}
                 >
                   {genre.emoji && <span>{genre.emoji}</span>}
@@ -284,15 +286,16 @@ export default function PlaylistPage() {
           </div>
 
           <div className="relative">
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as 'Recent' | 'Rated' | 'Commented' | 'A-Z')}
-              className="appearance-none bg-surface border border-border-subtle rounded-lg pl-3 pr-8 py-1.5 text-sm text-main focus:border-primary outline-none cursor-pointer"
-            >
-              <option value="Recent">Recently Added</option>
-              <option value="Rated">Most Rated</option>
-              <option value="A-Z">A-Z</option>
-            </select>
+              <Select
+                value={sortBy}
+                onChange={(val) => setSortBy(val as 'Recent' | 'Rated' | 'Commented' | 'A-Z')}
+                options={[
+                  { value: 'Recent', label: 'Recently Added' },
+                  { value: 'Rated', label: 'Most Rated' },
+                  { value: 'A-Z', label: 'A-Z' }
+                ]}
+                className="w-[160px] bg-surface border border-border-subtle rounded-lg text-sm text-main focus-within:border-primary outline-none"
+              />
             <Filter size={14} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted pointer-events-none" />
           </div>
         </div>
@@ -307,7 +310,7 @@ export default function PlaylistPage() {
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             placeholder="Search playlists..."
-            className="w-full bg-surface rounded-full border border-default pl-9 pr-4 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none transition-colors"
+            className="w-full bg-surface rounded-full border border-border-subtle pl-9 pr-4 py-2 text-sm text-main placeholder:text-muted focus:border-primary outline-none transition-colors"
           />
         </div>
         <button

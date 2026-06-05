@@ -218,7 +218,7 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({ onClose, all
                     style={{
                       background: isSelected ? `color-mix(in srgb, ${activeColor} 15%, transparent)` : 'var(--color-bg-surface)',
                       color: isSelected ? activeColor : 'var(--color-text-muted)',
-                      border: `1px solid ${isSelected ? activeColor : 'var(--color-border-default)'}`,
+                      border: `1px solid ${isSelected ? activeColor : 'var(--color-border-border-subtle)'}`,
                     }}
                   >
                     <span>{genre.emoji}</span>
