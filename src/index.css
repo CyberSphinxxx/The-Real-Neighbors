@@ -98,3 +98,52 @@
 ::-webkit-scrollbar-thumb:hover {
   background: var(--color-text-muted);
 }
+
+.release-notes {
+  color: var(--color-text-main);
+  font-size: 14px;
+  line-height: 1.6;
+}
+.release-notes h1, .release-notes h2, .release-notes h3 {
+  color: var(--color-text-main);
+  font-weight: 700;
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+}
+.release-notes h1 { font-size: 1.25rem; }
+.release-notes h2 { font-size: 1.125rem; }
+.release-notes h3 { font-size: 1rem; }
+.release-notes p { margin-bottom: 1em; }
+.release-notes ul {
+  list-style-type: disc;
+  padding-left: 1.5em;
+  margin-bottom: 1em;
+}
+.release-notes li { margin-bottom: 0.25em; }
+.release-notes a {
+  color: var(--color-primary);
+  text-decoration: none;
+}
+.release-notes a:hover { text-decoration: underline; }
+.release-notes code {
+  background-color: var(--color-bg-elevated);
+  padding: 0.2em 0.4em;
+  border-radius: 4px;
+  font-family: var(--font-mono);
+  font-size: 0.875em;
+  border: 1px solid var(--color-border-subtle);
+}
+.release-notes pre {
+  background-color: var(--color-bg-elevated);
+  padding: 1em;
+  border-radius: 8px;
+  overflow-x: auto;
+  border: 1px solid var(--color-border-subtle);
+  margin-bottom: 1em;
+}
+.release-notes pre code {
+  background-color: transparent;
+  padding: 0;
+  border: none;
+}
+
