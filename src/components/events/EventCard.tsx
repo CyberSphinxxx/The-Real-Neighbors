@@ -92,6 +92,8 @@ export const EventCard: React.FC<Props> = ({ event }) => {
 
   const eventTime = typeof optimisticEvent.date === 'string' ? new Date(optimisticEvent.date).getTime() : typeof optimisticEvent.date === 'number' ? optimisticEvent.date : 0;
   
+  const isPast = eventTime < Date.now();
+
   const dateObj = new Date(eventTime);
   const dateStr = dateObj.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: dateObj.getFullYear() !== new Date().getFullYear() ? 'numeric' : undefined });
   const timeStr = dateObj.getHours() === 12 && dateObj.getMinutes() === 0 ? '' : dateObj.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
@@ -133,23 +135,33 @@ export const EventCard: React.FC<Props> = ({ event }) => {
 
       {/* RSVP Section */}
       <div className="bg-base border border-border-subtle rounded-xl p-4 mb-4">
-        <p className="text-xs font-semibold text-muted mb-3 uppercase tracking-wider">Your RSVP</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs font-semibold text-muted uppercase tracking-wider">Your RSVP</p>
+          {isPast && (
+            <span className="px-2 py-0.5 rounded text-[10px] font-bold bg-border text-muted uppercase tracking-wide">
+              Past Event
+            </span>
+          )}
+        </div>
         <div className="grid grid-cols-3 gap-2 sm:gap-3">
           <button 
-            onClick={() => handleRSVP('going')}
-            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'going' ? 'bg-success/20 text-success border border-success/30 ring-1 ring-success' : 'bg-surface text-muted border border-border-subtle hover:border-success/50 hover:text-success'}`}
+            onClick={() => !isPast && handleRSVP('going')}
+            disabled={isPast}
+            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'going' ? 'bg-success text-on-primary shadow-sm' : 'bg-surface text-muted border border-border-subtle hover:border-success hover:text-success'} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <CheckCircle2 size={16} /> <span className="hidden sm:inline">Going</span>
           </button>
           <button 
-            onClick={() => handleRSVP('maybe')}
-            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'maybe' ? 'bg-warning/20 text-warning border border-warning/30 ring-1 ring-warning' : 'bg-surface text-muted border border-border-subtle hover:border-warning/50 hover:text-warning'}`}
+            onClick={() => !isPast && handleRSVP('maybe')}
+            disabled={isPast}
+            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'maybe' ? 'bg-warning text-white shadow-sm' : 'bg-surface text-muted border border-border-subtle hover:border-warning hover:text-warning'} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <HelpCircle size={16} /> <span className="hidden sm:inline">Maybe</span>
           </button>
           <button 
-            onClick={() => handleRSVP('cant')}
-            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'cant' ? 'bg-danger/20 text-danger border border-danger/30 ring-1 ring-danger' : 'bg-surface text-muted border border-border-subtle hover:border-danger/50 hover:text-danger'}`}
+            onClick={() => !isPast && handleRSVP('cant')}
+            disabled={isPast}
+            className={`flex items-center justify-center gap-2 py-2 rounded-lg text-sm font-medium transition-all ${myRsvp === 'cant' ? 'bg-danger text-white shadow-sm' : 'bg-surface text-muted border border-border-subtle hover:border-danger hover:text-danger'} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <XCircle size={16} /> <span className="hidden sm:inline">Can't Go</span>
           </button>
