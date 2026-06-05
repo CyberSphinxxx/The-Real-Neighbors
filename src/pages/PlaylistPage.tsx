@@ -1,6 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { subscribeToCollection } from '../lib/firestore';
-import { useAuthStore } from '../stores/authStore';
 import { Select } from '../components/ui/Select';
 import { PlaylistCard } from '../components/playlist/PlaylistCard';
 import { AddPlaylistModal } from '../components/playlist/AddPlaylistModal';

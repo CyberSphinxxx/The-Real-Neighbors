@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { CalendarDays, HelpCircle } from 'lucide-react';
 import { Select } from '../ui/Select';
 
 interface BirthdayPickerProps {

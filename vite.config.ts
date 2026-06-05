@@ -30,6 +30,7 @@ export default defineConfig(({ mode }) => {
                 });
                 
                 if (parsedBody.stream) {
+                  if (!response.body) throw new Error('No response body');
                   res.setHeader('Content-Type', 'text/event-stream');
                   res.setHeader('Cache-Control', 'no-cache');
                   res.setHeader('Connection', 'keep-alive');
@@ -48,9 +49,9 @@ export default defineConfig(({ mode }) => {
                   res.statusCode = response.status;
                   res.end(JSON.stringify(data));
                 }
-              } catch (e) {
+              } catch (e: any) {
                 res.statusCode = 500;
-                res.end(JSON.stringify({ error: e.message }));
+                res.end(JSON.stringify({ error: e.message || String(e) }));
               }
             });
           } else {

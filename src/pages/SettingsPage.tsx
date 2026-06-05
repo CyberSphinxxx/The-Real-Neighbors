@@ -6,7 +6,6 @@ import {
   EyeOff, Download, ShieldAlert, Cake,
   Radio, HardDrive, Cpu, MapPin, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { useConfirm } from '../contexts/ConfirmContext';
 import { Select } from '../components/ui/Select';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc } from '../lib/firestore';
