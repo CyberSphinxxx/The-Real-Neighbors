@@ -192,9 +192,10 @@ export const LoginPage: React.FC = () => {
       "-=0.2"
     );
 
+    const cardNode = cardRef.current;
     return () => {
-      if (cardRef.current && (cardRef.current as any).vanillaTilt) {
-        (cardRef.current as any).vanillaTilt.destroy();
+      if (cardNode && (cardNode as any).vanillaTilt) {
+        (cardNode as any).vanillaTilt.destroy();
       }
     };
   }, []);
