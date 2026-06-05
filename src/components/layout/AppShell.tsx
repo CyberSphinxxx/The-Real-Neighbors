@@ -9,6 +9,7 @@ import { EventWidget } from '../events/EventWidget';
 import { OnlineWidget } from './OnlineWidget';
 import { GroupStreakWidget } from './GroupStreakWidget';
 import { MiniPollWidget } from './MiniPollWidget';
+import { VibeCheckWidget } from './VibeCheckWidget';
 import { ErrorBoundary } from '../ui/ErrorBoundary';
 import { usePresence } from '../../hooks/usePresence';
 import { useStartupNotifications } from '../../hooks/useStartupNotifications';
@@ -68,9 +69,9 @@ export const AppShell: React.FC = () => {
         className="flex-1 overflow-y-auto flex flex-col"
         style={{ paddingTop: '48px', height: '100vh' }}
       >
-        <div className={location.pathname.startsWith('/chat') ? 'w-full flex-1 flex flex-col' : 'w-full px-4 py-6 md:px-6 pb-24 md:pb-8'}>
+        <div className={(location.pathname.startsWith('/chat') || location.pathname.startsWith('/ai')) ? 'w-full flex-1 flex flex-col' : 'w-full px-4 py-6 md:px-6 pb-24 md:pb-8'}>
           <ErrorBoundary>
-            <div key={location.pathname} className={`animate-in fade-in duration-300 ${location.pathname.startsWith('/chat') ? 'h-full flex flex-col flex-1 min-h-0' : ''}`}>
+            <div key={location.pathname} className={`animate-in fade-in duration-300 ${(location.pathname.startsWith('/chat') || location.pathname.startsWith('/ai')) ? 'h-full flex flex-col flex-1 min-h-0' : ''}`}>
               <Outlet />
             </div>
           </ErrorBoundary>
@@ -89,7 +90,7 @@ export const AppShell: React.FC = () => {
       </main>
 
       {/* Desktop Right Sidebar — sticky, scrolls independently */}
-      {!location.pathname.startsWith('/playlist') && !location.pathname.startsWith('/chat') && (
+      {!location.pathname.startsWith('/playlist') && !location.pathname.startsWith('/chat') && !location.pathname.startsWith('/ai') && (
         <aside
             className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle overflow-y-auto p-4 gap-4 custom-scrollbar"
             style={{ paddingTop: 'calc(48px + 1rem)', height: '100vh' }}
@@ -99,6 +100,7 @@ export const AppShell: React.FC = () => {
             <OnlineWidget />
             <GroupStreakWidget />
             <MiniPollWidget />
+            <VibeCheckWidget />
           </aside>
       )}
 
