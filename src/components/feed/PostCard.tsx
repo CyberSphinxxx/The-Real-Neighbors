@@ -264,6 +264,40 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
           import('firebase/firestore').then(({ increment }) => {
             updateDoc('users', [user.id], { reactionCount: increment(1) }).catch(console.error);
           });
+          
+          // Botbot Auto-Reaction Trigger
+          const totalReactions = Object.values(newReactions).reduce((sum, arr) => sum + arr.length, 0);
+          if (totalReactions === 3 || totalReactions === 7) {
+            import('../../hooks/useBotbotRateLimit').then(({ useBotbotRateLimit }) => {
+              if (useBotbotRateLimit.getState().canReact()) {
+                const botbotCommented = post.botbotCommented || [];
+                if (!botbotCommented.includes(totalReactions)) {
+                  useBotbotRateLimit.getState().setLastReactionTime(Date.now());
+                  import('../../lib/botbotReactions').then(async ({ generateBotbotReaction }) => {
+                    try {
+                      const commentStr = await generateBotbotReaction(post, totalReactions);
+                      const { arrayUnion, addDoc, collection } = await import('firebase/firestore');
+                      const { db } = await import('../../lib/firebase');
+                      
+                      // Update post to mark threshold as commented
+                      await updateDoc('posts', [post.id], {
+                        botbotCommented: arrayUnion(totalReactions)
+                      });
+                      
+                      // Add comment
+                      await addDoc(collection(db, 'posts', post.id, 'comments'), {
+                        authorId: 'botbot',
+                        content: commentStr,
+                        createdAt: Date.now()
+                      });
+                    } catch (e) {
+                      console.error('Failed to generate Botbot reaction', e);
+                    }
+                  });
+                }
+              }
+            });
+          }
         }
       } catch (err) {
         setOptimisticReactions(prevReactions);

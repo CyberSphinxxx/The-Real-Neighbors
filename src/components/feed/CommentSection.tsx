@@ -4,7 +4,7 @@ import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/fire
 import { orderBy } from 'firebase/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import type { Comment, User } from '../../types';
-import { Loader2, Send, Heart, Reply, X } from 'lucide-react';
+import { Loader2, Send, Heart, Reply, X, Bot } from 'lucide-react';
 import { getAvatarColor } from '../../utils/avatarColor';
 
 interface CommentSectionProps {
@@ -38,14 +38,17 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, allUsers, currentUse
   const avatarBg = author ? getAvatarColor(author.displayName) : 'var(--color-primary)';
   const likesCount = comment.likes?.length || 0;
   const isLiked = currentUserId ? (comment.likes?.includes(currentUserId) || false) : false;
+  const isNbot = comment.authorId === 'botbot';
 
   return (
     <div className={`flex gap-3 text-sm ${isReply ? 'ml-8 mt-2' : 'mt-4'}`}>
       <div 
         className="w-8 h-8 rounded-full flex items-center justify-center font-bold text-white flex-shrink-0 text-xs shadow-sm overflow-hidden"
-        style={{ background: author?.avatarUrl ? undefined : avatarBg }}
+        style={{ background: isNbot ? 'var(--color-primary)' : (author?.avatarUrl ? undefined : avatarBg) }}
       >
-        {author?.avatarUrl ? (
+        {isNbot ? (
+          <Bot size={16} />
+        ) : author?.avatarUrl ? (
           <img src={author.avatarUrl} alt="" className="w-full h-full object-cover" />
         ) : (
           author ? author.displayName.charAt(0).toUpperCase() : '?'
@@ -54,7 +57,16 @@ const CommentItem: React.FC<CommentItemProps> = ({ comment, allUsers, currentUse
       <div className="flex-1">
         <div className="bg-surface rounded-2xl rounded-tl-none p-3 border border-border-subtle inline-block min-w-[120px]">
           <div className="flex items-center gap-2 mb-1">
-            <span className="font-semibold text-main">{author ? author.displayName : 'Loading...'}</span>
+            {isNbot ? (
+              <span className="font-semibold text-main flex items-center gap-1.5">
+                Botbot
+                <span className="bg-primary/10 text-primary px-1.5 py-0.5 text-[10px] uppercase font-bold rounded-full">
+                  Bot
+                </span>
+              </span>
+            ) : (
+              <span className="font-semibold text-main">{author ? author.displayName : 'Loading...'}</span>
+            )}
             <span className="text-xs text-faint">{formatTimeAgo(comment.createdAt)}</span>
           </div>
           <p className="text-muted break-words whitespace-pre-wrap">

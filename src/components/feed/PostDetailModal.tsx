@@ -467,7 +467,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               </p>
               {post.vibeTag && (
                 <div className="mt-6">
-                  <span className="px-3 py-1.5 rounded-full bg-white/20 border border-white/30 text-white text-sm font-bold tracking-wide flex items-center gap-2">
+                  <span className="px-3 py-1.5 rounded-full bg-white/20 border border-border-subtle text-white text-sm font-bold tracking-wide flex items-center gap-2">
                     <span>{post.vibeTag.emoji}</span> {post.vibeTag.label}
                   </span>
                 </div>

@@ -77,6 +77,7 @@ export interface Post {
   mentions?: string[];
   sharedPostId?: string;
   sharedRedditPost?: RedditPost;
+  botbotCommented?: number[];
 }
 
 export interface Comment {
