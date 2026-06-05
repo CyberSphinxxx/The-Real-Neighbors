@@ -113,7 +113,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, allUsers }
     <>
       <div
         onClick={handleOpenCard}
-        className="group relative bg-surface rounded-2xl border border-default shadow-sm overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30 flex flex-col h-full"
+        className="group relative bg-surface rounded-2xl border border-border-subtle shadow-sm overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30 flex flex-col h-full"
       >
         {/* Cover Image Area */}
         <div className="relative w-full aspect-square bg-elevated overflow-hidden flex-shrink-0">
@@ -151,7 +151,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, allUsers }
 
           {/* Now Vibing Badge */}
           {isVibingActive && (
-            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs rounded-full px-2 py-1 backdrop-blur-sm flex items-center gap-1.5 shadow-sm border border-white/10">
+            <div className="absolute top-2 right-2 bg-black/60 text-white text-xs rounded-full px-2 py-1 backdrop-blur-sm flex items-center gap-1.5 shadow-sm border border-border-subtle">
               <div className="w-1.5 h-1.5 rounded-full bg-success animate-pulse" />
               <span className="font-medium">{playlist.nowVibing.length} vibing</span>
             </div>
@@ -161,7 +161,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, allUsers }
           <div className={`absolute ${isVibingActive ? 'bottom-2 right-2' : 'top-2 right-2'}`}>
             <button
               onClick={(e) => { e.stopPropagation(); setShowMenu(!showMenu); }}
-              className="w-8 h-8 rounded-full flex items-center justify-center bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors border border-white/10 opacity-0 group-hover:opacity-100"
+              className="w-8 h-8 rounded-full flex items-center justify-center bg-black/40 text-white backdrop-blur-sm hover:bg-black/60 transition-colors border border-border-subtle opacity-0 group-hover:opacity-100"
             >
               <MoreHorizontal size={16} />
             </button>
