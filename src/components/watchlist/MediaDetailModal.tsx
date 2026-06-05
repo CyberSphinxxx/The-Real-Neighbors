@@ -98,11 +98,11 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
       onClick={onClose}
     >
       <div 
-        className="bg-surface border border-default rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col md:flex-row max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200"
+        className="bg-surface border border-border-subtle rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col md:flex-row max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200"
         onClick={e => e.stopPropagation()}
       >
         {/* Left Column: Media Details */}
-        <div className="w-full md:w-5/12 bg-base border-r border-default overflow-y-auto custom-scrollbar flex flex-col">
+        <div className="w-full md:w-5/12 bg-base border-r border-border-subtle overflow-y-auto custom-scrollbar flex flex-col">
           {/* Header Image */}
           <div className="relative aspect-[2/3] w-full shrink-0 bg-elevated">
             {entry.coverUrl ? (
@@ -163,7 +163,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
             {entry.genres && entry.genres.length > 0 && (
               <div className="flex flex-wrap gap-2">
                 {entry.genres.map(g => (
-                  <span key={g} className="px-2 py-1 bg-elevated border border-default rounded text-xs font-medium text-muted">
+                  <span key={g} className="px-2 py-1 bg-elevated border border-border-subtle rounded text-xs font-medium text-muted">
                     {g}
                   </span>
                 ))}
@@ -178,7 +178,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
 
             {/* Tracked By Section */}
             {trackedBy.length > 0 && (
-              <div className="mt-4 pt-4 border-t border-default">
+              <div className="mt-4 pt-4 border-t border-border-subtle">
                 <h3 className="text-xs font-bold text-muted uppercase tracking-wider mb-3">
                   Neighbors Tracking This
                 </h3>
@@ -216,7 +216,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
 
         {/* Right Column: Reviews */}
         <div className="w-full md:w-7/12 flex flex-col h-[50vh] md:h-auto bg-surface">
-          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-default bg-surface shrink-0">
+          <div className="flex items-center justify-between p-4 sm:p-5 border-b border-border-subtle bg-surface shrink-0">
             <h3 className="font-heading font-bold text-lg text-main flex items-center gap-2">
               <MessageSquare size={18} className="text-primary" /> 
               Neighbor Reviews
@@ -246,7 +246,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
                 const isAuthor = user?.id === review.authorId;
                 
                 return (
-                  <div key={review.id} className="flex gap-3 bg-base p-4 rounded-xl border border-default">
+                  <div key={review.id} className="flex gap-3 bg-base p-4 rounded-xl border border-border-subtle">
                     {/* Avatar */}
                     <div className="shrink-0">
                       {authorUser?.avatarUrl ? (
@@ -306,7 +306,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
           </div>
 
           {/* Review Input */}
-          <div className="p-4 sm:p-5 border-t border-default bg-base shrink-0">
+          <div className="p-4 sm:p-5 border-t border-border-subtle bg-base shrink-0">
             <form onSubmit={handleSubmitReview} className="flex flex-col gap-3">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold text-main">Leave a Review</span>
@@ -332,7 +332,7 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
                   onChange={e => setComment(e.target.value)}
                   placeholder="What did you think of it?"
                   rows={3}
-                  className="w-full bg-surface border border-default rounded-xl px-4 py-3 text-sm text-main placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none custom-scrollbar pr-12"
+                  className="w-full bg-surface border border-border-subtle rounded-xl px-4 py-3 text-sm text-main placeholder:text-muted focus:border-primary focus:ring-1 focus:ring-primary outline-none resize-none custom-scrollbar pr-12"
                 />
                 <button
                   type="submit"
