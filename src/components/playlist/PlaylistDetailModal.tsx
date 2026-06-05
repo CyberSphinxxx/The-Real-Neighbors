@@ -243,7 +243,7 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
 
               <button
                 onClick={toggleVibing}
-                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all border ${isVibing ? 'bg-success/15 border-success text-success' : 'border-white/30 text-white hover:bg-white/10'}`}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-full font-medium text-sm transition-all border ${isVibing ? 'bg-success/15 border-success text-success' : 'border-border-subtle text-white hover:bg-white/10'}`}
               >
                 {isVibing ? (
                   <>
@@ -291,7 +291,7 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
             )}
 
             {/* Reactions & Rating Row */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 pt-6 border-t border-white/10">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mt-6 pt-6 border-t border-border-subtle">
               <div className="flex flex-wrap items-center gap-2">
                 {REACTIONS.map((r) => {
                   const count = playlist.reactions?.[r.emoji]?.length || 0;
@@ -316,7 +316,7 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
                 })}
               </div>
 
-              <div className="bg-white/5 rounded-xl p-3 border border-white/10 w-max">
+              <div className="bg-white/5 rounded-xl p-3 border border-border-subtle w-max">
                 <StarRating 
                   ratings={playlist.ratings || {}} 
                   currentUid={user?.id || ''} 
