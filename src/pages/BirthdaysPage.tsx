@@ -170,10 +170,14 @@ export const BirthdaysPage: React.FC = () => {
           else if (daysLeft > 1) countdownLabel = `In ${daysLeft} days`;
 
           return (
-            <div key={u.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-colors ${i !== sortedUsers.length - 1 ? 'border-b border-border-subtle/50' : ''} ${isToday ? 'bg-primary/5' : 'hover:bg-base'}`}>
+            <div key={u.id} className={`p-4 flex flex-col sm:flex-row sm:items-center gap-4 transition-colors ${i !== sortedUsers.length - 1 ? 'border-b border-border-subtle' : ''} ${isToday ? 'bg-primary/5' : 'hover:bg-base'}`}>
               <div className="flex items-center gap-4 flex-1 min-w-0">
-                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm border border-primary/20">
-                  {u.displayName.charAt(0).toUpperCase()}
+                <div className="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg flex-shrink-0 shadow-sm border border-primary overflow-hidden">
+                  {u.avatarUrl ? (
+                    <img src={u.avatarUrl} alt={u.displayName} className="w-full h-full object-cover" />
+                  ) : (
+                    u.displayName.charAt(0).toUpperCase()
+                  )}
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
