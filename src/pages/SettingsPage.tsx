@@ -6,6 +6,8 @@ import {
   EyeOff, Download, ShieldAlert, Cake,
   Radio, HardDrive, Cpu, MapPin, ChevronDown, ChevronUp
 } from 'lucide-react';
+import { useConfirm } from '../contexts/ConfirmContext';
+import { Select } from '../components/ui/Select';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc } from '../lib/firestore';
 import { useTheme, type ThemeName } from '../hooks/useTheme';
@@ -310,10 +312,10 @@ export const SettingsPage: React.FC = () => {
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-center gap-2 whitespace-nowrap px-4 py-2 border rounded-full font-medium text-sm transition-colors mr-2 snap-start ${
-                  isActive ? 'border-primary bg-primary/10 text-primary' : 'border-border-subtle text-muted hover:text-main bg-surface'
+                  isActive ? 'border-primary bg-primary text-on-primary' : 'border-border-subtle text-muted hover:text-main bg-surface'
                 }`}
               >
-                <Icon size={14} className={isActive ? 'text-primary' : 'text-muted'} />
+                <Icon size={14} className={isActive ? 'text-on-primary' : 'text-muted'} />
                 {tab.label}
               </button>
             );
@@ -331,11 +333,11 @@ export const SettingsPage: React.FC = () => {
                 onClick={() => setActiveTab(tab.id)}
                 className={`flex items-start gap-3 w-full text-left px-4 py-3.5 rounded-2xl transition-all relative group border ${
                   isActive 
-                    ? 'bg-primary/5 border-primary/50 ring-1 ring-primary/20' 
+                    ? 'bg-surface border-primary ring-1 ring-primary' 
                     : 'bg-transparent border-transparent hover:bg-elevated hover:border-border-subtle'
                 }`}
               >
-                <div className={`mt-0.5 p-2 rounded-xl transition-colors ${isActive ? 'bg-primary/20 text-primary' : 'bg-surface text-muted group-hover:text-main shadow-sm border border-border-subtle'}`}>
+                <div className={`mt-0.5 p-2 rounded-xl transition-colors ${isActive ? 'bg-primary text-on-primary shadow-sm' : 'bg-surface text-muted group-hover:text-main shadow-sm border border-border-subtle'}`}>
                   <Icon size={18} />
                 </div>
                 <div className="flex flex-col">
@@ -659,17 +661,20 @@ export const SettingsPage: React.FC = () => {
 
                   <div>
                     <label className="block text-sm font-medium text-main mb-2">Default Filter</label>
-                    <select 
-                      value={currentPrefs.defaultFilter || 'all'}
-                      onChange={e => handleFeedPrefChange('defaultFilter', e.target.value)}
-                      className="w-full bg-elevated border border-border-subtle rounded-xl px-4 py-3 text-main font-semibold outline-none focus:border-primary appearance-none cursor-pointer"
-                    >
-                      <option value="all">All Posts</option>
-                      <option value="videos">Videos Only</option>
-                      <option value="images">Images Only</option>
-                      <option value="colored">Colored Text Only</option>
-                      <option value="links">Links Only</option>
-                    </select>
+                    <div className="w-full">
+                      <Select 
+                        value={currentPrefs.defaultFilter || 'all'}
+                        onChange={value => handleFeedPrefChange('defaultFilter', value)}
+                        options={[
+                          { value: 'all', label: 'All Posts' },
+                          { value: 'videos', label: 'Videos Only' },
+                          { value: 'images', label: 'Images Only' },
+                          { value: 'colored', label: 'Colored Text Only' },
+                          { value: 'links', label: 'Links Only' }
+                        ]}
+                        className="w-full bg-elevated border border-border-subtle rounded-xl text-main font-semibold outline-none focus-within:border-primary"
+                      />
+                    </div>
                   </div>
                 </div>
 
