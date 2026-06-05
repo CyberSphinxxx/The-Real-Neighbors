@@ -1,10 +1,64 @@
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
 
-export default defineConfig({
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), '');
+  return {
   plugins: [
     react(),
+    {
+      name: 'api-mock',
+      configureServer(server) {
+        // Body parser for JSON
+        server.middlewares.use(async (req, res, next) => {
+          if (req.url === '/api/deepseek' && req.method === 'POST') {
+            let body = '';
+            req.on('data', chunk => { body += chunk.toString(); });
+            req.on('end', async () => {
+              try {
+                const parsedBody = JSON.parse(body);
+                const apiKey = env.VITE_DEEPSEEK_API_KEY || 'MISSING_KEY';
+                
+                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`,
+                  },
+                  body: JSON.stringify(parsedBody),
+                });
+                
+                if (parsedBody.stream) {
+                  res.setHeader('Content-Type', 'text/event-stream');
+                  res.setHeader('Cache-Control', 'no-cache');
+                  res.setHeader('Connection', 'keep-alive');
+                  
+                  const reader = response.body.getReader();
+                  const decoder = new TextDecoder();
+                  while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    res.write(decoder.decode(value));
+                  }
+                  res.end();
+                } else {
+                  const data = await response.json();
+                  res.setHeader('Content-Type', 'application/json');
+                  res.statusCode = response.status;
+                  res.end(JSON.stringify(data));
+                }
+              } catch (e) {
+                res.statusCode = 500;
+                res.end(JSON.stringify({ error: e.message }));
+              }
+            });
+          } else {
+            next();
+          }
+        });
+      }
+    },
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'offline.html'],
@@ -62,4 +116,5 @@ export default defineConfig({
       }
     }
   }
-})
+  };
+});
