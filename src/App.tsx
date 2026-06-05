@@ -18,6 +18,7 @@ const PlaylistPage = React.lazy(() => import('./pages/PlaylistPage'));
 const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
+const AIPage = React.lazy(() => import('./pages/AIPage'));
 
 function App() {
   return (
@@ -44,6 +45,7 @@ function App() {
           <Route path="chat/:channelId" element={<ChatPage />} />
           <Route path="chat/dm/:dmId" element={<ChatPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="ai" element={<AIPage />} />
         </Route>
       </Routes></Suspense>
       <Toaster position="bottom-center" />
