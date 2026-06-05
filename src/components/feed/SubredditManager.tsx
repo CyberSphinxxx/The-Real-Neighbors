@@ -10,7 +10,7 @@ interface SubredditManagerProps {
 }
 
 export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, subreddits, align = 'right' }) => {
-  const { user } = useAuthStore();
+  const { user, setUser } = useAuthStore();
   const [newSub, setNewSub] = useState('');
   const [isAdding, setIsAdding] = useState(false);
   const [error, setError] = useState('');
@@ -45,6 +45,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, sub
 
       const updatedSubs = [...subreddits, sub];
       await updateDoc('users', [user.id], { subreddits: updatedSubs });
+      setUser({ ...user, subreddits: updatedSubs });
       setNewSub('');
     } catch (err) {
       setError('Failed to verify subreddit');
@@ -57,6 +58,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, sub
     if (!user) return;
     const updatedSubs = subreddits.filter(s => s !== sub);
     await updateDoc('users', [user.id], { subreddits: updatedSubs });
+    setUser({ ...user, subreddits: updatedSubs });
   };
 
   return (
