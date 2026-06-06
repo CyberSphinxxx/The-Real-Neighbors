@@ -4,10 +4,13 @@ import { getDocs, query, collection, where } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT } from '../../lib/botbotPersonality';
-import { Loader2, Sparkles, Tv, Film, MonitorPlay } from 'lucide-react';
+import { Loader2, Sparkles, Tv, Film, MonitorPlay, Plus } from 'lucide-react';
 import { getAvatarColor } from '../../utils/avatarColor';
 import type { User as UserType, WatchlistEntry } from '../../types';
 import toast from 'react-hot-toast';
+import { searchTMDB } from '../../lib/tmdb';
+import { searchAnime } from '../../lib/jikan';
+import { AddWatchlistEntryModal } from '../watchlist/AddWatchlistEntryModal';
 
 interface Props {
   users: UserType[];
@@ -19,6 +22,7 @@ interface Pick {
   year: string;
   type: 'movie' | 'tv' | 'anime';
   reason: string;
+  posterUrl?: string | null;
 }
 
 export const WatchlistPicks: React.FC<Props> = ({ users, initialTargetUserId }) => {
@@ -30,6 +34,7 @@ export const WatchlistPicks: React.FC<Props> = ({ users, initialTargetUserId }) 
   const [isGenerating, setIsGenerating] = useState(false);
   const [picks, setPicks] = useState<Pick[]>([]);
   const [botMessage, setBotMessage] = useState('');
+  const [addingPick, setAddingPick] = useState<Pick | null>(null);
 
   const handleGenerate = async () => {
     if (!targetUserId) return;
@@ -95,7 +100,25 @@ Return ONLY a valid JSON object matching this schema exactly:
       
       if (parsed.botMessage) setBotMessage(parsed.botMessage);
       if (parsed.picks && Array.isArray(parsed.picks)) {
-        setPicks(parsed.picks.slice(0, 5)); // ensure max 5
+        let finalPicks = parsed.picks.slice(0, 5) as Pick[];
+        
+        // Fetch posters for each pick
+        finalPicks = await Promise.all(finalPicks.map(async (pick) => {
+          try {
+            if (pick.type === 'anime') {
+              const res = await searchAnime(pick.title, 1);
+              if (res && res.length > 0) return { ...pick, posterUrl: res[0].posterUrl };
+            } else {
+              const res = await searchTMDB(pick.title, pick.type, 1);
+              if (res && res.length > 0) return { ...pick, posterUrl: res[0].posterUrl };
+            }
+          } catch (e) {
+            console.error("Failed to fetch image for", pick.title);
+          }
+          return pick;
+        }));
+        
+        setPicks(finalPicks);
       } else {
         throw new Error('Invalid response format');
       }
@@ -215,24 +238,54 @@ Return ONLY a valid JSON object matching this schema exactly:
       {picks.length > 0 && (
         <div className="space-y-3 pb-8">
           {picks.map((pick, i) => (
-            <div key={i} className="bg-surface border border-border-subtle rounded-xl p-4 animate-in fade-in slide-in-from-bottom-4" style={{ animationDelay: `${i * 100}ms` }}>
-              <div className="flex items-start justify-between mb-2">
-                <div className="flex-1">
-                  <h3 className="font-bold text-main text-lg leading-tight flex items-center gap-2">
-                    {pick.title}
-                    <span className="text-xs font-normal text-muted bg-base px-2 py-0.5 rounded-full border border-border-subtle">
-                      {pick.year}
-                    </span>
-                  </h3>
+            <div key={i} className="bg-surface border border-border-subtle rounded-xl p-4 animate-in fade-in slide-in-from-bottom-4 flex gap-4" style={{ animationDelay: `${i * 100}ms` }}>
+              {/* Poster */}
+              <div className="w-16 h-24 rounded-lg overflow-hidden shrink-0 bg-elevated border border-border-subtle flex items-center justify-center">
+                {pick.posterUrl ? (
+                  <img src={pick.posterUrl} alt={pick.title} className="w-full h-full object-cover" loading="lazy" />
+                ) : (
+                  getTypeIcon(pick.type)
+                )}
+              </div>
+              
+              <div className="flex-1 min-w-0 flex flex-col justify-between">
+                <div>
+                  <div className="flex items-start justify-between mb-1 gap-2">
+                    <h3 className="font-bold text-main text-lg leading-tight line-clamp-2">
+                      {pick.title}
+                    </h3>
+                    <div className="flex gap-2 shrink-0">
+                      <span className="text-xs font-normal text-muted bg-base px-2 py-1 rounded-full border border-border-subtle flex items-center h-[26px]">
+                        {pick.year}
+                      </span>
+                      <div className="bg-base px-2 py-1 rounded-full border border-border-subtle text-muted flex items-center h-[26px]">
+                        {getTypeIcon(pick.type)}
+                      </div>
+                    </div>
+                  </div>
+                  <p className="text-muted text-sm line-clamp-2">{pick.reason}</p>
                 </div>
-                <div className="bg-base p-1.5 rounded-lg border border-border-subtle">
-                  {getTypeIcon(pick.type)}
+                <div className="mt-2 flex justify-end">
+                  <button 
+                    onClick={() => setAddingPick(pick)}
+                    className="flex items-center gap-1.5 text-xs font-bold bg-primary/10 text-primary px-3 py-1.5 rounded-lg hover:bg-primary/20 transition-colors"
+                  >
+                    <Plus size={14} /> Add to Watchlist
+                  </button>
                 </div>
               </div>
-              <p className="text-muted text-sm">{pick.reason}</p>
             </div>
           ))}
         </div>
+      )}
+
+      {addingPick && (
+        <AddWatchlistEntryModal
+          onClose={() => setAddingPick(null)}
+          users={users}
+          initialQuery={addingPick.title}
+          initialType={addingPick.type}
+        />
       )}
     </div>
   );

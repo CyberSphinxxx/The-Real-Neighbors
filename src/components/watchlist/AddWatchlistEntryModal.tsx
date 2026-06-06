@@ -14,6 +14,8 @@ interface Props {
   onClose: () => void;
   users: User[];
   entryToEdit?: WatchlistEntry;
+  initialQuery?: string;
+  initialType?: ContentType;
 }
 
 type ContentType = 'all' | 'movie' | 'tv' | 'anime';
@@ -21,16 +23,16 @@ type Step = 1 | 2;
 
 type SearchResult = (TMDBResult | JikanResult) & { idOrMalId: string | number };
 
-export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryToEdit }) => {
+export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryToEdit, initialQuery, initialType }) => {
   const { user } = useAuthStore();
   
   // Step State
   const [step, setStep] = useState<Step>(entryToEdit ? 2 : 1);
-  const [contentType, setContentType] = useState<ContentType>(entryToEdit?.type || 'all');
+  const [contentType, setContentType] = useState<ContentType>(entryToEdit?.type || initialType || 'all');
   const [isManual, setIsManual] = useState(!!entryToEdit);
   
   // Search State
-  const [query, setQuery] = useState('');
+  const [query, setQuery] = useState(initialQuery || '');
   const [isSearching, setIsSearching] = useState(false);
   const [results, setResults] = useState<SearchResult[]>([]);
   const [hasSearched, setHasSearched] = useState(false);
