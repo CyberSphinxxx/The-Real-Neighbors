@@ -20,4 +20,5 @@ export const analytics = getAnalytics(app);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
+// presence/ is publicly readable for the login page online count. All other RTDB paths remain restricted.
 export const rtdb = getDatabase(app);

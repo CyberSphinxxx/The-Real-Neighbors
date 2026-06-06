@@ -4,6 +4,7 @@ import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT, getBotbotContextPrompt } from '../../lib/botbotPersonality';
 import { useBotbotContext } from '../../hooks/useBotbotContext';
 import { useAuthStore } from '../../stores/authStore';
+import { getDoc, setDoc } from '../../lib/firestore';
 
 interface VibeCheckResult {
   score: number;
@@ -76,8 +77,14 @@ Rules:
       setData(parsed);
       
       if (user) {
-        localStorage.setItem(`vibeCheck_date_${user.id}`, getTodayDateString());
-        localStorage.setItem(`vibeCheck_data_${user.id}`, JSON.stringify(parsed));
+        try {
+          await setDoc('groupStats', ['vibeCheck'], {
+            date: getTodayDateString(),
+            data: parsed
+          });
+        } catch (e) {
+          console.error('Error saving global vibe check:', e);
+        }
       }
     } catch (error) {
       console.error('Error generating vibe check:', error);
@@ -89,21 +96,25 @@ Rules:
   useEffect(() => {
     if (!user) return;
     
-    const today = getTodayDateString();
-    const cachedDate = localStorage.getItem(`vibeCheck_date_${user.id}`);
-    const cachedDataStr = localStorage.getItem(`vibeCheck_data_${user.id}`);
-    
-    if (cachedDate === today && cachedDataStr) {
+    const fetchGlobalVibeCheck = async () => {
       try {
-        setData(JSON.parse(cachedDataStr));
-        return;
-      } catch (e) {
-        console.error('Error parsing cached vibe check:', e);
+        const today = getTodayDateString();
+        const globalVibe = await getDoc<{ date: string; data: VibeCheckResult }>('groupStats', ['vibeCheck']);
+        
+        if (globalVibe && globalVibe.date === today && globalVibe.data) {
+          setData(globalVibe.data);
+          return;
+        }
+
+        // First load of the day or no data globally
+        generateVibeCheck();
+      } catch (error) {
+        console.error('Error checking global vibe check:', error);
+        generateVibeCheck();
       }
-    }
-    
-    // First load of the day or no data
-    generateVibeCheck();
+    };
+
+    fetchGlobalVibeCheck();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 

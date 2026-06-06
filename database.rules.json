@@ -1,9 +1,9 @@
 {
   "rules": {
     "presence": {
+      ".read": true,
       "$uid": {
-        ".read": "auth != null",
-        ".write": "auth != null && auth.uid === $uid"
+        ".write": "auth !== null && auth.uid === $uid"
       }
     }
   }
