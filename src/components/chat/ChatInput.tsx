@@ -26,8 +26,27 @@ export const ChatInput: React.FC<ChatInputProps> = ({ threadId, threadType, plac
     }
   }, [content]);
 
+  // Draft persistence
+  useEffect(() => {
+    const draftKey = `draft_chat_${threadId}`;
+    const draft = localStorage.getItem(draftKey);
+    if (draft) {
+      setContent(draft);
+    } else {
+      setContent('');
+    }
+  }, [threadId]);
+
   const handleTyping = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
-    setContent(e.target.value);
+    const val = e.target.value;
+    setContent(val);
+    
+    const draftKey = `draft_chat_${threadId}`;
+    if (val.trim()) {
+      localStorage.setItem(draftKey, val);
+    } else {
+      localStorage.removeItem(draftKey);
+    }
     
     if (!user) return;
 
@@ -56,6 +75,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ threadId, threadType, plac
 
     const messageText = content.trim();
     setContent('');
+    localStorage.removeItem(`draft_chat_${threadId}`);
     if (textareaRef.current) {
       textareaRef.current.style.height = 'auto';
     }
