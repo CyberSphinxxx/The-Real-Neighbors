@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Reply, Smile, Edit2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { deleteMessage, addReaction } from '../../lib/chat';
@@ -18,7 +18,12 @@ interface MessageItemProps {
 export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, threadType, isGrouped, onReply, seenByAvatar, authorAvatarUrl }) => {
   const { user } = useAuthStore();
   const [showActions, setShowActions] = useState(false);
+  const [optimisticReactions, setOptimisticReactions] = useState(message.reactions || {});
   const isAuthor = user?.id === message.authorId;
+
+  useEffect(() => {
+    setOptimisticReactions(message.reactions || {});
+  }, [message.reactions]);
 
   const handleDelete = async () => {
     if (window.confirm('Are you sure you want to delete this message?')) {
@@ -32,8 +37,36 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
 
   const handleQuickReact = async (emoji: string) => {
     if (!user) return;
-    await addReaction(threadId, message.id, emoji, user.id, message.reactions || {}, threadType);
     setShowActions(false);
+
+    const prevReactions = { ...optimisticReactions };
+    const newReactions = { ...optimisticReactions };
+
+    let hadReaction = false;
+    Object.keys(newReactions).forEach(key => {
+      if (key === emoji && newReactions[key].includes(user.id)) {
+        hadReaction = true;
+      }
+      newReactions[key] = newReactions[key].filter(uid => uid !== user.id);
+    });
+
+    if (!hadReaction) {
+      if (!newReactions[emoji]) newReactions[emoji] = [];
+      newReactions[emoji].push(user.id);
+    }
+
+    Object.keys(newReactions).forEach(key => {
+      if (newReactions[key].length === 0) delete newReactions[key];
+    });
+
+    setOptimisticReactions(newReactions);
+
+    try {
+      await addReaction(threadId, message.id, emoji, user.id, message.reactions || {}, threadType);
+    } catch (error) {
+      console.error('Failed to add reaction', error);
+      setOptimisticReactions(prevReactions);
+    }
   };
 
   return (
@@ -108,9 +141,9 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
         </div>
 
         {/* Reactions */}
-        {Object.keys(message.reactions || {}).length > 0 && (
+        {Object.keys(optimisticReactions).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {Object.entries(message.reactions).map(([emoji, users]) => (
+            {Object.entries(optimisticReactions).map(([emoji, users]) => (
               <button 
                 key={emoji}
                 className={`px-1.5 py-0.5 rounded text-xs flex items-center gap-1 border ${users.includes(user?.id || '') ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface border-border-subtle text-muted hover:bg-elevated'}`}
