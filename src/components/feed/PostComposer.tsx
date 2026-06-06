@@ -112,6 +112,35 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
     }
   }, [location.state, navigate, location.pathname]);
 
+  // Draft persistence
+  useEffect(() => {
+    const draft = localStorage.getItem('draft_post');
+    if (draft) {
+      try {
+        const parsed = JSON.parse(draft);
+        if (parsed.content) setContent(parsed.content);
+        if (parsed.url) {
+          setUrl(parsed.url);
+          setShowUrlInput(true);
+        }
+        if (parsed.imageUrlInput) {
+          setImageUrlInput(parsed.imageUrlInput);
+          setShowImageInput(true);
+        }
+      } catch (e) {
+        console.error('Failed to parse post draft', e);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
+    if (content || url || imageUrlInput) {
+      localStorage.setItem('draft_post', JSON.stringify({ content, url, imageUrlInput }));
+    } else {
+      localStorage.removeItem('draft_post');
+    }
+  }, [content, url, imageUrlInput]);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (!isModalOpen) return;
@@ -299,6 +328,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
       setCaptionKeywords('');
       setCaptionResults([]);
       setCaptionTone('😂 Funny');
+      localStorage.removeItem('draft_post');
 
       toast.success('Posted! 🎉');
     } catch (error) {
