@@ -12,6 +12,7 @@ import { useConfirm } from '../../contexts/ConfirmContext';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import toast from 'react-hot-toast';
 import { Link } from 'react-router-dom';
+import { ProgressiveImage } from '../ui/ProgressiveImage';
 
 interface PostCardProps {
   post: Post;
@@ -750,15 +751,10 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
             )}
             {(post.sharedRedditPost.is_reddit_media_domain || post.sharedRedditPost.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)) && (
               <div className="mt-3 w-full rounded-lg overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5 border border-border-subtle">
-                <img 
+                <ProgressiveImage 
                   src={post.sharedRedditPost.url} 
                   alt="Reddit media" 
-                  loading="lazy"
-                  decoding="async"
-                  className="w-full h-auto max-h-[700px] object-contain transition-opacity duration-300"
-                  style={{ opacity: 0 }}
-                  onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
-                  onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                  className="w-full h-auto max-h-[700px] object-contain"
                 />
               </div>
             )}
@@ -802,14 +798,10 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
       {post.imageUrl && !imageError && (
         <div className="mb-4">
           <div className="w-full rounded-lg overflow-hidden flex items-center justify-center bg-black/5 dark:bg-white/5">
-            <img 
+            <ProgressiveImage 
               src={post.imageUrl} 
               alt="Post attachment" 
-              loading="lazy"
-              decoding="async"
-              className="w-full h-auto max-h-[700px] object-contain cursor-pointer hover:opacity-95 transition-opacity duration-300"
-              style={{ opacity: 0 }}
-              onLoad={(e) => { (e.target as HTMLImageElement).style.opacity = '1'; }}
+              className="w-full h-auto max-h-[700px] object-contain cursor-pointer hover:opacity-95"
               onClick={() => onOpenPost?.(post)}
               onError={() => setImageError(true)}
             />
