@@ -1,7 +1,7 @@
 import { useLinksStore } from '../../stores/linksStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { addDoc } from '../../lib/firestore';
+import { addDoc, updateDoc } from '../../lib/firestore';
 import type { SavedLink } from '../../types';
 import { X, Link as LinkIcon, Loader2, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -53,7 +53,7 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!url.trim() || !title.trim() || !user) return;
+    if (!url.trim() || !user) return;
 
     setIsSubmitting(true);
     try {
@@ -61,7 +61,7 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
       
       const payload: Partial<SavedLink> = {
         url: url.trim(),
-        title: title.trim(),
+        title: title.trim() || 'Loading link details...',
         tags: tagsArray,
         savedBy: user.id,
         votes: [], // initial 0 votes
@@ -72,10 +72,27 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
         payload.description = description.trim();
       }
 
-      await addDoc('links', payload as any);
+      const docId = await addDoc('links', payload as any);
       useLinksStore.getState().invalidate();
-        toast.success('Link saved successfully!');
+      toast.success('Link saved successfully!');
       onClose();
+
+      // Background fetch if title was empty
+      if (!title.trim() && url.startsWith('http')) {
+        fetch(`https://api.microlink.io?url=${encodeURIComponent(url)}`)
+          .then(res => res.json())
+          .then(json => {
+            if (json.status === 'success' && json.data) {
+              const updates: any = {};
+              if (json.data.title) updates.title = json.data.title;
+              if (json.data.description && !description.trim()) updates.description = json.data.description;
+              if (Object.keys(updates).length > 0) {
+                updateDoc('links', [docId], updates);
+              }
+            }
+          })
+          .catch(console.error);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to save link');
@@ -134,11 +151,10 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
           {/* Title */}
           <div>
             <label className="block text-sm font-semibold text-main mb-1.5">
-              Title *
+              Title <span className="text-muted font-normal">(Optional, will auto-fetch)</span>
             </label>
             <input
               type="text"
-              required
               value={title}
               onChange={e => setTitle(e.target.value)}
               placeholder="Give it a title"
@@ -177,7 +193,7 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
           <div className="pt-4 border-t border-border-subtle">
             <button
               type="submit"
-              disabled={!url.trim() || !title.trim() || isSubmitting}
+              disabled={!url.trim() || isSubmitting}
               className="w-full flex items-center justify-center gap-2 bg-primary hover:bg-primary-hover text-on-primary font-bold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               {isSubmitting ? <Loader2 size={18} className="animate-spin" /> : null}

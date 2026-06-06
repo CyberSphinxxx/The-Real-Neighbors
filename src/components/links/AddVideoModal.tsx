@@ -1,7 +1,7 @@
 import { useLinksStore } from '../../stores/linksStore';
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { addDoc } from '../../lib/firestore';
+import { addDoc, updateDoc } from '../../lib/firestore';
 import type { YoutubeQueueItem } from '../../types';
 import { X, PlaySquare, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -78,23 +78,42 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!previewData || !user) return;
+    const videoId = extractVideoId(url);
+    if (!videoId || !user) return;
 
     setIsFetching(true);
     try {
+      const finalTitle = previewData?.title || 'Loading video details...';
+      const finalThumbnail = previewData?.thumbnailUrl || `https://i.ytimg.com/vi/${videoId}/hqdefault.jpg`;
+
       const payload: Partial<YoutubeQueueItem> = {
-        url: `https://www.youtube.com/watch?v=${previewData.videoId}`,
-        videoId: previewData.videoId,
-        title: previewData.title,
-        thumbnailUrl: previewData.thumbnailUrl,
+        url: `https://www.youtube.com/watch?v=${videoId}`,
+        videoId: videoId,
+        title: finalTitle,
+        thumbnailUrl: finalThumbnail,
         addedBy: user.id,
         createdAt: Date.now(),
       };
 
-      await addDoc('youtubeQueue', payload as any);
+      const docId = await addDoc('youtubeQueue', payload as any);
       useLinksStore.getState().invalidate();
-        toast.success('Added to queue!');
+      toast.success('Added to queue!');
       onClose();
+
+      // Fire off background fetch to update title if we didn't have it yet!
+      if (!previewData) {
+        fetch(`https://noembed.com/embed?url=https://www.youtube.com/watch?v=${videoId}`)
+          .then(res => res.json())
+          .then(data => {
+            if (!data.error && data.title) {
+              updateDoc('youtubeQueue', [docId], {
+                title: data.title,
+                thumbnailUrl: data.thumbnail_url || finalThumbnail
+              });
+            }
+          })
+          .catch(console.error);
+      }
     } catch (err) {
       console.error(err);
       toast.error('Failed to add video');
@@ -155,7 +174,7 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
           <div className="pt-4 border-t border-border-subtle">
             <button
               type="submit"
-              disabled={!previewData || isFetching}
+              disabled={!extractVideoId(url) || isFetching}
               className="w-full flex items-center justify-center gap-2 bg-[#ff0000] hover:bg-[#cc0000] text-white font-bold py-3 px-4 rounded-xl transition-colors disabled:opacity-50 disabled:cursor-not-allowed shadow-sm"
             >
               Add Video
