@@ -20,16 +20,43 @@ export default defineConfig(({ mode }) => {
                 const parsedBody = JSON.parse(body);
                 const apiKey = env.VITE_DEEPSEEK_API_KEY || 'MISSING_KEY';
                 
-                const response = await fetch('https://api.deepseek.com/v1/chat/completions', {
-                  method: 'POST',
-                  headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${apiKey}`,
-                  },
-                  body: JSON.stringify(parsedBody),
-                });
+                let response;
+                let retries = 2;
+                while (retries >= 0) {
+                  try {
+                    response = await fetch('https://api.deepseek.com/chat/completions', {
+                      method: 'POST',
+                      headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${apiKey}`,
+                      },
+                      body: JSON.stringify(parsedBody),
+                    });
+                    break;
+                  } catch (err: any) {
+                    if (retries === 0) throw err;
+                    retries--;
+                    await new Promise(r => setTimeout(r, 1000));
+                  }
+                }
+                
+                if (!response) throw new Error("Fetch failed completely");
                 
                 if (parsedBody.stream) {
+                  if (!response.ok) {
+                    const text = await response.text();
+                    let data;
+                    try {
+                      data = JSON.parse(text);
+                    } catch (err) {
+                      data = { error: { message: `DeepSeek API Error (${response.status}): ${text.substring(0, 100)}` } };
+                    }
+                    res.setHeader('Content-Type', 'application/json');
+                    res.statusCode = response.status;
+                    res.end(JSON.stringify(data));
+                    return;
+                  }
+
                   if (!response.body) throw new Error('No response body');
                   res.setHeader('Content-Type', 'text/event-stream');
                   res.setHeader('Cache-Control', 'no-cache');
@@ -44,14 +71,20 @@ export default defineConfig(({ mode }) => {
                   }
                   res.end();
                 } else {
-                  const data = await response.json();
+                  const text = await response.text();
+                  let data;
+                  try {
+                    data = JSON.parse(text);
+                  } catch (err) {
+                    data = { error: { message: `DeepSeek API Error (${response.status}): ${text.substring(0, 100)}` } };
+                  }
                   res.setHeader('Content-Type', 'application/json');
                   res.statusCode = response.status;
                   res.end(JSON.stringify(data));
                 }
               } catch (e: any) {
                 res.statusCode = 500;
-                res.end(JSON.stringify({ error: e.message || String(e) }));
+                res.end(JSON.stringify({ error: { message: `Vite Proxy Error: ${e.message || String(e)}` } }));
               }
             });
           } else {

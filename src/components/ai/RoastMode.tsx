@@ -92,8 +92,9 @@ Give a 1-sentence witty comeback to my reaction in casual Taglish. Just the text
         { temperature: 0.85, maxTokens: 100 }
       );
       toast.success(response.content.trim(), { duration: 4000, icon: '🤖' });
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast.error(e.message || 'Botbot choked on your comeback. Try again!');
     } finally {
       setIsReplying(false);
     }

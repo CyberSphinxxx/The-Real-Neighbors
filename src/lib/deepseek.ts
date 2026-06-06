@@ -34,14 +34,17 @@ async function checkRateLimit(): Promise<void> {
     } else {
       const data = snap.data();
       const currentCount = data[today] || 0;
-      if (currentCount >= 50) {
+      if (currentCount >= 500) {
         throw new Error("Daily limit reached");
       }
       await updateDoc(usageRef, { [today]: increment(1) });
     }
   } catch (error) {
     console.error("Rate limit check failed:", error);
-    throw new AIError("Daily AI limit reached (50/50)! Try again tomorrow.");
+    if (error instanceof Error && error.message === "Daily limit reached") {
+      throw new AIError("Daily AI limit reached (500/500)! Try again tomorrow.");
+    }
+    console.warn("Allowing request to proceed despite rate limit check failure.");
   }
 }
 
