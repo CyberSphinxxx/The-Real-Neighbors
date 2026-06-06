@@ -1,6 +1,7 @@
 import React from 'react';
 import type { WatchlistEntry } from '../../types';
 import { useAuthStore } from '../../stores/authStore';
+import { ProgressiveImage } from '../ui/ProgressiveImage';
 import { Star, Edit2, Trash2 } from 'lucide-react';
 
 interface Props {
@@ -44,11 +45,12 @@ export const WatchlistCard: React.FC<Props> = ({ entry, onEdit, onDelete, usersM
       {/* Cover Image */}
       <div className="aspect-[2/3] w-full bg-base border-b border-border-subtle relative overflow-hidden flex-shrink-0">
         {entry.coverUrl ? (
-          <img loading="lazy" decoding="async" 
+          <ProgressiveImage
             src={entry.coverUrl} 
             alt={entry.title} 
             className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-            />
+            containerClassName="w-full h-full"
+          />
         ) : (
           <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-primary/20 to-primary/5 text-primary text-4xl font-black uppercase shadow-inner">
             {entry.title.charAt(0)}
