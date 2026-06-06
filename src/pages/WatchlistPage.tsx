@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { subscribeToCollection, deleteDoc } from '../lib/firestore';
 import { useWatchlistStore } from '../stores/watchlistStore';
@@ -87,6 +87,29 @@ export const WatchlistPage: React.FC = () => {
     }
     return result;
   }, [entries, activeTypeFilter, activeGenre]);
+
+  const prevEntriesRef = useRef(entries);
+  useEffect(() => {
+    if (entries.length > 0) {
+      if (prevEntriesRef.current.length < entries.length) {
+        // Entry added: clear filters so it's visible
+        setActiveTypeFilter('all');
+        setActiveGenre('all');
+      } else if (prevEntriesRef.current.length === entries.length) {
+        // Entry modified
+        const modified = entries.find(e => {
+          const prev = prevEntriesRef.current.find(p => p.id === e.id);
+          // If status or type changed, we might want to clear filters
+          return prev && (prev.status !== e.status || prev.type !== e.type);
+        });
+        if (modified) {
+          setActiveTypeFilter('all');
+          setActiveGenre('all');
+        }
+      }
+    }
+    prevEntriesRef.current = entries;
+  }, [entries]);
 
   const { confirm } = useConfirm();
 

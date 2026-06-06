@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { WatchlistEntry } from '../../types';
 import { WatchlistCard } from './WatchlistCard';
 import { Play, CheckCircle2, ListTodo } from 'lucide-react';
@@ -13,6 +13,27 @@ interface Props {
 
 export const UserWatchlist: React.FC<Props> = ({ entries, usersMap, onEdit, onDelete, onCardClick }) => {
   const [activeTab, setActiveTab] = useState<'watching' | 'finished' | 'planned'>('watching');
+  const prevEntries = useRef(entries);
+
+  useEffect(() => {
+    if (prevEntries.current.length < entries.length) {
+      // Entry added
+      const added = entries.find(e => !prevEntries.current.some(p => p.id === e.id));
+      if (added && added.status) {
+        setActiveTab(added.status as 'watching' | 'finished' | 'planned');
+      }
+    } else if (prevEntries.current.length === entries.length) {
+      // Entry modified
+      const modified = entries.find(e => {
+        const prev = prevEntries.current.find(p => p.id === e.id);
+        return prev && prev.status !== e.status;
+      });
+      if (modified && modified.status) {
+        setActiveTab(modified.status as 'watching' | 'finished' | 'planned');
+      }
+    }
+    prevEntries.current = entries;
+  }, [entries]);
 
   const watching = entries.filter(e => e.status === 'watching');
   const finished = entries.filter(e => e.status === 'finished');
