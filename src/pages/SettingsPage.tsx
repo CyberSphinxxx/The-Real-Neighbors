@@ -18,6 +18,10 @@ import { useWhatsNewStore } from '../stores/whatsNewStore';
 import { formatReleaseDate } from '../lib/github';
 import type { GitHubRelease } from '../lib/github';
 import { marked } from 'marked';
+import { CreatorCard } from '../components/settings/about/CreatorCard';
+import { BarkadaRules } from '../components/settings/about/BarkadaRules';
+import { TechStackGrid } from '../components/settings/about/TechStackGrid';
+import { AppStatsCard } from '../components/settings/about/AppStatsCard';
 
 const ReleaseAccordion: React.FC<{ release: GitHubRelease; isLatest: boolean }> = ({ release, isLatest }) => {
   const [isExpanded, setIsExpanded] = useState(isLatest);
@@ -89,6 +93,10 @@ export const SettingsPage: React.FC = () => {
   const { currentTheme, setTheme } = useTheme();
   const [bgPattern, setBgPattern] = useState(localStorage.getItem('bg-pattern') || 'none');
   const [bgAnimation, setBgAnimation] = useState(localStorage.getItem('bg-animation') || 'none');
+  const [bgAmount, setBgAmount] = useState(localStorage.getItem('bg-amount') || '3');
+  const [bgOpacity, setBgOpacity] = useState(localStorage.getItem('bg-opacity') || '50');
+  const [bgSpeed, setBgSpeed] = useState(localStorage.getItem('bg-speed') || '3');
+  const [bgAngle, setBgAngle] = useState(localStorage.getItem('bg-angle') || '0');
   const [fontSize, setFontSize] = useState(localStorage.getItem('font-size') || '14px');
 
   // WhatsNew State
@@ -215,10 +223,16 @@ export const SettingsPage: React.FC = () => {
     window.dispatchEvent(new Event('bg-pattern-changed'));
   };
 
-  const handleAnimationChange = (anim: string) => {
-    setBgAnimation(anim);
-    localStorage.setItem('bg-animation', anim);
-    window.dispatchEvent(new Event('bg-animation-changed'));
+  const handleAnimationChange = (animation: string) => {
+    setBgAnimation(animation);
+    localStorage.setItem('bg-animation', animation);
+    window.dispatchEvent(new CustomEvent('bg-animation-changed'));
+  };
+
+  const updateBgSetting = (key: string, value: string, setter: React.Dispatch<React.SetStateAction<string>>) => {
+    setter(value);
+    localStorage.setItem(key, value);
+    window.dispatchEvent(new CustomEvent('bg-settings-changed'));
   };
 
   const handleFontSizeChange = (size: string) => {
@@ -558,6 +572,7 @@ export const SettingsPage: React.FC = () => {
                   <div className="flex flex-wrap gap-4">
                     {[
                       { id: 'none', label: 'Clean', style: {} },
+                      { id: 'isometric', label: 'Isometric', style: { backgroundImage: 'linear-gradient(30deg, var(--color-border-subtle) 12%, transparent 12.5%, transparent 87%, var(--color-border-subtle) 87.5%, var(--color-border-subtle)), linear-gradient(150deg, var(--color-border-subtle) 12%, transparent 12.5%, transparent 87%, var(--color-border-subtle) 87.5%, var(--color-border-subtle)), linear-gradient(30deg, var(--color-border-subtle) 12%, transparent 12.5%, transparent 87%, var(--color-border-subtle) 87.5%, var(--color-border-subtle)), linear-gradient(150deg, var(--color-border-subtle) 12%, transparent 12.5%, transparent 87%, var(--color-border-subtle) 87.5%, var(--color-border-subtle)), linear-gradient(60deg, var(--color-border-subtle) 25%, transparent 25.5%, transparent 75%, var(--color-border-subtle) 75%, var(--color-border-subtle)), linear-gradient(60deg, var(--color-border-subtle) 25%, transparent 25.5%, transparent 75%, var(--color-border-subtle) 75%, var(--color-border-subtle))', backgroundSize: '20px 35px', backgroundPosition: '0 0, 0 0, 10px 18px, 10px 18px, 0 0, 10px 18px' } },
                       { id: 'grid', label: 'Technical', style: { backgroundImage: 'linear-gradient(var(--color-border-subtle) 1px, transparent 1px), linear-gradient(90deg, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '12px 12px' } },
                       { id: 'dots', label: 'Minimal', style: { backgroundImage: 'radial-gradient(circle, var(--color-border) 1px, transparent 1px)', backgroundSize: '10px 10px' } },
                       { id: 'cross', label: 'Precise', style: { backgroundImage: 'linear-gradient(var(--color-border-subtle) 2px, transparent 2px), linear-gradient(90deg, var(--color-border-subtle) 2px, transparent 2px)', backgroundSize: '20px 20px', backgroundPosition: 'center' } },
@@ -598,13 +613,82 @@ export const SettingsPage: React.FC = () => {
                            {a.id === 'bubbles' && <div className="absolute inset-0 opacity-50"><div className="w-4 h-4 rounded-full border border-primary absolute bottom-2 left-4" /><div className="w-6 h-6 rounded-full border border-primary absolute bottom-6 right-6" /></div>}
                            {a.id === 'rain' && <div className="absolute inset-0 opacity-30"><div className="w-0.5 h-8 bg-gradient-to-b from-transparent to-primary absolute top-2 left-6 transform rotate-20" /><div className="w-0.5 h-12 bg-gradient-to-b from-transparent to-primary absolute top-6 right-8 transform rotate-20" /></div>}
                         </div>
-                        <span className="text-xs text-faint">{a.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
+                          <span className="text-xs text-faint">{a.label}</span>
+                        </div>
+                      ))}
+                    </div>
 
-                <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4">
+                    {bgAnimation !== 'none' && (
+                      <div className="mt-6 border-t border-border-subtle pt-6 grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-4">
+                        {bgAnimation !== 'aurora' && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-sm font-medium text-main">Amount</label>
+                              <span className="text-xs text-muted">{bgAmount}</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="1"
+                              max="5"
+                              step="1"
+                              value={bgAmount}
+                              onChange={(e) => updateBgSetting('bg-amount', e.target.value, setBgAmount)}
+                              className="custom-slider"
+                            />
+                          </div>
+                        )}
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-sm font-medium text-main">Visibility</label>
+                            <span className="text-xs text-muted">{bgOpacity}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="10"
+                            max="100"
+                            step="10"
+                            value={bgOpacity}
+                            onChange={(e) => updateBgSetting('bg-opacity', e.target.value, setBgOpacity)}
+                            className="custom-slider"
+                          />
+                        </div>
+                        <div>
+                          <div className="flex items-center justify-between mb-1">
+                            <label className="text-sm font-medium text-main">Speed</label>
+                            <span className="text-xs text-muted">{bgSpeed}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="1"
+                            max="5"
+                            step="1"
+                            value={bgSpeed}
+                            onChange={(e) => updateBgSetting('bg-speed', e.target.value, setBgSpeed)}
+                            className="custom-slider"
+                          />
+                        </div>
+                        {(bgAnimation === 'rain' || bgAnimation === 'aurora') && (
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <label className="text-sm font-medium text-main">Angle</label>
+                              <span className="text-xs text-muted">{bgAngle}°</span>
+                            </div>
+                            <input
+                              type="range"
+                              min="-180"
+                              max="180"
+                              step="15"
+                              value={bgAngle}
+                              onChange={(e) => updateBgSetting('bg-angle', e.target.value, setBgAngle)}
+                              className="custom-slider"
+                            />
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4">
                   <h3 className="text-xs font-semibold uppercase tracking-wide text-muted mb-4 flex items-center gap-2">
                     <Type size={14} /> Typography
                   </h3>
@@ -1013,10 +1097,17 @@ export const SettingsPage: React.FC = () => {
                     <Sparkles size={16} /> What's New
                 </button>
 
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-6">
+                  <CreatorCard />
+                  <TechStackGrid />
+                  <BarkadaRules />
+                  <AppStatsCard />
+                </div>
+
                 <div className="bg-surface rounded-2xl border border-border-subtle p-6 mb-4">
                   <div className="flex items-center justify-between mb-4">
                     <h3 className="text-base font-semibold text-main flex items-center gap-2">
-                      📋 Changelog
+                      📜 Changelog
                     </h3>
                     <a 
                       href={`https://github.com/${import.meta.env.VITE_GITHUB_OWNER}/${import.meta.env.VITE_GITHUB_REPO}/releases`}
@@ -1048,7 +1139,7 @@ export const SettingsPage: React.FC = () => {
                     </div>
                   )}
                 </div>
-
+  
                 {user?.role === 'admin' && (
                   <div className="bg-surface rounded-2xl border border-danger/30 p-6 mb-4">
                     <h3 className="text-xs font-semibold uppercase tracking-wide text-danger mb-4 flex items-center gap-2">
