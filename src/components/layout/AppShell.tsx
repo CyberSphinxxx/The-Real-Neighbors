@@ -90,7 +90,7 @@ export const AppShell: React.FC = () => {
       </main>
 
       {/* Desktop Right Sidebar — sticky, scrolls independently */}
-      {!location.pathname.startsWith('/playlist') && !location.pathname.startsWith('/chat') && !location.pathname.startsWith('/ai') && (
+      {!location.pathname.startsWith('/playlist') && !location.pathname.startsWith('/chat') && !location.pathname.startsWith('/ai') && !location.pathname.startsWith('/games') && (
         <aside
             className="hidden lg:flex flex-col w-[300px] flex-shrink-0 bg-base border-l border-border-subtle overflow-y-auto p-4 gap-4 custom-scrollbar"
             style={{ paddingTop: 'calc(48px + 1rem)', height: '100vh' }}
