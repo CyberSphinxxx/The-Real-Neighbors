@@ -19,6 +19,11 @@ const ProfilePage = React.lazy(() => import('./pages/ProfilePage'));
 const SettingsPage = React.lazy(() => import('./pages/SettingsPage'));
 const ChatPage = React.lazy(() => import('./pages/ChatPage'));
 const AIPage = React.lazy(() => import('./pages/AIPage'));
+const GamesPage = React.lazy(() => import('./pages/GamesPage'));
+const WordlePage = React.lazy(() => import('./pages/games/WordlePage'));
+const TriviaPage = React.lazy(() => import('./pages/games/TriviaPage'));
+const ReactionPage = React.lazy(() => import('./pages/games/ReactionPage'));
+const TypeRacerPage = React.lazy(() => import('./pages/games/TypeRacerPage'));
 
 function App() {
   return (
@@ -46,6 +51,11 @@ function App() {
           <Route path="chat/dm/:dmId" element={<ChatPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="ai" element={<AIPage />} />
+          <Route path="games" element={<GamesPage />} />
+          <Route path="games/wordle" element={<WordlePage />} />
+          <Route path="games/trivia" element={<TriviaPage />} />
+          <Route path="games/reaction" element={<ReactionPage />} />
+          <Route path="games/typeracer" element={<TypeRacerPage />} />
         </Route>
       </Routes></Suspense>
       <Toaster position="bottom-center" />
