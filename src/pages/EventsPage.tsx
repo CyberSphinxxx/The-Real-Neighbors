@@ -92,11 +92,20 @@ export const EventsPage: React.FC = () => {
 
   return (
     <div className="max-w-2xl mx-auto py-6 pb-24 relative min-h-screen">
-      <div className="mb-8">
-        <h1 className="text-2xl font-heading font-bold text-main tracking-tight flex items-center gap-3">
-          <Calendar className="text-primary" /> Upcoming Events
-        </h1>
-        <p className="text-sm text-muted mt-1">Plan hangouts, trips, and gaming sessions.</p>
+      <div className="mb-8 flex items-center justify-between">
+        <div>
+          <h1 className="text-2xl font-heading font-bold text-main tracking-tight flex items-center gap-3">
+            <Calendar className="text-primary" /> Upcoming Events
+          </h1>
+          <p className="text-sm text-muted mt-1">Plan hangouts, trips, and gaming sessions.</p>
+        </div>
+        <button
+          onClick={() => setShowModal(true)}
+          className="flex items-center gap-2 px-4 py-2 rounded-full bg-primary text-on-primary text-sm font-bold shadow-md hover:-translate-y-0.5 hover:shadow-lg hover:bg-primary-hover transition-all"
+        >
+          <Plus size={16} />
+          <span className="hidden sm:inline">New Event</span>
+        </button>
       </div>
 
       <SharedCalendar />
@@ -131,14 +140,7 @@ export const EventsPage: React.FC = () => {
         </div>
       )}
 
-      {/* FAB (Floating Action Button) */}
-      <button
-        onClick={() => setShowModal(true)}
-        className="fixed bottom-6 right-6 md:bottom-10 md:right-10 z-40 flex items-center gap-2 px-5 py-4 rounded-full bg-primary text-on-primary font-bold shadow-lg hover:shadow-xl hover:-translate-y-1 hover:bg-primary-hover transition-all"
-      >
-        <Plus size={20} />
-        <span className="hidden sm:inline">New Event</span>
-      </button>
+
 
       {showModal && (
         <CreateEventModal 
