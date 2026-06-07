@@ -212,7 +212,7 @@ export const Header: React.FC = () => {
         right: 0,
         height: '48px',
         zIndex: 60,
-        background: 'color-mix(in srgb, var(--color-bg-surface) 95%, transparent)',
+        background: 'color-mix(in srgb, var(--color-bg-surface) 80%, transparent)',
         backdropFilter: 'blur(12px)',
         WebkitBackdropFilter: 'blur(12px)',
         borderBottom: '1px solid var(--color-border-subtle)',
