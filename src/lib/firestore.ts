@@ -17,6 +17,7 @@ import type {
   WithFieldValue,
   DocumentReference
 } from 'firebase/firestore';
+import type { AppStats } from '../types';
 
 export const getDoc = async <T>(path: string, pathSegments: string[] = []): Promise<T | null> => {
   const docRef = doc(db, path, ...pathSegments);
@@ -76,4 +77,8 @@ export const subscribeToCollection = <T>(
   }, (error) => {
     console.error(`Error subscribing to collection ${path}:`, error.message);
   });
+};
+
+export const getAppStats = async (): Promise<AppStats | null> => {
+  return await getDoc<AppStats>('system', ['stats']);
 };
