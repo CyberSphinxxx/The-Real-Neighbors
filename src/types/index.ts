@@ -54,6 +54,7 @@ export interface User {
   reactionCount?: number;
   lastLoginDate?: string;
   loginStreak?: number;
+  lastSeenVersion?: string;
 }
 
 export interface Post {
@@ -214,7 +215,7 @@ export interface Poll {
 
 export interface Notification {
   id: string;
-  type: 'post' | 'reaction' | 'comment' | 'mention' | 'event' | 'birthday' | 'poll' | 'streak_risk' | 'expiry' | 'event_reminder';
+  type: 'post' | 'reaction' | 'comment' | 'mention' | 'event' | 'birthday' | 'poll' | 'streak_risk' | 'expiry' | 'event_reminder' | 'release';
   fromUid: string;
   fromName: string;
   fromAvatarColor: string;
@@ -283,4 +284,11 @@ export interface DirectMessage {
   lastMessage: string;
   lastMessageAt: number;
   seenBy: Record<string, number>;
+}
+
+export interface AppStats {
+  launchDate: string;
+  totalVibeChecks: number;
+  highestGroupStreak: number;
+  botbotMessagesProcessed: number;
 }
