@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, ExternalLink, ArrowUp, Share2 } from 'lucide-react';
 import { subscribeToCollection, addDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
@@ -17,6 +17,23 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
   const [ourCommentCount, setOurCommentCount] = useState(0);
   const [showShareModal, setShowShareModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
+  const [hasEnteredView, setHasEnteredView] = useState(false);
+  const videoRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!post.is_video || hasEnteredView) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) {
+          setHasEnteredView(true);
+          observer.disconnect();
+        }
+      },
+      { rootMargin: '100px' }
+    );
+    if (videoRef.current) observer.observe(videoRef.current);
+    return () => observer.disconnect();
+  }, [post.is_video, hasEnteredView]);
 
   useEffect(() => {
     const unsubscribe = subscribeToCollection<Comment>(
@@ -111,15 +128,21 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
 
         {isVideo && (
           <div className="w-full px-4 pb-3" onClick={(e) => e.stopPropagation()}>
-            <div className="relative w-full bg-black rounded-lg border border-border-subtle overflow-hidden" style={{ paddingTop: '100%' }}>
-              <iframe
-                src={`https://www.redditmedia.com/mediaembed/${post.id.replace('t3_', '')}`}
-                sandbox="allow-scripts allow-same-origin allow-popups"
-                style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
-                scrolling="no"
-                allowFullScreen
-                title="Reddit Video Player"
-              />
+            <div ref={videoRef} className="relative w-full bg-black rounded-lg border border-border-subtle overflow-hidden flex items-center justify-center" style={{ paddingTop: '100%' }}>
+              {hasEnteredView ? (
+                <iframe
+                  src={`https://www.redditmedia.com/mediaembed/${post.id.replace('t3_', '')}?autoplay=0`}
+                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
+                  scrolling="no"
+                  allowFullScreen
+                  title="Reddit Video Player"
+                />
+              ) : (
+                <div className="absolute inset-0 flex items-center justify-center bg-black/40">
+                  <span className="text-white/50 text-xs font-medium animate-pulse">Loading video...</span>
+                </div>
+              )}
             </div>
           </div>
         )}
