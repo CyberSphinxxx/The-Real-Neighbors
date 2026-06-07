@@ -208,5 +208,30 @@ service cloud.firestore {
     match /ai_usage/{userId} {
       allow read, write: if isAuthenticated() && request.auth.uid == userId;
     }
+
+    // 17. games
+    match /gameScores/{gameId}/scores/{scoreId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    
+    match /gameActivity/{activityId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    
+    match /typeracerGhosts/{ghostId} {
+      allow read: if isAuthenticated();
+      allow create, update: if isAuthenticated() && request.resource.data.uid == request.auth.uid;
+      allow delete: if isAuthenticated() && resource.data.uid == request.auth.uid;
+    }
+    
+    // 18. system
+    match /system/{docId} {
+      allow read: if isAuthenticated();
+      allow write: if false;
+    }
   }
 }
