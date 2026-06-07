@@ -125,7 +125,7 @@ export const BirthdaysPage: React.FC = () => {
   }
 
   return (
-    <div className="max-w-3xl mx-auto py-6">
+    <div className="max-w-2xl mx-auto py-6 pb-24 relative min-h-screen">
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-heading font-bold text-main tracking-tight flex items-center gap-3">
