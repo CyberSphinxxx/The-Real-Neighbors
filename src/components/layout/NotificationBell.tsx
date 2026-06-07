@@ -116,6 +116,8 @@ export const NotificationBell: React.FC = () => {
       setTimeout(() => {
         window.dispatchEvent(new CustomEvent('focusComposer'));
       }, 100);
+    } else if (n.type === 'release') {
+      navigate('/settings', { state: { tab: 'about' } });
     }
   };
 
@@ -133,12 +135,13 @@ export const NotificationBell: React.FC = () => {
   }, [notifications]);
 
   const renderItem = (n: Notification) => {
-    const isSystem = ['birthday', 'streak_risk', 'expiry', 'event_reminder'].includes(n.type);
+    const isSystem = ['birthday', 'streak_risk', 'expiry', 'event_reminder', 'release'].includes(n.type);
     let avatarContent = <></>;
     if (n.type === 'birthday') avatarContent = <span>🎂</span>;
     else if (n.type === 'streak_risk') avatarContent = <span>🔥</span>;
     else if (n.type === 'expiry') avatarContent = <span>⏱️</span>;
     else if (n.type === 'event_reminder') avatarContent = <span>🗓️</span>;
+    else if (n.type === 'release') avatarContent = <span>🚀</span>;
     else avatarContent = <span className="text-white font-bold">{n.fromName.charAt(0).toUpperCase()}</span>;
 
     return (
