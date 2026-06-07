@@ -1,6 +1,7 @@
 import { useEventsStore } from '../../stores/eventsStore';
 import React, { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
+import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { updateDoc, deleteDoc } from '../../lib/firestore';
 import type { Event } from '../../types';
 import { Calendar, Palmtree, Gamepad2, Plane, Monitor, MessageSquare, Trash2, CheckCircle2, HelpCircle, XCircle, Edit2, Star } from 'lucide-react';
@@ -30,6 +31,9 @@ const TYPE_COLORS: Record<string, string> = {
 
 export const EventCard: React.FC<Props> = ({ event }) => {
   const { user } = useAuthStore();
+  const { onlineUsers, offlineUsers } = useOnlineUsers();
+  const allUsers = [...onlineUsers, ...offlineUsers];
+  
   const [optimisticEvent, setOptimisticEvent] = React.useState(event);
   React.useEffect(() => setOptimisticEvent(event), [event]);
   const [showNotes, setShowNotes] = useState(false);
@@ -84,12 +88,6 @@ export const EventCard: React.FC<Props> = ({ event }) => {
 
   const myRsvp = user ? optimisticEvent.rsvps[user.id] : undefined;
   
-  const counts = {
-    going: Object.values(optimisticEvent.rsvps).filter(v => v === 'going').length,
-    maybe: Object.values(optimisticEvent.rsvps).filter(v => v === 'maybe').length,
-    cant: Object.values(optimisticEvent.rsvps).filter(v => v === 'cant').length,
-  };
-
   const eventTime = typeof optimisticEvent.date === 'string' ? new Date(optimisticEvent.date).getTime() : typeof optimisticEvent.date === 'number' ? optimisticEvent.date : 0;
   
   const isPast = eventTime < Date.now();
@@ -167,13 +165,61 @@ export const EventCard: React.FC<Props> = ({ event }) => {
           </button>
         </div>
         
-        <div className="flex items-center gap-4 mt-3 text-xs text-muted font-medium px-1">
-          {counts.going > 0 && <span>{counts.going} going</span>}
-          {counts.going > 0 && (counts.maybe > 0 || counts.cant > 0) && <span className="text-faint">•</span>}
-          {counts.maybe > 0 && <span>{counts.maybe} maybe</span>}
-          {counts.maybe > 0 && counts.cant > 0 && <span className="text-faint">•</span>}
-          {counts.cant > 0 && <span>{counts.cant} can't go</span>}
-          {counts.going === 0 && counts.maybe === 0 && counts.cant === 0 && <span>No RSVPs yet</span>}
+        <div className="flex flex-col gap-1.5 mt-4">
+          {(() => {
+            const renderRsvpGroup = (status: string, label: string, colorClass: string, bgClass: string) => {
+              const userIds = Object.entries(optimisticEvent.rsvps)
+                .filter(([_, rsvpStatus]) => rsvpStatus === status)
+                .map(([id]) => id);
+
+              if (userIds.length === 0) return null;
+
+              return (
+                <div key={status} className={`flex items-center gap-3 p-2.5 rounded-xl border border-border-subtle ${bgClass}`}>
+                  <span className={`text-[11px] font-bold uppercase tracking-wider w-16 flex-shrink-0 ${colorClass}`}>{label}</span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {userIds.map(uid => {
+                      const u = allUsers.find(user => user.uid === uid);
+                      const displayName = u?.displayName || 'Unknown';
+                      const initial = displayName.charAt(0).toUpperCase();
+                      const avatarColor = u?.avatarColor || 'var(--color-primary)';
+                      
+                      return (
+                        <div 
+                          key={uid}
+                          className="w-7 h-7 rounded-full flex items-center justify-center text-white text-xs font-bold shadow-sm"
+                          style={{ backgroundColor: avatarColor }}
+                          title={displayName}
+                        >
+                          {u?.avatarUrl ? (
+                            <img src={u.avatarUrl} alt={displayName} className="w-full h-full rounded-full object-cover" />
+                          ) : (
+                            initial
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            };
+
+            const goingNode = renderRsvpGroup('going', 'Going', 'text-success', 'bg-success/5');
+            const maybeNode = renderRsvpGroup('maybe', 'Maybe', 'text-warning', 'bg-warning/5');
+            const cantNode = renderRsvpGroup('cant', "Can't", 'text-danger', 'bg-danger/5');
+
+            if (!goingNode && !maybeNode && !cantNode) {
+              return <p className="text-xs text-muted font-medium px-1 mt-1">No RSVPs yet</p>;
+            }
+
+            return (
+              <>
+                {goingNode}
+                {maybeNode}
+                {cantNode}
+              </>
+            );
+          })()}
         </div>
       </div>
 
