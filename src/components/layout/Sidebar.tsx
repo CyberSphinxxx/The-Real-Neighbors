@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { NavLink, useLocation } from 'react-router-dom';
-import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare, Bot } from 'lucide-react';
+import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare, Bot, Gamepad2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection } from '../../lib/firestore';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
@@ -96,6 +96,7 @@ export const Sidebar: React.FC = () => {
       items: [
         { name: 'Watchlist', path: '/watchlist', id: 'watchlist', icon: Tv },
         { name: 'Playlist', path: '/playlist', id: 'playlist', icon: Music2Icon },
+        { name: 'Games', path: '/games', id: 'games', icon: Gamepad2 },
         { name: 'Botbot', path: '/ai', id: 'ai', icon: Bot },
       ]
     },
