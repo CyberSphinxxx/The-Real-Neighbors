@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Menu, Users } from 'lucide-react';
+import { Menu, Users, ArrowLeft } from 'lucide-react';
 import { ChannelSidebar } from '../components/chat/ChannelSidebar';
 import { MessageArea } from '../components/chat/MessageArea';
 import { MembersSidebar } from '../components/chat/MembersSidebar';
@@ -14,8 +14,15 @@ export default function ChatPage() {
   const { user } = useAuthStore();
   const [channels, setChannels] = useState<Channel[]>([]);
   const [dms, setDMs] = useState<DirectMessage[]>([]);
-  const [isChannelSidebarOpen, setIsChannelSidebarOpen] = useState(false);
+
   const [isMembersSidebarOpen, setIsMembersSidebarOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     const unsubscribe = subscribeToChannels((data) => {
@@ -57,13 +64,13 @@ export default function ChatPage() {
     cleanupDuplicates();
   }, []);
   useEffect(() => {
-    if (channels.length > 0 && !channelId && !dmId) {
+    if (!isMobile && channels.length > 0 && !channelId && !dmId) {
       const defaultChannel = channels.find(c => c.isDefault) || channels[0];
       if (defaultChannel) {
         navigate(`/chat/${defaultChannel.id}`, { replace: true });
       }
     }
-  }, [channels, channelId, dmId, navigate]);
+  }, [channels, channelId, dmId, navigate, isMobile]);
 
   const activeChannel = channels.find(c => c.id === channelId);
   const activeDM = dms.find(d => d.id === dmId);
@@ -86,12 +93,12 @@ export default function ChatPage() {
   return (
     <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '100%' }}>
       {/* Mobile Header (Only visible on small screens when in MessageArea) */}
-      <div className="md:hidden flex items-center justify-between px-4 py-3 bg-surface border-b border-border-subtle flex-shrink-0 z-10">
+      <div className={`md:hidden flex items-center justify-between px-4 py-3 bg-surface border-b border-border-subtle flex-shrink-0 z-20 ${!channelId && !dmId ? 'hidden' : 'flex'}`}>
         <button 
-          onClick={() => setIsChannelSidebarOpen(true)}
+          onClick={() => navigate('/chat')}
           className="p-2 -ml-2 text-muted hover:text-main transition-colors"
         >
-          <Menu size={24} />
+          <ArrowLeft size={24} />
         </button>
         <div className="flex items-center gap-2 font-semibold">
           {getHeaderTitle()}
@@ -108,20 +115,26 @@ export default function ChatPage() {
       <div className="flex flex-1 overflow-hidden relative w-full h-full bg-base">
         {/* Left Pane: Channels */}
         <div className={`
-          absolute inset-y-0 left-0 z-20 w-[260px] md:w-[240px] bg-base/80 backdrop-blur-md md:bg-transparent border-r border-border-subtle transform transition-transform duration-300 ease-in-out md:relative md:translate-x-0
-          ${isChannelSidebarOpen ? 'translate-x-0' : '-translate-x-full'}
+          ${isMobile ? (
+            (!channelId && !dmId) ? 'absolute inset-0 z-10 bg-base w-full flex flex-col' : 'hidden'
+          ) : (
+            'relative w-[240px] bg-transparent border-r border-border-subtle flex-shrink-0'
+          )}
         `}>
           <ChannelSidebar 
             channels={channels} 
             dms={dms}
             activeChannelId={channelId}
             activeDmId={dmId}
-            onCloseMobile={() => setIsChannelSidebarOpen(false)}
+            onCloseMobile={() => {}}
           />
         </div>
 
         {/* Center Pane: Messages */}
-        <div className="flex-1 flex flex-col min-w-0 bg-surface relative z-10 h-full shadow-2xl md:shadow-none">
+        <div className={`
+          flex-1 flex-col min-w-0 bg-surface relative z-10 h-full shadow-2xl md:shadow-none
+          ${isMobile && (!channelId && !dmId) ? 'hidden' : 'flex'}
+        `}>
           {activeChannel ? (
             <MessageArea threadType="channels" threadId={activeChannel.id} channel={activeChannel} />
           ) : activeDM ? (
@@ -150,11 +163,10 @@ export default function ChatPage() {
         </div>
 
         {/* Mobile Overlays */}
-        {(isChannelSidebarOpen || isMembersSidebarOpen) && (
+        {(isMembersSidebarOpen) && (
           <div 
             className="absolute inset-0 bg-black/50 z-10 md:hidden"
             onClick={() => {
-              setIsChannelSidebarOpen(false);
               setIsMembersSidebarOpen(false);
             }}
           />
