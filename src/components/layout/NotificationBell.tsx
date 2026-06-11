@@ -6,11 +6,19 @@ import { useAuthStore } from '../../stores/authStore';
 import { useNavigate } from 'react-router-dom';
 import { formatTimeAgo } from '../../utils/date';
 import { orderBy, limit } from 'firebase/firestore';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 export const NotificationBell: React.FC = () => {
   const { user } = useAuthStore();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
   const panelRef = useRef<HTMLDivElement>(null);
   const bellRef = useRef<HTMLButtonElement>(null);
   const navigate = useNavigate();
@@ -204,12 +212,14 @@ export const NotificationBell: React.FC = () => {
         )}
       </button>
 
-      {isOpen && (
-        <div 
-          ref={panelRef}
-          className="absolute right-0 mt-2 w-[380px] bg-surface rounded-2xl border border-border-subtle shadow-lg flex flex-col z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
-          style={{ maxHeight: '480px' }}
-        >
+      {/* The Notification Panel */}
+      {isMobile ? (
+        <MobileBottomSheet isOpen={isOpen} onClose={() => setIsOpen(false)} maxHeight="75vh">
+          <div 
+            ref={panelRef}
+            className="flex flex-col z-40 overflow-hidden h-full bg-surface"
+            style={{ maxHeight: 'none' }}
+          >
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle shrink-0">
             <h2 className="font-semibold text-base text-main">Notifications</h2>
             <div className="flex items-center gap-3">
@@ -232,9 +242,9 @@ export const NotificationBell: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+          <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col min-h-[300px]">
             {notifications.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-12 px-6 text-center">
+              <div className="flex flex-col items-center justify-center py-12 px-6 text-center flex-1">
                 <div className="text-5xl mb-3">🎉</div>
                 <p className="text-sm text-muted font-medium">You're all caught up!</p>
               </div>
@@ -261,6 +271,66 @@ export const NotificationBell: React.FC = () => {
             )}
           </div>
         </div>
+      </MobileBottomSheet>
+      ) : (
+        isOpen && (
+          <div 
+            ref={panelRef}
+            className="absolute right-0 mt-2 w-[380px] bg-surface rounded-2xl border border-border-subtle shadow-lg flex flex-col z-40 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-150"
+            style={{ maxHeight: 'calc(100vh - 100px)' }}
+          >
+            <div className="flex items-center justify-between px-4 py-3 border-b border-border-subtle shrink-0">
+              <h2 className="font-semibold text-base text-main">Notifications</h2>
+              <div className="flex items-center gap-3">
+                {unreadCount > 0 && (
+                  <button 
+                    onClick={handleMarkAllRead}
+                    className="text-sm text-primary font-medium hover:underline"
+                  >
+                    Mark all read
+                  </button>
+                )}
+                {notifications.length > 0 && (
+                  <button 
+                    onClick={handleClearAll}
+                    className="text-sm text-muted hover:text-main font-medium"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col min-h-[300px]">
+              {notifications.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-12 px-6 text-center flex-1">
+                  <div className="text-5xl mb-3">🎉</div>
+                  <p className="text-sm text-muted font-medium">You're all caught up!</p>
+                </div>
+              ) : (
+                <>
+                  {grouped.today.length > 0 && (
+                    <div className="flex flex-col">
+                      <div className="sticky top-0 bg-surface/95 backdrop-blur-sm px-4 pt-3 pb-1 text-xs uppercase tracking-wide text-faint font-semibold z-10 border-b border-transparent">
+                        Today
+                      </div>
+                      {grouped.today.map(renderItem)}
+                    </div>
+                  )}
+                  
+                  {grouped.earlier.length > 0 && (
+                    <div className="flex flex-col">
+                      <div className="sticky top-0 bg-surface/95 backdrop-blur-sm px-4 pt-3 pb-1 text-xs uppercase tracking-wide text-faint font-semibold z-10 border-b border-transparent">
+                        Earlier
+                      </div>
+                      {grouped.earlier.map(renderItem)}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          </div>
+        )
       )}
     </div>
   );
