@@ -23,18 +23,6 @@ export const WORDLE_ANSWERS: string[] = [
   "TRADE", "TRAIN", "TREAT", "TREND", "TRIAL", "TRUST", "TRUTH", "UNCLE", "UNION", "UNITY",
   "VALUE", "VIDEO", "VISIT", "VOICE", "WATCH", "WATER", "WHILE", "WHITE", "WHOLE", "WOMAN",
   "WORLD", "YOUTH",
-
-  // Filipino romanized
-  "BAHAY", "LABAN", "KANTA", "TIGAS", "SARAP", "LUGAW", "SELOS", "TAPOK",
-  "BOSES", "HILOM", "MAHAL", "DAGAT", "TULOG", "HANAP", "LIGAW", "PUNO", "TANONG",
-  "BUHAY", "BIGAT", "BAYAN", "BATA", "GALIT", "SAYA", "TAWA", "SULAT", "KAMAY",
-  "USAP", "UTANG", "UBOS", "AYAW", "LAKAS", "LALIM", "LAMIG", "INIT", "ARAW",
-
-  // Gaming / Anime
-  "NARUT", "TITAN", "BLESS", "GRIND", "QUEST", "GUILD", "SWORD", "MAGIC", "LEVEL",
-  "MANA", "SPELL", "SPAWN", "LOOT", "BOSS", "RAID", "PARTY", "AGGRO", "CARRY",
-  "PENTA", "NINJA", "GOKU", "MECHA", "ISEKAI", "WAIFU", "OTAKU", "KAWAI", "PIXEL",
-  "SMASH", "MARIO", "ZELDA", "STEAM", "VALVE"
 ];
 
 export const VALID_GUESSES: string[] = [
@@ -280,5 +268,15 @@ export function getDailyWordNumber(): number {
 
 export function getDailyWord(): string {
   const diff = getDailyWordNumber();
-  return WORDLE_ANSWERS[diff % WORDLE_ANSWERS.length];
+  
+  // Preserve today's word (159th day from epoch) so active games aren't affected
+  if (diff === 159) return "SHORT";
+  
+  // Seeded random number generator (mulberry32) for purely random but consistent daily words
+  let t = diff + 0x6D2B79F5;
+  t = Math.imul(t ^ (t >>> 15), t | 1);
+  t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+  const randomVal = ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  
+  return WORDLE_ANSWERS[Math.floor(randomVal * WORDLE_ANSWERS.length)];
 }
