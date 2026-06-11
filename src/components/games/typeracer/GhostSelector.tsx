@@ -78,7 +78,7 @@ export const GhostSelector: React.FC<GhostSelectorProps> = ({ mode, pack, length
       </div>
 
       {loading ? (
-        <div className="flex gap-4 overflow-x-auto pb-2">
+        <div className="flex gap-4 overflow-x-auto pb-2 custom-scrollbar">
           {[1,2,3].map(i => (
             <div key={i} className="min-w-[150px] h-[80px] bg-elevated rounded-xl animate-pulse flex-shrink-0" />
           ))}
