@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { History, Plus, Send, Brain, Bot, X } from 'lucide-react';
+import { Plus, Send, Brain, Bot, X, Menu } from 'lucide-react';
 import { collection, doc, setDoc, getDocs, deleteDoc, orderBy, query, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/authStore';
@@ -295,7 +295,7 @@ export const BotbotChat: React.FC = () => {
   const currentSessionTitle = currentSessionId ? sessions.find(s => s.id === currentSessionId)?.title : '';
 
   return (
-    <div className="flex flex-col h-full bg-base">
+    <div className="flex flex-col h-full bg-base pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
       {/* Header — matches Chat page MessageArea header */}
       <div className="h-14 border-b border-border-subtle flex items-center justify-between px-6 shadow-sm z-10 flex-shrink-0 bg-surface">
         <div className="flex items-center gap-3">
@@ -321,7 +321,7 @@ export const BotbotChat: React.FC = () => {
               showHistory ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-elevated'
             }`}
           >
-            <History className="w-4 h-4" />
+            <Menu className="w-4 h-4" />
           </button>
           <button
             onClick={startNewSession}
