@@ -4,12 +4,20 @@ import { marked } from 'marked';
 import { useNavigate } from 'react-router-dom';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
 import { formatReleaseDate } from '../../lib/github';
+import { MobileBottomSheet } from './MobileBottomSheet';
 
 export const WhatsNewModal: React.FC = () => {
   const { shouldShow, latestRelease, allReleases, markAsSeen } = useWhatsNewStore();
   const navigate = useNavigate();
   const [isVisible, setIsVisible] = useState(false);
   const [isRendered, setIsRendered] = useState(false);
+  
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     if (shouldShow && latestRelease) {
@@ -41,20 +49,8 @@ export const WhatsNewModal: React.FC = () => {
 
   const parsedBody = latestRelease.body ? marked.parse(latestRelease.body) : '';
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
-      {/* Backdrop */}
-      <div 
-        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
-        onClick={handleRemindLater}
-      />
-
-      {/* Modal Container */}
-      <div 
-        className={`relative w-[95vw] sm:w-[560px] max-h-[80vh] bg-surface rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
-          isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
-        }`}
-      >
+  const modalContent = (
+    <>
         {/* Header - Gradient */}
         <div 
           className="h-[80px] shrink-0 flex items-center justify-between px-6"
@@ -130,6 +126,113 @@ export const WhatsNewModal: React.FC = () => {
             </button>
           </div>
         </div>
+    </>
+  );
+
+  if (isMobile) {
+    return (
+      <>
+        <MobileBottomSheet isOpen={isVisible} onClose={handleRemindLater} maxHeight="90vh">
+          <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+            {modalContent}
+          </div>
+        </MobileBottomSheet>
+        <style>{`
+          .release-notes h1, .release-notes h2, .release-notes h3 {
+            font-family: var(--font-heading, inherit);
+            font-weight: 700;
+            color: var(--color-main);
+            margin-top: 16px;
+            margin-bottom: 8px;
+          }
+          .release-notes h2 { font-size: 1.125rem; }
+          .release-notes h3 { font-size: 1rem; }
+          .release-notes p {
+            color: var(--color-muted);
+            font-size: 0.875rem;
+            line-height: 1.7;
+            margin-bottom: 12px;
+          }
+          .release-notes ul, .release-notes ol {
+            color: var(--color-muted);
+            font-size: 0.875rem;
+            padding-left: 1.25rem;
+            margin-bottom: 12px;
+          }
+          .release-notes ul { list-style-type: disc; }
+          .release-notes ol { list-style-type: decimal; }
+          .release-notes li {
+            font-size: 0.875rem;
+            margin-bottom: 4px;
+          }
+          .release-notes li::marker {
+            color: var(--color-primary);
+          }
+          .release-notes strong {
+            color: var(--color-main);
+            font-weight: 600;
+          }
+          .release-notes code {
+            background-color: var(--color-bg-elevated);
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.75rem;
+            color: var(--color-primary);
+          }
+          .release-notes pre {
+            background-color: var(--color-bg-elevated);
+            border-radius: 12px;
+            padding: 16px;
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: 0.75rem;
+            overflow-x: auto;
+            margin-bottom: 12px;
+          }
+          .release-notes pre code {
+            background-color: transparent;
+            padding: 0;
+            color: var(--color-main);
+          }
+          .release-notes a {
+            color: var(--color-primary);
+            text-decoration: none;
+          }
+          .release-notes a:hover {
+            text-decoration: underline;
+          }
+          .release-notes hr {
+            border: 0;
+            border-top: 1px solid var(--color-border-subtle);
+            margin: 16px 0;
+          }
+          .release-notes blockquote {
+            border-left: 4px solid var(--color-primary);
+            padding-left: 16px;
+            color: var(--color-muted);
+            font-style: italic;
+            margin: 12px 0;
+          }
+        `}</style>
+      </>
+    );
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-0">
+      {/* Backdrop */}
+      <div 
+        className={`absolute inset-0 bg-black/70 backdrop-blur-sm transition-opacity duration-200 ${isVisible ? 'opacity-100' : 'opacity-0'}`}
+        onClick={handleRemindLater}
+      />
+
+      {/* Modal Container */}
+      <div 
+        className={`relative w-[95vw] sm:w-[560px] max-h-[80vh] bg-surface rounded-2xl border border-border shadow-2xl flex flex-col overflow-hidden transition-all duration-200 ${
+          isVisible ? 'scale-100 opacity-100' : 'scale-95 opacity-0'
+        }`}
+      >
+        {modalContent}
       </div>
       
       {/* Scoped Styles for Markdown */}
