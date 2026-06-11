@@ -30,7 +30,7 @@ export const ResultScreen: React.FC<ResultScreenProps> = ({
       const animationEnd = Date.now() + duration;
       const defaults = { startVelocity: 30, spread: 360, ticks: 60, zIndex: 50 };
 
-      const interval: any = setInterval(function() {
+      const interval = window.setInterval(function() {
         const timeLeft = animationEnd - Date.now();
 
         if (timeLeft <= 0) {
