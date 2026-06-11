@@ -5,6 +5,7 @@ import { setDoc } from '../../lib/firestore';
 import { isValidSpotifyPlaylistUrl, fetchPlaylistMeta, extractPlaylistId } from '../../lib/spotify';
 import type { Playlist, User } from '../../types';
 import toast from 'react-hot-toast';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 const GENRES = [
   { emoji: '🎵', label: 'Pop', color: '#ec4899' },
@@ -119,12 +120,17 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({ onClose, all
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
-      <div className="w-full max-w-[480px] bg-surface border border-border-subtle rounded-2xl shadow-xl overflow-hidden animate-in zoom-in-95 duration-200">
-        
+  const [isMobile, setIsMobile] = React.useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
         {/* Header */}
-        <div className="flex justify-between items-center p-4 border-b border-border-subtle">
+        <div className="flex justify-between items-center p-4 border-b border-border-subtle shrink-0">
           <div className="flex items-center gap-2">
             <Music2 size={18} className="text-primary" />
             <h2 className="font-semibold text-lg text-main">Add a Playlist</h2>
@@ -137,7 +143,7 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({ onClose, all
           </button>
         </div>
 
-        <div className="p-4">
+        <div className="p-4 overflow-y-auto custom-scrollbar">
           {/* URL Input */}
           <div>
             <label className="block text-sm font-medium text-main mb-1.5">Spotify Playlist Link</label>
@@ -245,7 +251,7 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({ onClose, all
         </div>
 
         {/* Footer */}
-        <div className="p-4 border-t border-border-subtle flex justify-between items-center bg-surface">
+        <div className="p-4 border-t border-border-subtle flex justify-between items-center bg-surface shrink-0">
           <span className="text-xs text-faint">From Spotify &middot; Public only</span>
           <button
             onClick={handleSubmit}
@@ -261,7 +267,19 @@ export const AddPlaylistModal: React.FC<AddPlaylistModalProps> = ({ onClose, all
             )}
           </button>
         </div>
+    </>
+  );
 
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-sm">
+      <div className="w-full max-w-[480px] bg-surface border border-border-subtle rounded-2xl shadow-xl flex flex-col max-h-[90vh] overflow-hidden animate-in zoom-in-95 duration-200">
+        {modalContent}
       </div>
     </div>
   );
