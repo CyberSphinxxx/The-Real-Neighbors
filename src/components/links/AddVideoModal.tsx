@@ -5,6 +5,7 @@ import { addDoc, updateDoc } from '../../lib/firestore';
 import type { YoutubeQueueItem } from '../../types';
 import { X, PlaySquare, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   onClose: () => void;
@@ -95,7 +96,7 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
         createdAt: Date.now(),
       };
 
-      const docId = await addDoc('youtubeQueue', payload as any);
+      const docId = await addDoc('youtubeQueue', payload as Omit<YoutubeQueueItem, 'id'>);
       useLinksStore.getState().invalidate();
       toast.success('Added to queue!');
       onClose();
@@ -122,13 +123,16 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
-        className="bg-base border border-border-subtle rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-subtle bg-surface">
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-subtle bg-surface shrink-0">
           <h2 className="text-xl font-heading font-bold text-main flex items-center gap-2">
             <PlaySquare className="text-[#ff0000]" /> Add to Queue
           </h2>
@@ -171,7 +175,7 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
             </div>
           )}
 
-          <div className="pt-4 border-t border-border-subtle">
+          <div className="pt-4 border-t border-border-subtle shrink-0">
             <button
               type="submit"
               disabled={!extractVideoId(url) || isFetching}
@@ -181,6 +185,22 @@ export const AddVideoModal: React.FC<Props> = ({ onClose }) => {
             </button>
           </div>
         </form>
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+      <div 
+        className="bg-base border border-border-subtle rounded-2xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
