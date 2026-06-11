@@ -15,12 +15,13 @@ export const useTypewriter = ({
   pauseDuration = 2500,
   startDelay = 400,
 }: UseTypewriterProps) => {
+  const [isMobile] = useState(() => window.innerWidth < 768);
   const [displayText, setDisplayText] = useState('');
   const [isTyping, setIsTyping] = useState(true);
   const [currentIndex, setCurrentIndex] = useState(0);
 
   useEffect(() => {
-    if (!texts || texts.length === 0) return;
+    if (isMobile || !texts || texts.length === 0) return;
 
     let timeout: ReturnType<typeof setTimeout>;
     const currentFullText = texts[currentIndex];
@@ -56,7 +57,7 @@ export const useTypewriter = ({
     }
 
     return () => clearTimeout(timeout);
-  }, [displayText, isTyping, currentIndex, texts, typingSpeed, deletingSpeed, pauseDuration, startDelay]);
+  }, [displayText, isTyping, currentIndex, texts, typingSpeed, deletingSpeed, pauseDuration, startDelay, isMobile]);
 
-  return { displayText, isTyping };
+  return isMobile ? { displayText: '', isTyping: false } : { displayText, isTyping };
 };
