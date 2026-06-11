@@ -5,6 +5,7 @@ import { useWatchlistStore } from '../../stores/watchlistStore';
 import { addDoc, subscribeToCollection, deleteDoc } from '../../lib/firestore';
 import { X, Star, Send, Loader2, MessageSquare, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   entry: WatchlistEntry;
@@ -92,17 +93,17 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
     }
   };
 
-  return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      <div 
-        className="bg-surface border border-border-subtle rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col md:flex-row max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <div className="flex flex-col md:flex-row h-full w-full bg-surface">
         {/* Left Column: Media Details */}
-        <div className="w-full md:w-5/12 bg-base border-r border-border-subtle overflow-y-auto custom-scrollbar flex flex-col">
+        <div className="w-full md:w-5/12 bg-base border-b md:border-b-0 md:border-r border-border-subtle overflow-y-auto custom-scrollbar flex flex-col">
           {/* Header Image */}
           <div className="relative aspect-[2/3] w-full shrink-0 bg-elevated">
             {entry.coverUrl ? (
@@ -345,6 +346,25 @@ export const MediaDetailModal: React.FC<Props> = ({ entry, users, onClose }) => 
             </form>
           </div>
         </div>
+    </div>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="95vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '80vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/70 backdrop-blur-sm animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      <div 
+        className="bg-surface border border-border-subtle rounded-2xl w-full max-w-5xl shadow-2xl flex flex-col md:flex-row max-h-[95vh] overflow-hidden animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
