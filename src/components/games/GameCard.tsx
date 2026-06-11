@@ -81,7 +81,7 @@ export const GameCard: React.FC<GameCardProps> = ({ game }) => {
   return (
     <>
       <div 
-        className="bg-surface rounded-2xl border border-border-subtle shadow-sm overflow-hidden cursor-pointer hover:shadow-md hover:-translate-y-[2px] transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+        className="bg-surface rounded-2xl border border-border-subtle shadow-sm overflow-hidden cursor-pointer hover:shadow-md transition-all duration-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         onClick={handleCardClick}
         onKeyDown={handleKeyDown}
         role="button"
