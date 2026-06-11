@@ -5,6 +5,7 @@ import { addDoc, updateDoc } from '../../lib/firestore';
 import type { SavedLink } from '../../types';
 import { X, Link as LinkIcon, Loader2, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   onClose: () => void;
@@ -101,13 +102,16 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200">
-      <div 
-        className="bg-base border border-border-subtle rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-full animate-in zoom-in-95 duration-200"
-        onClick={e => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-subtle bg-surface">
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+        <div className="flex items-center justify-between p-4 sm:p-6 border-b border-border-subtle bg-surface shrink-0">
           <h2 className="text-xl font-heading font-bold text-main flex items-center gap-2">
             <LinkIcon className="text-primary" /> Save a Link
           </h2>
@@ -190,7 +194,7 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
             />
           </div>
 
-          <div className="pt-4 border-t border-border-subtle">
+          <div className="pt-4 border-t border-border-subtle shrink-0 pb-4 sm:pb-0">
             <button
               type="submit"
               disabled={!url.trim() || isSubmitting}
@@ -201,6 +205,22 @@ export const SaveLinkModal: React.FC<Props> = ({ onClose }) => {
             </button>
           </div>
         </form>
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-200" onClick={onClose}>
+      <div 
+        className="bg-base border border-border-subtle rounded-2xl w-full max-w-lg shadow-2xl overflow-hidden flex flex-col max-h-[90vh] animate-in zoom-in-95 duration-200"
+        onClick={e => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
