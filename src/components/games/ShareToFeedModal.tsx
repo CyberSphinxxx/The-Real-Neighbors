@@ -3,6 +3,7 @@ import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { useAuthStore } from '../../stores/authStore';
 import toast from 'react-hot-toast';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface ShareToFeedModalProps {
   gameId: string;
@@ -48,13 +49,16 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div 
-        className="bg-surface rounded-2xl border border-border-subtle shadow-lg w-full max-w-[400px] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="p-4 border-b border-border-subtle">
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+        <div className="p-4 border-b border-border-subtle shrink-0">
           <h2 className="font-semibold text-lg text-main">🎮 Share your result?</h2>
         </div>
 
@@ -77,7 +81,7 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
           </div>
         </div>
 
-        <div className="p-4 pt-0 flex gap-2">
+        <div className="p-4 pt-0 flex gap-2 shrink-0">
           <button 
             className="flex-1 py-2.5 rounded-full border border-border-subtle text-muted hover:text-main hover:bg-elevated transition-colors font-medium text-sm"
             onClick={onClose}
@@ -93,6 +97,22 @@ export const ShareToFeedModal: React.FC<ShareToFeedModalProps> = ({
             {isSubmitting ? 'Posting...' : 'Post to Feed 🎮'}
           </button>
         </div>
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div 
+        className="bg-surface rounded-2xl border border-border-subtle shadow-lg w-full max-w-[400px] flex flex-col max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
