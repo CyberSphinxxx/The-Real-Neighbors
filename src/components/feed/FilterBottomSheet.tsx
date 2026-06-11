@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { X, Users } from 'lucide-react';
 import { getAvatarColor } from '../../utils/avatarColor';
 import type { User } from '../../types';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface FilterBottomSheetProps {
   isOpen: boolean;
@@ -46,24 +47,8 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
   if (!isRendered) return null;
 
   return (
-    <div
-      className={`fixed inset-0 z-[100] flex flex-col justify-end transition-opacity duration-300 ${
-        isOpen ? 'opacity-100 pointer-events-auto' : 'opacity-0 pointer-events-none'
-      }`}
-    >
-      {/* Backdrop */}
-      <div
-        className="absolute inset-0 bg-black/50 backdrop-blur-sm"
-        onClick={onClose}
-      />
-
-      {/* Sheet */}
-      <div
-        className={`relative w-full bg-surface rounded-t-2xl shadow-2xl transition-transform duration-300 transform ${
-          isOpen ? 'translate-y-0' : 'translate-y-full'
-        } flex flex-col max-h-[85vh]`}
-        style={{ borderTop: '1px solid var(--color-border)' }}
-      >
+    <MobileBottomSheet isOpen={isOpen} onClose={onClose} maxHeight="85vh" showDragHandle={true}>
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative">
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b border-border-subtle shrink-0">
           <h3 className="font-heading font-bold text-lg text-main">Filters</h3>
@@ -197,6 +182,6 @@ export const FilterBottomSheet: React.FC<FilterBottomSheetProps> = ({
           </div>
         )}
       </div>
-    </div>
+    </MobileBottomSheet>
   );
 };
