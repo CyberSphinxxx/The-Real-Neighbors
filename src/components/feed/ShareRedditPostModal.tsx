@@ -4,6 +4,7 @@ import { X, Share2, Loader2, Image as ImageIcon, Link2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import type { RedditPost } from '../../types';
 import { getAvatarColor } from '../../utils/avatarColor';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   post: RedditPost;
@@ -44,17 +45,15 @@ export const ShareRedditPostModal: React.FC<Props> = ({ post, onClose, onShare }
   const isVideo = post.is_video;
   const isLink = !isImage && !isVideo && post.url && !post.url.includes('reddit.com/r/');
 
-  return createPortal(
-    <div className="fixed inset-0 z-[110] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!isSubmitting ? onClose : undefined} />
-      
-      <div 
-        className="relative w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300 flex flex-col max-h-[90vh]"
-        style={{
-          background: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
-        }}
-      >
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
         {/* Header */}
         <div 
           className="flex items-center justify-between px-5 py-3.5 flex-shrink-0"
@@ -254,8 +253,31 @@ export const ShareRedditPostModal: React.FC<Props> = ({ post, onClose, onShare }
             )}
           </button>
         </div>
+    </>
+  );
+
+  return createPortal(
+    isMobile ? (
+      <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+        <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+          {modalContent}
+        </div>
+      </MobileBottomSheet>
+    ) : (
+      <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!isSubmitting ? onClose : undefined} />
+        
+        <div 
+          className="relative w-full max-w-[520px] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]"
+          style={{
+            background: 'var(--color-bg-surface)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          {modalContent}
+        </div>
       </div>
-    </div>,
+    ),
     document.body
   );
 };
