@@ -102,7 +102,8 @@ export async function callDeepSeekStream(
 ): Promise<void> {
   try {
     await checkRateLimit();
-  } catch (error: any) {
+  } catch (err) {
+    const error = err as Error;
     onError(error.message || FALLBACK_ERROR_MESSAGE);
     return;
   }
