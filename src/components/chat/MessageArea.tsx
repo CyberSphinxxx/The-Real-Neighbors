@@ -188,7 +188,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
   };
 
   return (
-    <div className="flex flex-col h-full bg-base">
+    <div className="flex flex-col h-full bg-base pb-[calc(64px+env(safe-area-inset-bottom))] md:pb-0">
       {/* Header */}
       <div className="h-14 border-b border-border-subtle flex items-center px-6 shadow-sm z-10 flex-shrink-0 bg-surface">
         {threadType === 'channels' && channel ? (
