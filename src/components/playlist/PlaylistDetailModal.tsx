@@ -4,11 +4,12 @@ import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/firestore';
 import { orderBy } from 'firebase/firestore';
 import { formatTimeAgo } from '../../utils/date';
-import { X, Send, Loader2, HeadphonesIcon, Music2 } from 'lucide-react';
+import { X, Send, Loader2, HeadphonesIcon, Music2, Heart } from 'lucide-react';
 import { StarRating } from '../ui/StarRating';
 import { getEmbedUrl } from '../../lib/spotify';
 import { getAvatarColor } from '../../utils/avatarColor';
 import type { Playlist, User, Comment } from '../../types';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface PlaylistDetailModalProps {
   playlist: Playlist;
@@ -50,15 +51,21 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
+  const isInitialMount = useRef(true);
+
   // Real-time comments
   useEffect(() => {
     const unsubscribe = subscribeToCollection<Comment>(
       `playlists/${playlist.id}/comments`,
       (data) => {
         setComments(data);
-        setTimeout(() => {
-          commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        if (isInitialMount.current) {
+          isInitialMount.current = false;
+        } else {
+          setTimeout(() => {
+            commentsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+        }
       },
       orderBy('createdAt', 'asc')
     );
@@ -100,6 +107,19 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
     }
   };
 
+  const handleToggleLike = async (commentId: string, isLiked: boolean) => {
+    if (!user) return;
+    try {
+      import('firebase/firestore').then(({ arrayUnion, arrayRemove }) => {
+        updateDoc(`playlists/${playlist.id}/comments`, [commentId], {
+          likes: isLiked ? arrayRemove(user.id) : arrayUnion(user.id)
+        }).catch(console.error);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   const handleCommentSubmit = async (e?: React.FormEvent) => {
     if (e) e.preventDefault();
     if (!newComment.trim() || !user) return;
@@ -132,17 +152,15 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
 
 
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
-      {/* Dark Overlay */}
-      <div 
-        className="absolute inset-0 backdrop-blur-sm"
-        style={{ background: 'rgba(0,0,0,0.85)' }}
-        onClick={onClose}
-      />
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
-      {/* Main Container */}
-      <div className="relative w-full h-full md:max-w-[1000px] md:h-[90vh] md:rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl bg-black animate-in zoom-in-95 duration-200 z-10">
+  const modalContent = (
+    <div className="relative w-full h-full md:max-w-[1000px] md:h-[90vh] md:rounded-xl overflow-hidden flex flex-col md:flex-row bg-black animate-in zoom-in-95 duration-200 z-10">
         
         {/* Mobile Tabs */}
         <div className="md:hidden flex w-full bg-surface border-b border-border-subtle flex-shrink-0">
@@ -368,7 +386,13 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
               </div>
             ) : (
               comments.map(comment => (
-                <ModalCommentItem key={comment.id} comment={comment} allUsers={allUsers} />
+                <ModalCommentItem 
+                  key={comment.id} 
+                  comment={comment} 
+                  allUsers={allUsers} 
+                  currentUserId={user?.id}
+                  onToggleLike={handleToggleLike}
+                />
               ))
             )}
             <div ref={commentsEndRef} />
@@ -406,16 +430,38 @@ export const PlaylistDetailModal: React.FC<PlaylistDetailModalProps> = ({ playli
           </div>
 
         </div>
-
       </div>
-    </div>
   );
 
-  return ReactDOM.createPortal(modalContent, document.body);
+  return ReactDOM.createPortal(
+    isMobile ? (
+      <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="95vh">
+        <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '80vh' }}>
+          {modalContent}
+        </div>
+      </MobileBottomSheet>
+    ) : (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-0 md:p-4">
+        {/* Dark Overlay */}
+        <div 
+          className="absolute inset-0 backdrop-blur-sm"
+          style={{ background: 'rgba(0,0,0,0.85)' }}
+          onClick={onClose}
+        />
+        {modalContent}
+      </div>
+    ),
+    document.body
+  );
 };
 
 // Sub-component for individual comments inside the modal
-const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ comment, allUsers }) => {
+const ModalCommentItem: React.FC<{ 
+  comment: Comment; 
+  allUsers?: User[];
+  currentUserId?: string;
+  onToggleLike?: (commentId: string, isLiked: boolean) => void;
+}> = ({ comment, allUsers, currentUserId, onToggleLike }) => {
   const [author, setAuthor] = useState<User | null>(null);
   useEffect(() => {
     let isMounted = true;
@@ -461,6 +507,18 @@ const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ c
             });
           })()}
         </p>
+        <div className="flex items-center gap-4 mt-1 text-[11px] font-medium text-faint ml-1">
+          <button 
+            onClick={() => {
+              const isLiked = currentUserId ? (comment.likes?.includes(currentUserId) || false) : false;
+              onToggleLike?.(comment.id, isLiked);
+            }}
+            className={`flex items-center gap-1 hover:scale-105 transition-transform ${currentUserId && comment.likes?.includes(currentUserId) ? 'text-primary' : 'hover:text-main'}`}
+          >
+            <Heart size={12} className={currentUserId && comment.likes?.includes(currentUserId) ? 'fill-primary' : ''} />
+            {(comment.likes?.length || 0) > 0 && <span>{comment.likes?.length}</span>}
+          </button>
+        </div>
       </div>
     </div>
   );
