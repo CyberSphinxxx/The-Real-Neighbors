@@ -3,13 +3,16 @@ import ReactDOM from 'react-dom';
 import { useAuthStore } from '../../stores/authStore';
 import { getDoc, updateDoc, subscribeToCollection, addDoc } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
-import { X, ChevronLeft, ChevronRight, Send, Loader2, MoreHorizontal, Edit2, Trash2 } from 'lucide-react';
+import { X, ChevronLeft, ChevronRight, Send, Loader2, MoreHorizontal, Edit2, Trash2, Heart } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import type { User, Comment, Post } from '../../types';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { orderBy } from 'firebase/firestore';
 import { ShareRedditPostModal } from './ShareRedditPostModal';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
+import { WhoReactedModal } from './WhoReactedModal';
+import { WhoSeenItModal } from './WhoSeenItModal';
 
 interface PostDetailModalProps {
   post: any;
@@ -43,6 +46,16 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
   const [isRedditPostShared, setIsRedditPostShared] = useState(false);
   const [isSharingFromModal, setIsSharingFromModal] = useState(false);
   const [showRedditShareModal, setShowRedditShareModal] = useState(false);
+
+  const [showReactors, setShowReactors] = useState(false);
+  const [showSeenBy, setShowSeenBy] = useState(false);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const menuRef = useRef<HTMLDivElement>(null);
   
@@ -220,6 +233,8 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, [showMenu]);
 
+  const isInitialMount = useRef(true);
+
   // Real-time comments
   useEffect(() => {
     const collectionPath = isRedditPost ? `redditPosts/${post.id}/comments` : `posts/${post.id}/comments`;
@@ -227,10 +242,14 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
       collectionPath,
       (data) => {
         setComments(data);
-        // auto-scroll to bottom on new comments
-        setTimeout(() => {
-          commentsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-        }, 100);
+        if (isInitialMount.current) {
+          isInitialMount.current = false;
+        } else {
+          // auto-scroll to bottom on new comments
+          setTimeout(() => {
+            commentsEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          }, 100);
+        }
       },
       orderBy('createdAt', 'asc')
     );
@@ -367,8 +386,21 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     }
   };
 
+  const handleToggleLike = async (commentId: string, isLiked: boolean) => {
+    if (!user) return;
+    try {
+      import('firebase/firestore').then(({ arrayUnion, arrayRemove }) => {
+        const collectionPath = isRedditPost ? `redditPosts/${post.id}/comments` : `posts/${post.id}/comments`;
+        updateDoc(collectionPath, [commentId], {
+          likes: isLiked ? arrayRemove(user.id) : arrayUnion(user.id)
+        }).catch(console.error);
+      });
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
   let seenByText = '';
-  let seenByNames = '';
   if (!isRedditPost && post.seenBy && post.seenBy.length > 0) {
     if (allUsers && allUsers.length > 1) {
       const totalMembersExcludingAuthor = allUsers.length - 1;
@@ -377,7 +409,6 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
       } else {
         seenByText = `👁️ Seen by ${post.seenBy.length}`;
       }
-      seenByNames = post.seenBy.map((uid: string) => allUsers.find(u => u.id === uid)?.displayName || 'Unknown').join(', ');
     } else {
       seenByText = `👁️ Seen by ${post.seenBy.length}`;
     }
@@ -401,32 +432,23 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     });
   };
 
-  const modalContent = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center">
-      {/* Dark Overlay */}
-      <div 
-        className="absolute inset-0 backdrop-blur-sm"
-        style={{ background: 'rgba(0,0,0,0.85)' }}
-        onClick={onClose}
-      />
-
-      {/* Main Container */}
-      <div className="relative w-full h-full md:max-w-7xl md:h-[90vh] md:rounded-xl overflow-hidden flex flex-col md:flex-row shadow-2xl bg-black animate-in zoom-in-95 duration-200 z-10">
+  const innerContent = (
+    <div className={`relative w-full ${isMobile ? 'flex flex-col h-full overflow-y-auto custom-scrollbar' : 'h-full max-w-7xl md:h-[90vh] md:rounded-xl overflow-hidden flex-row shadow-2xl bg-black animate-in zoom-in-95 duration-200 z-10'}`}>
         
         {/* LEFT PANEL */}
         <div 
-          className="flex-1 flex flex-col items-center justify-center relative overflow-hidden"
+          className={isMobile ? "w-full flex flex-col items-center justify-center relative flex-shrink-0" : "flex-1 flex flex-col items-center justify-center relative overflow-hidden"}
           style={{ 
             background: hasBg ? post.bgColor : (isPlainText ? 'var(--color-bg-surface)' : '#000'),
-            maxHeight: '100%',
+            minHeight: isMobile && !isPlainText ? '300px' : undefined,
           }}
-          onClick={(e) => { if(e.target === e.currentTarget) onClose(); }}
+          onClick={(e) => { if(e.target === e.currentTarget && !isMobile) onClose(); }}
         >
           {isImage && (
             <img 
               src={isRedditPost ? post.url : post.imageUrl!} 
               alt="Post" 
-              className="max-w-full max-h-full object-contain animate-in zoom-in-95 duration-200"
+              className={`w-full h-auto object-contain animate-in zoom-in-95 duration-200 ${isMobile ? 'max-h-[60vh]' : 'max-w-full max-h-full'}`}
             />
           )}
 
@@ -476,7 +498,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           )}
 
           {isPlainText && (
-            <div className="w-full h-full p-8 flex flex-col justify-center max-w-2xl mx-auto animate-in zoom-in-95 duration-200">
+            <div className={`w-full p-8 flex flex-col justify-center max-w-2xl mx-auto animate-in zoom-in-95 duration-200 ${isMobile ? 'min-h-[200px]' : 'h-full'}`}>
               {isRedditPost ? (
                 <>
                   <a href={`https://reddit.com${post.permalink}`} target="_blank" rel="noreferrer" className="inline-block w-max px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider mb-6" style={{ background: 'rgba(255, 69, 0, 0.15)', color: '#FF4500', border: '1px solid rgba(255, 69, 0, 0.3)' }}>
@@ -606,8 +628,8 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
 
         {/* RIGHT PANEL (Comments) */}
         <div 
-          className="w-full md:w-[360px] h-full flex flex-col flex-shrink-0"
-          style={{ background: 'var(--color-bg-surface)', borderLeft: '1px solid var(--color-border)' }}
+          className={isMobile ? "w-full flex flex-col bg-surface flex-shrink-0" : "w-[360px] h-full flex flex-col flex-shrink-0"}
+          style={{ background: 'var(--color-bg-surface)', borderLeft: isMobile ? 'none' : '1px solid var(--color-border)' }}
         >
           {/* Right Panel Header: Author row + close button */}
           <div className="flex items-center justify-between px-4 py-3 border-b flex-shrink-0" style={{ borderColor: 'var(--color-border)' }}>
@@ -852,13 +874,19 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
                     </div>
                     
                     {totalReactionsCount > 0 && (
-                      <p className="text-xs text-muted mt-2 font-medium">
+                      <p 
+                        className="text-xs text-muted mt-2 font-medium cursor-pointer hover:text-primary transition-colors hover:underline"
+                        onClick={(e) => { e.stopPropagation(); setShowReactors(true); }}
+                      >
                         {reactionSummary}
                       </p>
                     )}
                     <div className="min-h-[24px]">
                       {seenByText && (
-                        <div className={`text-xs text-right pt-2 text-faint cursor-help`} title={seenByNames}>
+                        <div 
+                          className={`text-xs text-right pt-2 text-faint cursor-pointer hover:underline hover:text-primary transition-colors`} 
+                          onClick={(e) => { e.stopPropagation(); setShowSeenBy(true); }}
+                        >
                           {seenByText}
                         </div>
                       )}
@@ -870,7 +898,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           </div>
 
           {/* Comments List */}
-          <div className="flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4">
+          <div className={`flex-1 overflow-y-auto custom-scrollbar p-4 flex flex-col gap-4 ${isMobile ? 'min-h-[200px]' : ''}`}>
             <h4 className="text-sm font-semibold text-muted mb-2 sticky top-0 bg-surface z-10 py-1">
               {isRedditPost ? 'Friends Comments' : 'Comments'}
             </h4>
@@ -882,14 +910,20 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
               </p>
             ) : (
               comments.map(comment => (
-                <ModalCommentItem key={comment.id} comment={comment} allUsers={allUsers} />
+                <ModalCommentItem 
+                  key={comment.id} 
+                  comment={comment} 
+                  allUsers={allUsers} 
+                  currentUserId={user?.id}
+                  onToggleLike={handleToggleLike}
+                />
               ))
             )}
             <div ref={commentsEndRef} />
           </div>
 
           {/* Comment Input */}
-          <div className="p-3 border-t border-border flex items-end gap-2 bg-surface">
+          <div className={`p-3 border-t border-border flex items-end gap-2 bg-surface ${isMobile ? 'sticky bottom-0 z-20 pb-safe shadow-[0_-4px_12px_rgba(0,0,0,0.05)]' : ''}`}>
             {isRedditPost && !isRedditPostShared ? (
               <div className="w-full text-center py-4 flex flex-col items-center">
                 <p className="text-sm text-main font-medium mb-1">Share to Unlock Comments</p>
@@ -964,8 +998,28 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           </div>
         </div>
 
-      </div>
+        </div>
+  );
 
+  const modalContent = isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="95vh">
+      {innerContent}
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center">
+      {/* Dark Overlay */}
+      <div 
+        className="absolute inset-0 backdrop-blur-sm"
+        style={{ background: 'rgba(0,0,0,0.85)' }}
+        onClick={onClose}
+      />
+      {innerContent}
+    </div>
+  );
+
+  return ReactDOM.createPortal(
+    <>
+      {modalContent}
       {showRedditShareModal && isRedditPost && (
         <ShareRedditPostModal
           post={post}
@@ -973,15 +1027,32 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
           onShare={handleShareToFeedFromModal}
         />
       )}
-    </div>
+      {showReactors && (
+        <WhoReactedModal
+          reactions={post.reactions || {}}
+          onClose={() => setShowReactors(false)}
+        />
+      )}
+      {showSeenBy && (
+        <WhoSeenItModal
+          seenBy={post.seenBy || []}
+          postAuthorId={post.authorId}
+          onClose={() => setShowSeenBy(false)}
+        />
+      )}
+    </>,
+    document.body
   );
-
-  return ReactDOM.createPortal(modalContent, document.body);
 };
 
 
 // Sub-component for individual comments inside the modal
-const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ comment, allUsers }) => {
+const ModalCommentItem: React.FC<{ 
+  comment: Comment; 
+  allUsers?: User[];
+  currentUserId?: string;
+  onToggleLike?: (commentId: string, isLiked: boolean) => void;
+}> = ({ comment, allUsers, currentUserId, onToggleLike }) => {
   const [author, setAuthor] = useState<User | null>(null);
   useEffect(() => {
     let isMounted = true;
@@ -1027,6 +1098,18 @@ const ModalCommentItem: React.FC<{ comment: Comment; allUsers?: User[] }> = ({ c
             });
           })()}
         </p>
+        <div className="flex items-center gap-4 mt-1 text-[11px] font-medium text-faint ml-1">
+          <button 
+            onClick={() => {
+              const isLiked = currentUserId ? (comment.likes?.includes(currentUserId) || false) : false;
+              onToggleLike?.(comment.id, isLiked);
+            }}
+            className={`flex items-center gap-1 hover:scale-105 transition-transform ${currentUserId && comment.likes?.includes(currentUserId) ? 'text-primary' : 'hover:text-main'}`}
+          >
+            <Heart size={12} className={currentUserId && comment.likes?.includes(currentUserId) ? 'fill-primary' : ''} />
+            {(comment.likes?.length || 0) > 0 && <span>{comment.likes?.length}</span>}
+          </button>
+        </div>
       </div>
     </div>
   );
