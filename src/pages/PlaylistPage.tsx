@@ -210,9 +210,9 @@ export default function PlaylistPage() {
 
           <div 
             ref={scrollContainerRef}
+            id="playlist-category-scroll"
             onScroll={checkScroll}
-            className="flex gap-2 overflow-x-auto w-full scroll-smooth relative z-10 py-1"
-            style={{ scrollbarWidth: 'none', WebkitOverflowScrolling: 'touch' }}
+            className="flex gap-2 overflow-x-auto custom-scrollbar w-full scroll-smooth relative z-10 py-1"
           >
             {GENRES.map(genre => {
               const isSelected = activeGenre === genre.label;
