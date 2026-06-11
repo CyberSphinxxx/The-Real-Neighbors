@@ -3,10 +3,12 @@ import { useAuthStore } from '../../stores/authStore';
 import { getDoc, updateDoc, addDoc, subscribeToCollection } from '../../lib/firestore';
 import { formatTimeAgo } from '../../utils/date';
 import { CommentSection } from './CommentSection';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 import { SharePostModal } from './SharePostModal';
+import { WhoReactedModal } from './WhoReactedModal';
+import { WhoSeenItModal } from './WhoSeenItModal';
 import type { Post, User } from '../../types';
-import { Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye, Bookmark, Share2 } from 'lucide-react';
-import { Tooltip } from '../ui/Tooltip';
+import { Pin, MoreHorizontal, Trash2, Edit2, X, Loader2, Play, Eye, Bookmark, Share2, ThumbsUp, MessageSquare } from 'lucide-react';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { useConfirm } from '../../contexts/ConfirmContext';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
@@ -36,6 +38,8 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   const [sharedPost, setSharedPost] = useState<Post | null>(null);
   const [sharedPostAuthor, setSharedPostAuthor] = useState<User | null>(null);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showReactors, setShowReactors] = useState(false);
+  const [showSeenBy, setShowSeenBy] = useState(false);
 
   useEffect(() => {
     setOptimisticReactions(post.reactions || {});
@@ -45,9 +49,12 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
     if (!post.sharedPostId) return;
     let isMounted = true;
     const fetchSharedPost = async () => {
-      const sp = await getDoc<Post>('posts', [post.sharedPostId!]);
+      const sp = await getDoc<any>('posts', [post.sharedPostId!]);
       if (isMounted && sp) {
-        setSharedPost(sp);
+        if (sp.createdAt?.toMillis) sp.createdAt = sp.createdAt.toMillis();
+        if (sp.editedAt?.toMillis) sp.editedAt = sp.editedAt.toMillis();
+        if (sp.expiresAt?.toMillis) sp.expiresAt = sp.expiresAt.toMillis();
+        setSharedPost(sp as Post);
         const spa = await getDoc<User>('users', [sp.authorId]);
         if (isMounted) setSharedPostAuthor(spa);
       }
@@ -173,6 +180,13 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   }, [showMenu]);
 
   const [commentCount, setCommentCount] = useState(0);
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => {
     let isMounted = true;
@@ -435,7 +449,6 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   if (shouldUnmount) return null;
 
   let seenByText = '';
-  let seenByNames = '';
   if (post.seenBy && post.seenBy.length > 0) {
     if (allUsers && allUsers.length > 1) {
       const totalMembersExcludingAuthor = allUsers.length - 1;
@@ -444,7 +457,6 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
       } else {
         seenByText = `👁️ Seen by ${post.seenBy.length}`;
       }
-      seenByNames = post.seenBy.map(uid => allUsers.find(u => u.id === uid)?.displayName || 'Unknown').join(', ');
     } else {
       seenByText = `👁️ Seen by ${post.seenBy.length}`;
     }
@@ -466,7 +478,6 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
           : post.isPinned && !hasBg 
             ? '0 0 0 1px color-mix(in srgb, var(--color-primary) 20%, transparent), var(--shadow-sm)'
             : 'var(--shadow-sm)',
-        transform: isHovered ? 'translateY(-1px)' : 'translateY(0)',
       }}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
@@ -865,124 +876,122 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
       )}
 
       {/* Reaction Bar */}
-      <div className="flex items-center justify-between mt-3 pt-1">
-        {/* Reaction pills */}
-        <div className="flex items-center gap-2 flex-wrap">
-          {REACTIONS.map((r) => {
-            const reactors = optimisticReactions?.[r.emoji] || [];
-            const count = reactors.length;
-            const hasReacted = reactors.includes(user?.id || '');
+      <div className="flex flex-col mt-3">
+        {/* Top Row: Reaction Summary */}
+        {(() => {
+          const activeEmojis = REACTIONS.filter(r => (optimisticReactions?.[r.emoji]?.length || 0) > 0);
+          const totalReactions = activeEmojis.reduce((sum, r) => sum + (optimisticReactions?.[r.emoji]?.length || 0), 0);
+          
+          if (totalReactions === 0 && commentCount === 0 && !seenByText) return null;
 
-            let reactorNamesString = '';
-            if (count > 0 && allUsers) {
-              const names = reactors.map(uid => {
-                const reactorUser = allUsers.find(u => u.id === uid);
-                if (reactorUser?.privacyPrefs?.showReactions === false && reactorUser.id !== user?.id) {
-                  return 'Someone';
-                }
-                return reactorUser?.displayName || 'Unknown';
-              });
-              if (names.length > 3) {
-                reactorNamesString = `${names.slice(0, 3).join(', ')} + ${names.length - 3} more`;
-              } else {
-                reactorNamesString = names.join(', ');
-              }
-            }
+          return (
+            <div className="flex items-center justify-between px-1 mb-2">
+              <div className="flex items-center gap-1.5 cursor-pointer hover:opacity-80 transition-opacity" onClick={(e) => { e.stopPropagation(); setShowReactors(true); }}>
+                {activeEmojis.length > 0 && (
+                  <div className="flex -space-x-1">
+                    {activeEmojis.slice(0, 3).map((r, idx) => (
+                      <div 
+                        key={r.emoji} 
+                        className="w-5 h-5 rounded-full flex items-center justify-center border text-[10px] z-[3] shadow-sm relative" 
+                        style={{ 
+                          zIndex: 3 - idx, 
+                          background: hasBg ? 'rgba(255,255,255,0.2)' : 'var(--color-bg-surface)',
+                          borderColor: hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-border)'
+                        }}
+                      >
+                        {r.emoji}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {totalReactions > 0 && (
+                  <span className="text-xs font-medium" style={{ color: hasBg ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}>
+                    {totalReactions}
+                  </span>
+                )}
+              </div>
+              <div className="flex items-center gap-3">
+                {commentCount > 0 && (
+                  <span className="text-xs cursor-pointer hover:underline" onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }} style={{ color: hasBg ? 'rgba(255,255,255,0.8)' : 'var(--color-text-muted)' }}>
+                    {commentCount} {commentCount === 1 ? 'comment' : 'comments'}
+                  </span>
+                )}
+                {seenByText && (
+                  <span 
+                    className={`text-xs cursor-pointer hover:underline hover:text-primary transition-colors ${faintTextClass}`} 
+                    onClick={(e) => { e.stopPropagation(); setShowSeenBy(true); }}
+                    style={{ color: hasBg ? 'rgba(255,255,255,0.6)' : undefined }}
+                  >
+                    {seenByText}
+                  </span>
+                )}
+              </div>
+            </div>
+          );
+        })()}
 
-            return (
-              <Tooltip
-                key={r.emoji}
-                disabled={count === 0}
-                content={
-                  <>
-                    <div className="text-lg mb-1 leading-none">{r.emoji}</div>
-                    <div className="whitespace-pre-wrap">{reactorNamesString}</div>
-                  </>
-                }
-              >
+        {/* Bottom Row: Action Buttons */}
+        <div className="flex items-center justify-between border-t border-border-subtle pt-1 gap-1" style={{ borderColor: hasBg ? 'rgba(255,255,255,0.2)' : 'var(--color-border)' }}>
+          {/* Like Button with Hover Menu */}
+          <div className="relative group flex-1">
+            {/* Hover Menu with invisible bridge to prevent losing hover state */}
+            <div className="absolute bottom-full left-0 pb-2 hidden group-hover:block z-50">
+              <div className="flex items-center gap-1 border border-border-subtle rounded-full shadow-xl p-1 animate-in slide-in-from-bottom-2 fade-in duration-200" style={{ background: hasBg ? 'var(--color-bg-base)' : 'var(--color-bg-surface)' }}>
+                {REACTIONS.map((r) => (
+                  <button
+                    key={r.emoji}
+                    onClick={(e) => { e.stopPropagation(); handleToggleReaction(r.emoji); }}
+                    className="w-8 h-8 flex items-center justify-center text-xl hover:scale-125 transition-transform origin-bottom"
+                    title={r.label}
+                  >
+                    {r.emoji}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {(() => {
+              const userReaction = REACTIONS.find(r => optimisticReactions?.[r.emoji]?.includes(user?.id || ''));
+              return (
                 <button
-                  onClick={() => handleToggleReaction(r.emoji)}
-                  className="flex items-center gap-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-110 active:scale-95"
-                  style={{
-                    minHeight: '36px',
-                    padding: '0 0.75rem',
-                    background: hasReacted
-                      ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 12%, transparent)')
-                      : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
-                    border: hasReacted
-                      ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
-                      : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
-                    color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-muted)'),
-                  }}
+                  onClick={(e) => { e.stopPropagation(); handleToggleReaction(userReaction ? userReaction.emoji : '👍'); }}
+                  className="w-full flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-base/50 transition-colors font-semibold text-sm"
+                  style={{ color: userReaction ? 'var(--color-primary)' : (hasBg ? '#fff' : 'var(--color-text-muted)'), background: 'transparent' }}
                 >
-                  <span>{r.emoji}</span>
-                  {count > 0 && (
-                    <span
-                      className="text-sm font-medium"
-                      style={{ color: hasBg ? '#fff' : (hasReacted ? 'var(--color-primary)' : 'var(--color-text-main)') }}
-                    >
-                      {count}
-                    </span>
-                  )}
+                  {userReaction ? <span className="text-lg leading-none mb-[2px]">{userReaction.emoji}</span> : <ThumbsUp size={18} strokeWidth={2.5} />}
+                  <span>{userReaction ? userReaction.label : 'Like'}</span>
                 </button>
-              </Tooltip>
-            );
-          })}
-        </div>
+              );
+            })()}
+          </div>
 
-        {/* Right side actions */}
-        <div className="flex items-center gap-2">
+          {/* Comment Button */}
+          <button
+            onClick={(e) => { e.stopPropagation(); setShowComments(!showComments); }}
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-base/50 transition-colors font-semibold text-sm"
+            style={{ color: hasBg ? '#fff' : 'var(--color-text-muted)', background: 'transparent' }}
+          >
+            <MessageSquare size={18} strokeWidth={2.5} />
+            <span>Comment</span>
+          </button>
+
           {/* Share Button */}
           <button
-            onClick={() => {
-              if (!user) {
-                toast.error('You must be logged in to share.');
-                return;
-              }
-              setShowShareModal(true);
+            onClick={(e) => { 
+              e.stopPropagation();
+              if (!user) { toast.error('You must be logged in to share.'); return; }
+              setShowShareModal(true); 
             }}
-            className="flex items-center justify-center w-9 h-9 rounded-full transition-all duration-150 hover:scale-105 flex-shrink-0"
-            style={{
-              background: hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)',
-              border: hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)',
-              color: hasBg ? '#fff' : 'var(--color-text-muted)',
-            }}
-            title="Share post"
+            className="flex-1 flex items-center justify-center gap-1.5 py-1.5 rounded-lg hover:bg-base/50 transition-colors font-semibold text-sm"
+            style={{ color: hasBg ? '#fff' : 'var(--color-text-muted)', background: 'transparent' }}
           >
-            <Share2 size={16} />
-          </button>
-
-          {/* Comments pill */}
-          <button
-            onClick={() => setShowComments(!showComments)}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full font-medium text-sm transition-all duration-150 hover:scale-105 flex-shrink-0"
-            style={{
-              minHeight: '36px',
-              background: showComments
-                ? (hasBg ? 'rgba(255,255,255,0.25)' : 'color-mix(in srgb, var(--color-primary) 10%, transparent)')
-                : (hasBg ? 'rgba(255,255,255,0.1)' : 'var(--color-bg-surface)'),
-              border: showComments
-                ? (hasBg ? '1px solid rgba(255,255,255,0.5)' : '1px solid var(--color-primary)')
-                : (hasBg ? '1px solid rgba(255,255,255,0.15)' : '1px solid var(--color-border)'),
-              color: hasBg ? '#fff' : (showComments ? 'var(--color-primary)' : 'var(--color-text-muted)'),
-            }}
-          >
-            <span>💬 {commentCount === 0 ? 'Comment' : commentCount}</span>
+            <Share2 size={18} strokeWidth={2.5} />
+            <span>Share</span>
           </button>
         </div>
       </div>
 
-      {/* Views Counter */}
-      <div className={`min-h-[24px]`}>
-        {seenByText && (
-          <div 
-            className={`text-xs text-right pt-2 ${faintTextClass} cursor-help`}
-            title={seenByNames}
-          >
-            {seenByText}
-          </div>
-        )}
-      </div>
+
 
       {/* Comments Section */}
       {showComments && (
@@ -1040,8 +1049,41 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
 
       {/* Edit History Modal */}
       {showHistoryModal && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
-          <div className="bg-surface rounded-2xl w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh]">
+        isMobile ? (
+          <MobileBottomSheet isOpen={true} onClose={() => setShowHistoryModal(false)} maxHeight="80vh">
+            <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '50vh' }}>
+              <div className="p-4 border-b border-border flex items-center justify-between shrink-0">
+                <h2 className="text-lg font-heading font-bold text-main flex items-center gap-2">
+                  <Edit2 size={18} className="text-primary" /> Edit History
+                </h2>
+              </div>
+              <div className="p-4 overflow-y-auto custom-scrollbar flex flex-col gap-4">
+                {/* Current Version */}
+                <div className="relative pl-4 border-l-2 border-primary">
+                  <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-xs font-bold text-primary mb-1 uppercase tracking-wider">Current Version</p>
+                  <p className="text-sm text-main whitespace-pre-wrap">{post.content}</p>
+                </div>
+                
+                {/* Past Versions */}
+                {[...(post.editHistory || [])].reverse().map((history, idx) => (
+                  <div key={idx} className="relative pl-4 border-l-2 border-border-subtle opacity-75 hover:opacity-100 transition-opacity">
+                    <span className="absolute -left-[5px] top-1.5 w-2 h-2 rounded-full bg-border" />
+                    <p className="text-xs font-semibold text-muted mb-1">
+                      {new Date(history.editedAt).toLocaleString(undefined, {
+                        dateStyle: 'medium',
+                        timeStyle: 'short'
+                      })}
+                    </p>
+                    <p className="text-sm text-main whitespace-pre-wrap">{history.content}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </MobileBottomSheet>
+        ) : (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-surface rounded-2xl w-full max-w-md shadow-xl animate-in zoom-in-95 duration-200 overflow-hidden flex flex-col max-h-[80vh]">
             <div className="p-4 border-b border-border flex items-center justify-between">
               <h2 className="text-lg font-heading font-bold text-main flex items-center gap-2">
                 <Edit2 size={18} className="text-primary" /> Edit History
@@ -1075,8 +1117,24 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
                 </div>
               ))}
             </div>
+            </div>
           </div>
-        </div>
+        )
+      )}
+
+      {showReactors && (
+        <WhoReactedModal
+          reactions={optimisticReactions || {}}
+          onClose={() => setShowReactors(false)}
+        />
+      )}
+
+      {showSeenBy && (
+        <WhoSeenItModal
+          seenBy={post.seenBy || []}
+          postAuthorId={post.authorId}
+          onClose={() => setShowSeenBy(false)}
+        />
       )}
     </div>
   );
