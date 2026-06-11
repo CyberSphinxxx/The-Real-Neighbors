@@ -9,6 +9,7 @@ import { searchAnime, discoverAnimeByGenre, JIKAN_GENRE_MAP, type JikanResult } 
 import { X, Tv, Film, Sparkles, Search, Loader2, ChevronLeft, Star, Users } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { Select } from './../ui/Select';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   onClose: () => void;
@@ -398,43 +399,40 @@ export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryT
     );
   };
 
-  return (
-    <div 
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
-      onClick={() => {
-        if (step === 1 && !query) onClose(); // Only close on outside click if safe
-      }}
-    >
-      <div 
-        className="bg-surface border border-border-subtle rounded-2xl w-full max-w-[700px] shadow-2xl flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-150 overflow-hidden"
-        onClick={e => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-surface relative z-10 shrink-0">
-          <div className="flex items-center gap-3">
-            {step === 2 && !entryToEdit ? (
-              <button 
-                onClick={() => setStep(1)}
-                className="flex items-center gap-1 text-muted hover:text-main transition-colors text-sm"
-              >
-                <ChevronLeft size={16} /> Back
-              </button>
-            ) : (
-              <>
-                <Tv className="text-primary" size={18} />
-                <h2 className="text-lg font-heading font-semibold text-main">
-                  {step === 1 ? 'Add to Watchlist' : entryToEdit ? 'Edit Entry' : isManual ? 'Add Manually' : 'Confirm Entry'}
-                </h2>
-              </>
-            )}
-          </div>
-          <button 
-            onClick={onClose}
-            className="p-1.5 rounded-lg hover:bg-elevated text-muted hover:text-main transition-colors"
-          >
-            <X size={20} />
-          </button>
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-surface relative z-10 shrink-0">
+        <div className="flex items-center gap-3">
+          {step === 2 && !entryToEdit ? (
+            <button 
+              onClick={() => setStep(1)}
+              className="flex items-center gap-1 text-muted hover:text-main transition-colors text-sm"
+            >
+              <ChevronLeft size={16} /> Back
+            </button>
+          ) : (
+            <>
+              <Tv className="text-primary" size={18} />
+              <h2 className="text-lg font-heading font-semibold text-main">
+                {step === 1 ? 'Add to Watchlist' : entryToEdit ? 'Edit Entry' : isManual ? 'Add Manually' : 'Confirm Entry'}
+              </h2>
+            </>
+          )}
         </div>
+        <button 
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-elevated text-muted hover:text-main transition-colors"
+        >
+          <X size={20} />
+        </button>
+      </div>
 
         {/* STEP 1: SEARCH */}
         {step === 1 && (
@@ -820,6 +818,30 @@ export const AddWatchlistEntryModal: React.FC<Props> = ({ onClose, users, entryT
             </div>
           </form>
         )}
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={() => {
+      if (step === 1 && !query) onClose();
+      else if (step === 2) onClose();
+    }} maxHeight="95vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '80vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div 
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 bg-black/60 backdrop-blur-sm animate-in fade-in duration-150"
+      onClick={() => {
+        if (step === 1 && !query) onClose(); // Only close on outside click if safe
+      }}
+    >
+      <div 
+        className="bg-surface border border-border-subtle rounded-2xl w-full max-w-[700px] shadow-2xl flex flex-col max-h-[95vh] animate-in zoom-in-95 duration-150 overflow-hidden"
+        onClick={e => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
