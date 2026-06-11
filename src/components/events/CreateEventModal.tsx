@@ -7,6 +7,7 @@ import { X, Calendar, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { Event } from '../../types';
 import { DateTimePicker } from './DateTimePicker';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   onClose: () => void;
@@ -101,19 +102,24 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit, prefil
     }
   };
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-      
-      <div className="relative w-full max-w-lg bg-base rounded-t-2xl sm:rounded-2xl shadow-2xl border border-border-subtle overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300">
-        <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-surface">
-          <h2 className="text-xl font-heading font-bold text-main flex items-center gap-2">
-            <Calendar className="text-primary" /> {eventToEdit ? 'Edit Event' : 'Create Event'}
-          </h2>
-          <button onClick={onClose} className="p-2 rounded-full text-muted hover:bg-base hover:text-main transition-colors">
-            <X size={20} />
-          </button>
-        </div>
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+      <div className="flex items-center justify-between p-4 border-b border-border-subtle bg-surface shrink-0">
+        <h2 className="text-xl font-heading font-bold text-main flex items-center gap-2">
+          <Calendar className="text-primary" /> {eventToEdit ? 'Edit Event' : 'Create Event'}
+        </h2>
+        <button onClick={onClose} className="p-2 rounded-full text-muted hover:bg-base hover:text-main transition-colors">
+          <X size={20} />
+        </button>
+      </div>
 
         <form onSubmit={handleSubmit} className="p-4 sm:p-6 space-y-4 max-h-[80vh] overflow-y-auto">
           <div>
@@ -178,7 +184,7 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit, prefil
             />
           </div>
 
-          <div className="pt-4 mt-2 border-t border-border-subtle">
+          <div className="pt-4 mt-2 border-t border-border-subtle shrink-0">
             <button 
               type="submit"
               disabled={isSubmitting || !title || !dateStr}
@@ -194,6 +200,21 @@ export const CreateEventModal: React.FC<Props> = ({ onClose, eventToEdit, prefil
             </button>
           </div>
         </form>
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
+      
+      <div className="relative w-full max-w-lg bg-base rounded-2xl shadow-2xl border border-border-subtle overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+        {modalContent}
       </div>
     </div>
   );
