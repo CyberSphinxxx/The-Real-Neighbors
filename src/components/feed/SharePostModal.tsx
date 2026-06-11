@@ -1,10 +1,11 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Share2, Loader2, Image as ImageIcon, Link2 } from 'lucide-react';
+import { X, Share2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import type { Post, User } from '../../types';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { formatTimeAgo } from '../../utils/date';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface Props {
   post: Post;
@@ -42,18 +43,15 @@ export const SharePostModal: React.FC<Props> = ({ post, author, onClose, onShare
   };
 
   const charsLeft = 280 - caption.length;
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
-  return createPortal(
-    <div className="fixed inset-0 z-[100] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-in fade-in duration-200">
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!isSubmitting ? onClose : undefined} />
-      
-      <div 
-        className="relative w-full max-w-[520px] rounded-t-3xl sm:rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-bottom-8 sm:slide-in-from-bottom-4 duration-300 flex flex-col max-h-[90vh]"
-        style={{
-          background: 'var(--color-bg-surface)',
-          border: '1px solid var(--color-border)',
-        }}
-      >
+  const modalContent = (
+    <>
         {/* Header */}
         <div 
           className="flex items-center justify-between px-5 py-3.5 flex-shrink-0"
@@ -200,20 +198,26 @@ export const SharePostModal: React.FC<Props> = ({ post, author, onClose, onShare
                   )}
                 </div>
 
-                {/* Image / Link attachment indicator */}
+                {/* Image / Link attachment preview */}
                 {(post.imageUrl || post.linkMeta) && (
                   <div 
-                    className="px-4 py-2.5 flex items-center gap-4"
+                    className="px-4 py-3 flex flex-col gap-2"
                     style={{ borderTop: '1px solid var(--color-border-subtle)' }}
                   >
                     {post.imageUrl && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                        <ImageIcon size={12} /> Image attached
+                      <div className="w-full h-32 rounded-lg overflow-hidden" style={{ background: 'var(--color-bg-elevated)' }}>
+                        <img src={post.imageUrl} alt="Attached" className="w-full h-full object-cover" />
                       </div>
                     )}
                     {post.linkMeta && (
-                      <div className="flex items-center gap-1.5 text-[11px] font-medium" style={{ color: 'var(--color-text-muted)' }}>
-                        <Link2 size={12} /> Link attached
+                      <div className="flex items-center gap-3 p-2 rounded-lg" style={{ background: 'var(--color-bg-elevated)' }}>
+                        {post.linkMeta.image && (
+                          <img src={post.linkMeta.image} alt="" className="w-12 h-12 object-cover rounded shadow-sm" />
+                        )}
+                        <div className="flex flex-col overflow-hidden">
+                          <span className="text-[12px] font-bold truncate" style={{ color: 'var(--color-text-main)' }}>{post.linkMeta.title}</span>
+                          <span className="text-[10px] truncate" style={{ color: 'var(--color-text-faint)' }}>{new URL(post.linkMeta.url).hostname}</span>
+                        </div>
                       </div>
                     )}
                   </div>
@@ -257,8 +261,31 @@ export const SharePostModal: React.FC<Props> = ({ post, author, onClose, onShare
             )}
           </button>
         </div>
+    </>
+  );
+
+  return createPortal(
+    isMobile ? (
+      <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+        <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '60vh' }}>
+          {modalContent}
+        </div>
+      </MobileBottomSheet>
+    ) : (
+      <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 animate-in fade-in duration-200">
+        <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={!isSubmitting ? onClose : undefined} />
+        
+        <div 
+          className="relative w-full max-w-[520px] rounded-2xl shadow-2xl overflow-hidden animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]"
+          style={{
+            background: 'var(--color-bg-surface)',
+            border: '1px solid var(--color-border)',
+          }}
+        >
+          {modalContent}
+        </div>
       </div>
-    </div>,
+    ),
     document.body
   );
 };
