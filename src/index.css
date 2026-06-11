@@ -226,3 +226,13 @@ input[type=range].custom-slider::-moz-range-track {
   border: none;
 }
 
+/* Mobile global fixes */
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+}
+
+.pb-safe {
+  padding-bottom: max(8px, env(safe-area-inset-bottom));
+}
