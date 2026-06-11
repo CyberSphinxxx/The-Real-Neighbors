@@ -7,6 +7,7 @@ import { db } from '../../lib/firebase';
 import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT } from '../../lib/botbotPersonality';
 import type { Post } from '../../types';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
 
 interface FeedCatchUpProps {
   isModal?: boolean;
@@ -20,19 +21,59 @@ const TIME_RANGES = [
   { id: '7d', label: '7 days', ms: 7 * 24 * 60 * 60 * 1000 }
 ];
 
-// Simple in-memory cache to save API calls when modal is closed and reopened
-let cachedSummary = '';
-let cachedStats = { postCount: 0, uniqueAuthors: 0, totalReactions: 0 };
-let cachedNoPosts = false;
-let cachedRangeId = '24h';
+const getCache = () => {
+  try {
+    const cached = localStorage.getItem('feed_catchup_cache');
+    if (cached) {
+      const parsed = JSON.parse(cached);
+      if (parsed.date === new Date().toDateString()) {
+        return parsed.ranges || {};
+      }
+    }
+  } catch(e) {}
+  return {};
+};
+
+const saveToCache = (rangeId: string, data: any) => {
+  const cache = getCache();
+  cache[rangeId] = data;
+  try {
+    localStorage.setItem('feed_catchup_cache', JSON.stringify({
+      date: new Date().toDateString(),
+      ranges: cache
+    }));
+  } catch(e) {}
+};
 
 export const FeedCatchUp: React.FC<FeedCatchUpProps> = ({ isModal = false, onClose }) => {
   const navigate = useNavigate();
-  const [selectedRange, setSelectedRange] = useState(TIME_RANGES.find(r => r.id === cachedRangeId) || TIME_RANGES[1]);
+  const initialCache = getCache();
+  const initialRange = TIME_RANGES.find(r => initialCache[r.id]) || TIME_RANGES[1];
+  const [selectedRange, setSelectedRange] = useState(initialRange);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [summary, setSummary] = useState(cachedSummary);
-  const [stats, setStats] = useState(cachedStats);
-  const [noPosts, setNoPosts] = useState(cachedNoPosts);
+  const [summary, setSummary] = useState(initialCache[initialRange.id]?.summary || '');
+  const [stats, setStats] = useState(initialCache[initialRange.id]?.stats || { postCount: 0, uniqueAuthors: 0, totalReactions: 0 });
+  const [noPosts, setNoPosts] = useState(initialCache[initialRange.id]?.noPosts || false);
+
+  const handleRangeChange = (range: any) => {
+    setSelectedRange(range);
+    const cache = getCache();
+    if (cache[range.id]) {
+      setSummary(cache[range.id].summary);
+      setStats(cache[range.id].stats);
+      setNoPosts(cache[range.id].noPosts);
+    } else {
+      setSummary('');
+      setNoPosts(false);
+    }
+  };
+
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  React.useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const handleGenerate = async () => {
     setIsGenerating(true);
@@ -53,10 +94,8 @@ export const FeedCatchUp: React.FC<FeedCatchUpProps> = ({ isModal = false, onClo
       
       if (posts.length === 0) {
         setNoPosts(true);
-        cachedNoPosts = true;
+        saveToCache(selectedRange.id, { summary: '', stats: { postCount: 0, uniqueAuthors: 0, totalReactions: 0 }, noPosts: true });
         setSummary('');
-        cachedSummary = '';
-        cachedRangeId = selectedRange.id;
         setIsGenerating(false);
         return;
       }
@@ -69,7 +108,7 @@ export const FeedCatchUp: React.FC<FeedCatchUpProps> = ({ isModal = false, onClo
       
       const newStats = { postCount: posts.length, uniqueAuthors, totalReactions };
       setStats(newStats);
-      cachedStats = newStats;
+
       
       // Fetch user data for names
       const usersSnap = await getDocs(collection(db, 'users'));
@@ -99,9 +138,7 @@ Write a casual Taglish summary like you're a friend updating another friend who 
       ]);
       
       setSummary(response.content);
-      cachedSummary = response.content;
-      cachedNoPosts = false;
-      cachedRangeId = selectedRange.id;
+      saveToCache(selectedRange.id, { summary: response.content, stats: newStats, noPosts: false });
     } catch (error) {
       console.error('Failed to generate catch-up:', error);
       toast.error('Failed to generate summary.');
@@ -168,7 +205,7 @@ Write a casual Taglish summary like you're a friend updating another friend who 
           {TIME_RANGES.map(range => (
             <button
               key={range.id}
-              onClick={() => setSelectedRange(range)}
+              onClick={() => handleRangeChange(range)}
               className={`px-4 py-1.5 rounded-full text-xs font-semibold transition-colors border ${
                 selectedRange.id === range.id
                   ? 'bg-primary/15 border-primary text-primary'
@@ -249,7 +286,7 @@ Write a casual Taglish summary like you're a friend updating another friend who 
                 <button
                   onClick={() => {
                     if (onClose) onClose();
-                    navigate('/ai?tool=catchup');
+                    navigate('/ai?tool=feed');
                   }}
                   className="text-sm font-medium text-primary hover:text-primary-hover transition-colors flex items-center gap-1 whitespace-nowrap shrink-0"
                 >
@@ -268,10 +305,19 @@ Write a casual Taglish summary like you're a friend updating another friend who 
   );
 
   if (isModal) {
+    if (isMobile) {
+      return (
+        <MobileBottomSheet isOpen={true} onClose={onClose || (() => {})} maxHeight="90vh">
+          <div className="flex flex-col w-full bg-base overflow-y-auto custom-scrollbar p-4">
+            {content}
+          </div>
+        </MobileBottomSheet>
+      );
+    }
     return (
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
         <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onClose} />
-        <div className="relative w-full max-w-lg bg-base rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-6">
+        <div className="relative w-full max-w-lg bg-base rounded-2xl shadow-xl overflow-hidden animate-in fade-in zoom-in-95 p-6 max-h-[90vh] overflow-y-auto custom-scrollbar">
           {content}
         </div>
       </div>
