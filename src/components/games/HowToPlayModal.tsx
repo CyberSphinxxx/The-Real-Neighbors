@@ -1,6 +1,8 @@
 import { X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { type GameConfig } from '../../lib/gameUtils';
+import { MobileBottomSheet } from '../ui/MobileBottomSheet';
+import React, { useState, useEffect } from 'react';
 
 interface HowToPlayModalProps {
   game: GameConfig;
@@ -10,13 +12,16 @@ interface HowToPlayModalProps {
 export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ game, onClose }) => {
   const navigate = useNavigate();
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
-      <div 
-        className="bg-surface rounded-2xl border border-border-subtle shadow-lg w-full max-w-[420px] overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="flex items-center justify-between p-4 border-b border-border-subtle">
+  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  const modalContent = (
+    <>
+        <div className="flex items-center justify-between p-4 border-b border-border-subtle shrink-0">
           <div className="flex items-center gap-2">
             <span className="text-2xl">{game.icon}</span>
             <h2 className="font-heading font-bold text-lg text-main">{game.name}</h2>
@@ -49,7 +54,7 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ game, onClose })
           />
         </div>
 
-        <div className="p-4 pt-0">
+        <div className="p-4 pt-0 shrink-0">
           <button 
             className="w-full bg-primary text-on-primary rounded-full py-2.5 font-medium hover:brightness-110 transition-all"
             onClick={() => {
@@ -60,6 +65,22 @@ export const HowToPlayModal: React.FC<HowToPlayModalProps> = ({ game, onClose })
             Play Now →
           </button>
         </div>
+    </>
+  );
+
+  return isMobile ? (
+    <MobileBottomSheet isOpen={true} onClose={onClose} maxHeight="90vh">
+      <div className="flex flex-col h-full w-full bg-base overflow-hidden relative" style={{ minHeight: '50vh' }}>
+        {modalContent}
+      </div>
+    </MobileBottomSheet>
+  ) : (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+      <div 
+        className="bg-surface rounded-2xl border border-border-subtle shadow-lg w-full max-w-[420px] flex flex-col max-h-[90vh] overflow-hidden"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {modalContent}
       </div>
     </div>
   );
