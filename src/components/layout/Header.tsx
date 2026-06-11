@@ -11,7 +11,9 @@ import {
   X,
   SquarePen,
   Users,
-  Home
+  Home,
+  Menu,
+  Plus
 } from 'lucide-react';
 import { NotificationBell } from './NotificationBell';
 import { useAuthStore } from '../../stores/authStore';
@@ -210,7 +212,7 @@ export const Header: React.FC = () => {
         top: 0,
         left: 0,
         right: 0,
-        height: '48px',
+        height: isMobile ? '52px' : '48px',
         zIndex: 60,
         background: 'color-mix(in srgb, var(--color-bg-surface) 80%, transparent)',
         backdropFilter: 'blur(12px)',
@@ -284,20 +286,31 @@ export const Header: React.FC = () => {
             style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0, zIndex: 1 }}
             ref={!isMobile ? searchContainerRef : undefined}
           >
-            {/* Logo */}
-            <Link
-              to="/feed"
-              title="Home"
-              className="flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-80"
-              style={{ textDecoration: 'none' }}
-            >
-              <Home className="text-primary w-[18px] h-[18px]" strokeWidth={2} style={{ color: 'var(--color-primary)' }} />
-              {!searchExpanded && (
-                <span className="hidden md:inline font-heading font-bold text-sm text-main">
-                  Neighbors
-                </span>
-              )}
-            </Link>
+            {/* Logo or Hamburger */}
+            {isMobile ? (
+              <button
+                onClick={() => window.dispatchEvent(new CustomEvent('toggleMobileDrawer'))}
+                title="Menu"
+                className="flex items-center justify-center p-2 rounded-lg text-main hover:bg-elevated transition-colors"
+                style={{ width: '40px', height: '40px' }}
+              >
+                <Menu size={22} />
+              </button>
+            ) : (
+              <Link
+                to="/feed"
+                title="Home"
+                className="flex items-center gap-1.5 shrink-0 transition-opacity hover:opacity-80"
+                style={{ textDecoration: 'none' }}
+              >
+                <Home className="text-primary w-[18px] h-[18px]" strokeWidth={2} style={{ color: 'var(--color-primary)' }} />
+                {!searchExpanded && (
+                  <span className="hidden md:inline font-heading font-bold text-sm text-main">
+                    Neighbors
+                  </span>
+                )}
+              </Link>
+            )}
 
             {/* Search */}
             {!searchExpanded ? (
@@ -399,14 +412,18 @@ export const Header: React.FC = () => {
           >
             {/* Mobile Title */}
             <div className="flex md:hidden items-center h-full">
-              <span className="font-heading font-bold text-[17px] text-main">
-                {isFeedPage ? (activeTab === 'our_feed' ? 'Our Feed' : 'Explore') : 
-                 location.pathname === '/watchlist' ? 'Watchlist' :
-                 location.pathname.startsWith('/events') ? 'Events' :
-                 location.pathname === '/birthdays' ? 'Birthdays' :
-                 location.pathname === '/links' ? 'Links' :
-                 location.pathname.startsWith('/profile') ? 'Profile' : 'Neighbors'}
-              </span>
+              <span className="font-heading font-semibold text-base text-main">
+                  {location.pathname === '/watchlist' ? 'Watchlist' :
+                   location.pathname.startsWith('/events') ? 'Events' :
+                   location.pathname === '/birthdays' ? 'Birthdays' :
+                   location.pathname === '/links' ? 'Links' :
+                   location.pathname.startsWith('/profile') ? 'Profile' :
+                   location.pathname.startsWith('/chat') ? 'Chat' :
+                   location.pathname.startsWith('/games') ? 'Game Room' :
+                   location.pathname.startsWith('/ai') ? 'Botbot' :
+                   location.pathname === '/settings' ? 'Settings' : 'Neighbors'}
+                </span>
+
             </div>
 
             {/* Desktop Tabs */}
@@ -519,12 +536,14 @@ export const Header: React.FC = () => {
               </span>
             </div>
 
-            {/* Quick post button */}
-            <HeaderIconButton
-              onClick={handleQuickPost}
-              title="New post"
-              icon={<SquarePen size={18} />}
-            />
+            {/* Quick post button (Desktop only, mobile uses FAB) */}
+            <div className="hidden md:block">
+              <HeaderIconButton
+                onClick={handleQuickPost}
+                title="New post"
+                icon={<SquarePen size={18} />}
+              />
+            </div>
 
             {/* Theme toggle */}
             <div className="hidden md:block">
@@ -618,6 +637,23 @@ export const Header: React.FC = () => {
           .hidden-mobile { display: none !important; }
         }
       `}</style>
+
+      {/* FAB for Feed on Mobile */}
+      {isMobile && isFeedPage && (
+        <button
+          onClick={handleQuickPost}
+          className="fixed z-45 flex items-center justify-center rounded-full bg-primary text-on-primary animate-in zoom-in duration-200"
+          style={{
+            bottom: '80px',
+            right: '16px',
+            width: '52px',
+            height: '52px',
+            boxShadow: '0 4px 16px rgba(var(--color-primary-rgb), 0.4)'
+          }}
+        >
+          <Plus size={24} color="#ffffff" />
+        </button>
+      )}
     </header>
   );
 };
