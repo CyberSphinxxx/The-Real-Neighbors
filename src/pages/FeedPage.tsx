@@ -343,8 +343,13 @@ export const FeedPage: React.FC = () => {
       filtered.sort((a, b) => {
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
-        const timeA = new Date(a.createdAt).getTime();
-        const timeB = new Date(b.createdAt).getTime();
+        const getTime = (val: any) => {
+          if (!val) return 0;
+          if (typeof val.toDate === 'function') return val.toDate().getTime();
+          return new Date(val).getTime();
+        };
+        const timeA = getTime(a.createdAt);
+        const timeB = getTime(b.createdAt);
         return timeB - timeA;
       });
     }
