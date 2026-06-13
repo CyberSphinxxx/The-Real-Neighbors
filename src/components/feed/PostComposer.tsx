@@ -234,13 +234,16 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
       const newPost: Omit<Post, 'id'> = {
         authorId: user.id,
         content: content.trim(),
-        linkUrl: linkMeta ? linkMeta.url : undefined,
-        linkMeta: linkMeta || undefined,
         reactions: {},
         comments: [],
         isPinned: false,
         createdAt: Date.now(),
       };
+
+      if (linkMeta) {
+        newPost.linkUrl = linkMeta.url;
+        newPost.linkMeta = linkMeta;
+      }
 
       if (selectedVibeTag) newPost.vibeTag = selectedVibeTag;
       if (selectedBgColor) newPost.bgColor = selectedBgColor;
