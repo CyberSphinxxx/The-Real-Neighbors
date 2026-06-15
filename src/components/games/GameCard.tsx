@@ -21,6 +21,12 @@ const formatScore = (gameId: string, entry: ScoreEntry) => {
       ? `${entry.metadata.reactionTimeMs}ms` 
       : `${1000 - entry.score}ms`;
   }
+  if (gameId === 'hiragana') {
+    if (entry.metadata?.mode === 'all') {
+      return `${entry.metadata.correctCount}/${entry.metadata.totalCards}`;
+    }
+    return `${entry.score} pts`;
+  }
   return entry.score.toString();
 };
 

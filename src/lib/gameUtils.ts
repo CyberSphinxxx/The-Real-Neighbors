@@ -106,6 +106,24 @@ export const GAMES_CONFIG: GameConfig[] = [
       'Race against your friends ghost cursor.',
       'Your results are saved to the leaderboard after each race.'
     ]
+  },
+  {
+    id: 'hiragana',
+    name: 'Hiragana Quiz',
+    description: 'Test your Japanese hiragana knowledge.',
+    icon: '🎌',
+    accentColor: '#e11d48',
+    isMobileFriendly: true,
+    isAvailable: true,
+    category: 'trivia',
+    howToPlay: [
+      'Identify the hiragana character shown on the flashcard.',
+      'All Hiragana: go through all characters once.',
+      'Speed Round: 10 random cards, faster = more points.',
+      'Type It: type the romaji — no hints!',
+      'Study Mode: learn at your own pace, no pressure.',
+      'Settings let you include dakuten and combination characters.'
+    ]
   }
 ];
 
@@ -190,6 +208,8 @@ export async function getWeeklyLeaderboard(gameId: string, subMode?: string): Pr
       if (subMode === 'timed_60') return doc.metadata?.mode === 'timed' && doc.metadata?.timedDuration === 60;
       return true;
     });
+  } else if (gameId === 'hiragana' && subMode && subMode !== 'all') {
+    docs = docs.filter(doc => doc.metadata?.mode === subMode);
   }
 
   // Deduplicate by uid to only show the best score per user per subMode
@@ -206,7 +226,7 @@ export async function getWeeklyLeaderboard(gameId: string, subMode?: string): Pr
   return docs.slice(0, 10);
 }
 
-export async function getPersonalBest(gameId: string): Promise<ScoreEntry | null> {
+export async function getPersonalBest(gameId: string, subMode?: string): Promise<ScoreEntry | null> {
   const user = useAuthStore.getState().user;
   if (!user) return null;
 
@@ -217,7 +237,23 @@ export async function getPersonalBest(gameId: string): Promise<ScoreEntry | null
 
   const snapshot = await getDocs(bestQuery);
   if (snapshot.empty) return null;
-  const docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScoreEntry));
+  let docs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as ScoreEntry));
+  
+  if (subMode && subMode !== 'all') {
+    if (gameId === 'typeracer') {
+      docs = docs.filter(doc => {
+        if (subMode === 'words') return doc.metadata?.mode === 'words';
+        if (subMode === 'quotes') return doc.metadata?.mode === 'quote';
+        if (subMode === 'timed_30') return doc.metadata?.mode === 'timed' && doc.metadata?.timedDuration === 30;
+        if (subMode === 'timed_60') return doc.metadata?.mode === 'timed' && doc.metadata?.timedDuration === 60;
+        return true;
+      });
+    } else if (gameId === 'hiragana') {
+      docs = docs.filter(doc => doc.metadata?.mode === subMode);
+    }
+  }
+
+  if (docs.length === 0) return null;
   docs.sort((a, b) => b.score - a.score);
   return docs[0];
 }

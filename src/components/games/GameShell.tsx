@@ -6,20 +6,22 @@ import { GAMES_CONFIG, getPersonalBest, isMobileDevice, type ScoreEntry } from '
 interface GameShellProps {
   gameId: string;
   children: React.ReactNode;
+  subMode?: string;
+  onBack?: () => void;
 }
 
-export const GameShell: React.FC<GameShellProps> = ({ gameId, children }) => {
+export const GameShell: React.FC<GameShellProps> = ({ gameId, subMode, children, onBack }) => {
   const navigate = useNavigate();
   const game = GAMES_CONFIG.find(g => g.id === gameId);
   const [personalBest, setPersonalBest] = useState<ScoreEntry | null>(null);
 
   useEffect(() => {
     async function fetchBest() {
-      const best = await getPersonalBest(gameId);
+      const best = await getPersonalBest(gameId, subMode);
       setPersonalBest(best);
     }
     fetchBest();
-  }, [gameId]);
+  }, [gameId, subMode]);
 
   if (!game) return <div>Game not found</div>;
 
@@ -38,7 +40,7 @@ export const GameShell: React.FC<GameShellProps> = ({ gameId, children }) => {
       {/* Top Bar */}
       <div className="mt-4 mx-4 mb-2 h-14 bg-surface/80 backdrop-blur-md border border-border-subtle rounded-2xl flex items-center justify-between px-5 flex-shrink-0 z-10 shadow-sm relative">
         <button 
-          onClick={() => navigate('/games')}
+          onClick={onBack ? onBack : () => navigate('/games')}
           className="flex items-center gap-2 text-muted hover:text-main transition-colors bg-elevated/50 hover:bg-elevated px-3 py-1.5 rounded-xl border border-transparent hover:border-border-subtle"
         >
           <ArrowLeft className="w-4 h-4" />
@@ -52,7 +54,7 @@ export const GameShell: React.FC<GameShellProps> = ({ gameId, children }) => {
 
         <div className="min-w-[100px] flex justify-end">
           {personalBest && (
-            <span className="bg-primary/10 text-primary text-xs rounded-xl px-3 py-1.5 font-bold border border-primary/20 shadow-sm">
+            <span className="text-primary text-xs rounded-xl px-3 py-1.5 font-bold border border-primary shadow-sm">
               Best: {formatScore(personalBest.score)}
             </span>
           )}

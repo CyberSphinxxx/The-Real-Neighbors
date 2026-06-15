@@ -24,6 +24,7 @@ const WordlePage = React.lazy(() => import('./pages/games/WordlePage'));
 const TriviaPage = React.lazy(() => import('./pages/games/TriviaPage'));
 const ReactionPage = React.lazy(() => import('./pages/games/ReactionPage'));
 const TypeRacerPage = React.lazy(() => import('./pages/games/TypeRacerPage'));
+const HiraganaPage = React.lazy(() => import('./pages/games/HiraganaPage'));
 
 function App() {
   return (
@@ -56,6 +57,7 @@ function App() {
           <Route path="games/trivia" element={<TriviaPage />} />
           <Route path="games/reaction" element={<ReactionPage />} />
           <Route path="games/typeracer" element={<TypeRacerPage />} />
+          <Route path="games/hiragana" element={<HiraganaPage />} />
         </Route>
       </Routes></Suspense>
       <Toaster position="bottom-center" />
