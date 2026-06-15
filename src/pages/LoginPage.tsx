@@ -1,10 +1,8 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithPopup } from 'firebase/auth';
-import { auth, googleProvider, rtdb, db } from '../lib/firebase';
+import { auth, googleProvider } from '../lib/firebase';
 import { getDoc } from '../lib/firestore';
-import { ref, get } from 'firebase/database';
-import { collection, getCountFromServer } from 'firebase/firestore';
 import VanillaTilt from 'vanilla-tilt';
 import gsap from 'gsap';
 import { useTextScramble } from '../hooks/useTextScramble';
@@ -45,8 +43,8 @@ const TAGLINES = [
 export const LoginPage: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
-  const [onlineCount, setOnlineCount] = useState<number | null>(null);
-  const [totalNeighbors, setTotalNeighbors] = useState<number | null>(null);
+  const [totalNeighbors] = useState<number | null>(null);
+  const [onlineCount] = useState<number | null>(null);
   const navigate = useNavigate();
   
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -63,39 +61,7 @@ export const LoginPage: React.FC = () => {
   const scrambledTitle = useTextScramble('The Real Neighbors', 300);
   const { displayText, isTyping } = useTypewriter({ texts: TAGLINES });
 
-  // Fetch online count
-  useEffect(() => {
-    const fetchOnlineCount = async () => {
-      try {
-        const snapshot = await get(ref(rtdb, 'presence'));
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          let count = 0;
-          for (const key in data) {
-            if (data[key].online) count++;
-          }
-          if (count > 0) setOnlineCount(count);
-        }
-      } catch (e) {
-        console.error('Failed to fetch online presence count:', e);
-      }
-    };
-    fetchOnlineCount();
-  }, []);
 
-  // Fetch total users count
-  useEffect(() => {
-    const fetchTotalCount = async () => {
-      try {
-        const coll = collection(db, 'users');
-        const snapshot = await getCountFromServer(coll);
-        setTotalNeighbors(snapshot.data().count);
-      } catch (e) {
-        console.error('Failed to fetch total users count:', e);
-      }
-    };
-    fetchTotalCount();
-  }, []);
 
   // 1. Sparkle Trail
   useEffect(() => {
@@ -589,19 +555,6 @@ export const LoginPage: React.FC = () => {
                   </div>
                 </div>
 
-                {/* A. Live member count */}
-                {onlineCount !== null && (
-                  <div>
-                    <div className="inline-flex items-center gap-2 bg-white/8 border border-white/10 rounded-full px-4 py-2 text-white/60 text-sm">
-                      <div className="relative flex h-2 w-2">
-                        <span className="animate-ping-slow absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
-                        <span className="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
-                      </div>
-                      {onlineCount} neighbor{onlineCount !== 1 ? 's' : ''} online right now
-                    </div>
-                  </div>
-                )}
-
                 {/* C. Testimonial */}
                 <div className="bg-white/5 border border-white/8 rounded-2xl px-5 py-4 backdrop-blur-sm flex items-start gap-3 w-full">
                   <span className="font-heading text-4xl text-primary leading-none mt-[-4px] flex-shrink-0">"</span>
@@ -772,7 +725,7 @@ export const LoginPage: React.FC = () => {
                       </div>
                     </div>
                     <span className="text-white/60 font-medium text-xs">
-                      {totalNeighbors !== null ? `+ ${totalNeighbors} neighbors inside` : '+ A few neighbors inside'}
+                      + A few neighbors inside
                     </span>
                   </div>
                 </div>

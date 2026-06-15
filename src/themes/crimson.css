@@ -1,0 +1,31 @@
+:root.crimson {
+  --color-bg-base: #4c0519; /* Rose 950 */
+  --color-bg-surface: #881337; /* Rose 900 */
+  --color-bg-elevated: #9f1239; /* Rose 800 */
+  
+  --color-primary: #fb7185; /* Rose 400 */
+  --color-primary-hover: #f43f5e; /* Rose 500 */
+  --color-on-primary: #22010b; /* Very dark rose */
+  
+  --color-secondary: #facc15; /* Yellow 400 */
+  --color-accent: #c084fc; /* Purple 400 */
+  
+  --color-text-main: #ffe4e6; /* Rose 50 */
+  --color-text-muted: #fda4af; /* Rose 300 */
+  --color-text-faint: #e11d48; /* Rose 600 */
+  
+  --color-border: #be123c; /* Rose 700 */
+  --color-border-subtle: #881337; /* Rose 900 */
+  
+  --color-danger: #f87171; /* Red 400 */
+  --color-success: #34d399; /* Emerald 400 */
+  --color-warning: #fbbf24; /* Amber 400 */
+
+  /* Avatar palette */
+  --avatar-color-0: #fb7185;
+  --avatar-color-1: #facc15;
+  --avatar-color-2: #c084fc;
+  --avatar-color-3: #60a5fa;
+  --avatar-color-4: #34d399;
+  --avatar-color-5: #a78bfa;
+}

@@ -100,7 +100,7 @@ export const TriviaQuestion: React.FC<TriviaQuestionProps> = ({
         <span className="absolute -top-3 right-4 bg-elevated border border-border-subtle text-faint text-xs font-bold px-3 py-1 rounded-full uppercase tracking-wider">
           {question.category}
         </span>
-        <h3 className="font-semibold text-lg text-main text-center leading-snug">
+        <h3 className="font-semibold text-lg text-main text-center leading-snug select-none">
           {question.question}
         </h3>
       </div>
@@ -121,7 +121,7 @@ export const TriviaQuestion: React.FC<TriviaQuestionProps> = ({
             }`}>
               {['A', 'B', 'C', 'D'][index]}
             </div>
-            <span className="flex-1 leading-snug">{option}</span>
+            <span className="flex-1 leading-snug select-none">{option}</span>
           </button>
         ))}
       </div>

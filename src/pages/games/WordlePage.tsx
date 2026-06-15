@@ -248,9 +248,9 @@ export default function WordlePage() {
 
   return (
     <GameShell gameId="wordle">
-      <div className="flex flex-col items-center min-h-[calc(100vh-48px)] pb-16">
+      <div className="flex flex-col items-center h-full">
         
-        <div className="flex-1 w-full max-w-md mx-auto flex flex-col justify-center my-4">
+        <div className="flex-1 w-full max-w-md mx-auto flex flex-col justify-center my-4 overflow-y-auto min-h-0">
           <WordleBoard 
             guesses={guesses} 
             currentRowIndex={currentRow} 
@@ -260,7 +260,7 @@ export default function WordlePage() {
 
         {/* Keyboard or Result overlay */}
         {gameStatus === 'playing' ? (
-          <div className="w-full pb-4 sm:pb-8 fixed sm:static bottom-0 left-0 right-0 bg-background sm:bg-transparent z-20">
+          <div className="w-full pb-4 sm:pb-8 mt-auto z-20 shrink-0">
             <WordleKeyboard 
               onKeyPress={onKeyPress} 
               letterStates={letterStates} 

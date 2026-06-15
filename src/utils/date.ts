@@ -1,5 +1,20 @@
-export function formatTimeAgo(timestamp: string | number | Date): string {
-  const date = new Date(timestamp);
+export function formatTimeAgo(timestamp: any): string {
+  if (!timestamp) return '';
+
+  let date: Date;
+
+  // Handle Firestore Timestamp objects (they have .toDate() or .seconds)
+  if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.toDate === 'function') {
+    date = timestamp.toDate();
+  } else if (typeof timestamp === 'object' && timestamp !== null && typeof timestamp.seconds === 'number') {
+    date = new Date(timestamp.seconds * 1000);
+  } else {
+    date = new Date(timestamp);
+  }
+
+  // Guard against invalid dates
+  if (isNaN(date.getTime())) return '';
+
   const now = new Date();
   const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
 

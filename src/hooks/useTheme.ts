@@ -2,12 +2,12 @@ import { useState, useEffect } from 'react';
 import { Sun, Moon, SunMoon } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
-export type ThemeName = 'default' | 'dark' | 'amoled' | 'synthwave' | 'midnight' | 'forest' | 'sunset' | 'ocean';
+export type ThemeName = 'default' | 'dark' | 'amoled' | 'synthwave' | 'midnight' | 'forest' | 'sunset' | 'ocean' | 'crimson';
 
-const THEME_ORDER: ThemeName[] = ['default', 'dark', 'amoled', 'synthwave', 'midnight', 'forest', 'sunset', 'ocean'];
+const THEME_ORDER: ThemeName[] = ['default', 'dark', 'amoled', 'synthwave', 'midnight', 'forest', 'sunset', 'ocean', 'crimson'];
 
 function applyTheme(theme: ThemeName) {
-  document.documentElement.classList.remove('dark', 'amoled', 'synthwave', 'midnight', 'forest', 'sunset', 'ocean');
+  document.documentElement.classList.remove('dark', 'amoled', 'synthwave', 'midnight', 'forest', 'sunset', 'ocean', 'crimson');
   if (theme !== 'default') document.documentElement.classList.add(theme);
 }
 
@@ -43,7 +43,8 @@ export function useTheme() {
     midnight: 'Switch to Forest',
     forest: 'Switch to Sunset',
     sunset: 'Switch to Ocean',
-    ocean: 'Switch to Default',
+    ocean: 'Switch to Crimson',
+    crimson: 'Back to Light',
   };
 
   const themeIcon: LucideIcon =

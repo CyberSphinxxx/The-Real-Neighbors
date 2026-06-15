@@ -7,6 +7,7 @@
 @import './themes/forest.css';
 @import './themes/sunset.css';
 @import './themes/ocean.css';
+@import './themes/crimson.css';
 
 @tailwind base;
 @tailwind components;
@@ -27,6 +28,24 @@
   
   h1, h2, h3, h4, h5, h6 {
     @apply font-heading font-semibold tracking-tight;
+  }
+
+  /* Custom Checkbox */
+  input[type="checkbox"] {
+    @apply appearance-none w-5 h-5 border-2 border-border rounded bg-elevated transition-colors cursor-pointer relative flex-shrink-0;
+  }
+  
+  input[type="checkbox"]:checked {
+    @apply bg-primary border-primary;
+  }
+  
+  input[type="checkbox"]:checked::after {
+    content: '';
+    @apply absolute inset-0 m-auto w-[6px] h-[10px] border-r-2 border-b-2 border-on-primary transform rotate-45 -translate-y-[2px];
+  }
+  
+  input[type="checkbox"]:focus-visible {
+    @apply outline-none ring-2 ring-primary ring-offset-2 ring-offset-base;
   }
 }
 
@@ -100,14 +119,14 @@
 }
 
 /* Custom Range Slider */
-input[type=range].custom-slider {
+input[type=range] {
   -webkit-appearance: none;
   appearance: none;
   width: 100%;
   background: transparent;
 }
 
-input[type=range].custom-slider::-webkit-slider-thumb {
+input[type=range]::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
   height: 16px;
@@ -120,11 +139,11 @@ input[type=range].custom-slider::-webkit-slider-thumb {
   transition: transform 0.1s;
 }
 
-input[type=range].custom-slider::-webkit-slider-thumb:hover {
+input[type=range]::-webkit-slider-thumb:hover {
   transform: scale(1.2);
 }
 
-input[type=range].custom-slider::-webkit-slider-runnable-track {
+input[type=range]::-webkit-slider-runnable-track {
   width: 100%;
   height: 4px;
   cursor: pointer;
@@ -132,14 +151,14 @@ input[type=range].custom-slider::-webkit-slider-runnable-track {
   border-radius: 2px;
 }
 
-input[type=range].custom-slider:focus {
+input[type=range]:focus {
   outline: none;
 }
-input[type=range].custom-slider:focus::-webkit-slider-thumb {
+input[type=range]:focus::-webkit-slider-thumb {
   box-shadow: 0 0 0 2px var(--color-bg-surface), 0 0 0 4px var(--color-primary);
 }
 
-input[type=range].custom-slider::-moz-range-thumb {
+input[type=range]::-moz-range-thumb {
   height: 16px;
   width: 16px;
   border-radius: 50%;
@@ -150,11 +169,11 @@ input[type=range].custom-slider::-moz-range-thumb {
   transition: transform 0.1s;
 }
 
-input[type=range].custom-slider::-moz-range-thumb:hover {
+input[type=range]::-moz-range-thumb:hover {
   transform: scale(1.2);
 }
 
-input[type=range].custom-slider::-moz-range-track {
+input[type=range]::-moz-range-track {
   width: 100%;
   height: 4px;
   cursor: pointer;

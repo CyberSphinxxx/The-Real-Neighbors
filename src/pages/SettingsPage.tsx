@@ -543,6 +543,7 @@ export const SettingsPage: React.FC = () => {
                       { id: 'forest', name: 'Forest', desc: 'Natural tones', color: '#34d399', bg: '#064e3b' },
                       { id: 'sunset', name: 'Sunset', desc: 'Warm vibes', color: '#fb923c', bg: '#451a03' },
                       { id: 'ocean', name: 'Ocean', desc: 'Deep waters', color: '#38bdf8', bg: '#083344' },
+                      { id: 'crimson', name: 'Crimson', desc: 'Deep red', color: '#fb7185', bg: '#4c0519' },
                     ].map(t => (
                       <div 
                         key={t.id}

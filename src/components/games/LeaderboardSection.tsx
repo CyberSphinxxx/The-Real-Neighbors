@@ -50,6 +50,12 @@ export const LeaderboardSection: React.FC = () => {
     if (gameId === 'typeracer') {
       return `${entry.score} WPM`;
     }
+    if (gameId === 'hiragana') {
+      if (entry.metadata?.mode === 'all') {
+        return `${entry.metadata.correctCount}/${entry.metadata.totalCards}`;
+      }
+      return `${entry.score} pts`;
+    }
     return entry.score.toString();
   };
 
@@ -110,6 +116,29 @@ export const LeaderboardSection: React.FC = () => {
         </div>
       )}
 
+      {activeTab === 'hiragana' && (
+        <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2 mb-2 px-1">
+          {[
+            { id: 'all', label: 'All' },
+            { id: 'all_hiragana', label: 'All Hiragana' },
+            { id: 'speed', label: 'Speed Round' },
+            { id: 'type', label: 'Type It' }
+          ].map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setSubTab(tab.id === 'all_hiragana' ? 'all' : tab.id)}
+              className={`px-3 py-1 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
+                (subTab === 'all' && tab.id === 'all_hiragana') || subTab === tab.id
+                  ? 'bg-primary/20 text-primary border border-primary/30'
+                  : 'bg-surface text-muted border border-border-subtle hover:text-main'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
+        </div>
+      )}
+
       <div className="bg-surface border border-border-subtle rounded-2xl overflow-hidden">
         {loading ? (
           <div className="p-2">
@@ -145,13 +174,20 @@ export const LeaderboardSection: React.FC = () => {
                 <span className="font-medium text-sm text-main flex-1 truncate">
                   {score.displayName}
                 </span>
-                
-                <span 
-                  className="font-semibold text-sm whitespace-nowrap"
-                  style={{ color: activeGame?.accentColor || 'var(--color-primary)' }}
-                >
-                  {formatScore(activeTab, score)}
-                </span>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span 
+                    className="font-semibold text-sm whitespace-nowrap"
+                    style={{ color: activeGame?.accentColor || 'var(--color-primary)' }}
+                  >
+                    {formatScore(activeTab, score)}
+                  </span>
+                  {activeTab === 'hiragana' && score.metadata?.accuracy !== undefined && (
+                    <span className="text-faint text-xs">
+                      {Math.round(score.metadata.accuracy)}% accuracy
+                      {subTab === 'all' && score.metadata.mode ? ` · ${score.metadata.mode === 'all' ? 'All Hiragana' : score.metadata.mode === 'speed' ? 'Speed Round' : 'Type It'}` : ''}
+                    </span>
+                  )}
+                </div>
               </div>
             ))}
           </div>
