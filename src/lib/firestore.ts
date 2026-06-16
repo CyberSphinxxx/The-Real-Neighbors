@@ -13,7 +13,6 @@ import {
 } from 'firebase/firestore';
 import type {
   DocumentData,
-  PartialWithFieldValue,
   WithFieldValue,
   DocumentReference
 } from 'firebase/firestore';
@@ -49,10 +48,10 @@ export const addDoc = async <T extends DocumentData>(
 export const updateDoc = async <T extends DocumentData>(
   path: string,
   pathSegments: string[],
-  data: PartialWithFieldValue<T>
+  data: import('firebase/firestore').UpdateData<T>
 ): Promise<void> => {
   const docRef = doc(db, path, ...pathSegments) as DocumentReference<T, DocumentData>;
-  await firestoreUpdateDoc(docRef, data as any);
+  await firestoreUpdateDoc(docRef, data);
 };
 
 export const deleteDoc = async (path: string, ...pathSegments: string[]): Promise<void> => {
