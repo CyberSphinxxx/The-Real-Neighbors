@@ -62,7 +62,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
   useEffect(() => {
     const unsubscribe = subscribeToTypingStatus(threadId, (data) => {
       setTypingUsers(data);
-    });
+    }, threadType);
     return () => unsubscribe();
   }, [threadId]);
 
@@ -256,6 +256,7 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
       <div className="relative mt-auto">
         {renderTypingIndicator()}
         <ChatInput 
+          key={threadId}
           threadId={threadId}
           threadType={threadType}
           placeholderName={threadType === 'channels' ? channel?.name : otherUser?.displayName}
