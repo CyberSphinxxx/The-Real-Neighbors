@@ -65,84 +65,65 @@ export const invalidate = (subreddit: string): void => {
 
 export const prefetchSubreddit = async (subreddit: string): Promise<void> => {
   try {
-    const url = `/reddit-api/r/${subreddit}/.rss?limit=25`;
+    const url = `/api/reddit?path=/r/${subreddit}/.rss&limit=25`;
     const res = await fetch(url);
     if (!res.ok) return;
 
     const text = await res.text();
     const parser = new DOMParser();
-    const xml = parser.parseFromString(text, 'text/xml');
-    const entries = xml.querySelectorAll('entry');
-    
-    const posts: RedditPost[] = Array.from(entries).map((entry) => {
-      const id = entry.querySelector('id')?.textContent || '';
+    const xmlDoc = parser.parseFromString(text, 'text/xml');
+    const entries = Array.from(xmlDoc.querySelectorAll('entry'));
+
+    const posts: RedditPost[] = entries.slice(0, 25).map((entry) => {
+      const entryId = entry.querySelector('id')?.textContent || '';
+      const id = entryId.replace('t3_', '');
       const title = entry.querySelector('title')?.textContent || '';
-      const author = entry.querySelector('author > name')?.textContent?.replace('/u/', '') || '';
+      const authorName = entry.querySelector('author > name')?.textContent || '';
+      const author = authorName.replace('/u/', '');
+      const category = entry.querySelector('category')?.getAttribute('term') || subreddit;
       const link = entry.querySelector('link')?.getAttribute('href') || '';
-      const content = entry.querySelector('content')?.textContent || '';
       const updated = entry.querySelector('updated')?.textContent || '';
-      const category = entry.querySelector('category')?.getAttribute('label') || subreddit;
-      
-      const permalink = link.replace('https://www.reddit.com', '');
-      
-      const tempDiv = document.createElement('div');
-      tempDiv.innerHTML = content;
-      
-      let imageUrl = '';
-      let hasVideo = false;
-      const allLinks = tempDiv.querySelectorAll('a');
-      for (const a of Array.from(allLinks)) {
-        const href = a.getAttribute('href') || '';
-        if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(href) && href.includes('redd.it')) {
-          imageUrl = href;
-        }
-        if (href.includes('v.redd.it') || href.includes('youtube.com') || href.includes('youtu.be')) {
-          hasVideo = true;
-        }
+
+      const contentHtml = entry.querySelector('content')?.textContent || '';
+      const contentDoc = parser.parseFromString(contentHtml, 'text/html');
+
+      let postUrl = link;
+      let thumbnail = '';
+
+      const imgTags = Array.from(contentDoc.querySelectorAll('img'));
+      if (imgTags.length > 0) {
+        thumbnail = imgTags[0].getAttribute('src') || '';
       }
-      
-      if (!imageUrl) {
-        const img = tempDiv.querySelector('img');
-        if (img) {
-          const src = img.getAttribute('src') || '';
-          if (/\.(jpg|jpeg|png|gif|webp)/i.test(src)) {
-            imageUrl = src;
-          }
+
+      const aTags = Array.from(contentDoc.querySelectorAll('a'));
+      for (const a of aTags) {
+        const href = a.getAttribute('href');
+        if (href && href.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
+          postUrl = href;
+          break;
         }
       }
-      
-      if (imageUrl.includes('preview.redd.it')) {
-        imageUrl = imageUrl.split('?')[0].replace('preview.redd.it', 'i.redd.it');
+      if (postUrl === link && thumbnail) {
+        postUrl = thumbnail;
       }
-      
-      const selftextRaw = tempDiv.textContent?.trim() || '';
-      if (selftextRaw.toLowerCase().includes('[video]') || title.toLowerCase().includes('[video]')) {
-          hasVideo = true;
-      }
-      
-      const isImage = !!imageUrl;
-      
-      const selftext = selftextRaw
-        .replace(/submitted by\s+\/u\/\S+\s*/g, '')
-        .replace(/\[link\]/g, '')
-        .replace(/\[comments\]/g, '')
-        .trim()
-        .substring(0, 500);
-      
+
+      const isRedditMedia = !!postUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+      const selftext = contentDoc.body.textContent || '';
+
       return {
-        id: id.split('/').pop() || id,
+        id,
         title,
         author,
         subreddit: category,
-        selftext: selftext !== title ? selftext : '',
-        url: isImage ? imageUrl : link,
-        is_video: hasVideo,
-        is_reddit_media_domain: isImage,
-        thumbnail: isImage ? imageUrl : 'self',
+        selftext: selftext.substring(0, 500),
+        url: postUrl,
+        is_video: false,
+        is_reddit_media_domain: isRedditMedia,
+        thumbnail: thumbnail || (isRedditMedia ? postUrl : 'self'),
         score: 0,
         num_comments: 0,
         created_utc: updated ? Math.floor(new Date(updated).getTime() / 1000) : Date.now() / 1000,
-        permalink,
+        permalink: link.replace('https://www.reddit.com', ''),
       };
     });
 
