@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT, getBotbotContextPrompt } from '../../lib/botbotPersonality';
@@ -22,7 +22,7 @@ export const VibeCheckWidget: React.FC = () => {
 
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
-  const generateVibeCheck = async () => {
+  const generateVibeCheck = useCallback(async () => {
     if (isGenerating) return;
     setIsGenerating(true);
     
@@ -91,7 +91,7 @@ Rules:
     } finally {
       setIsGenerating(false);
     }
-  };
+  }, [isGenerating, user, fetchContext]);
 
   useEffect(() => {
     if (!user) return;
@@ -115,8 +115,7 @@ Rules:
     };
 
     fetchGlobalVibeCheck();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [user]);
+  }, [user, generateVibeCheck]);
 
   const canRefresh = data ? (Date.now() - new Date(data.generatedAt).getTime()) > 60 * 60 * 1000 : false;
 
