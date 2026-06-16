@@ -23,7 +23,9 @@ export const LinkCard: React.FC<Props> = ({ link, usersMap, onDelete, onUpvote }
     hostname = link.url;
   }
 
-  const faviconUrl = `https://www.google.com/s2/favicons?domain=${hostname}&sz=64`;
+  const faviconUrl = hostname 
+    ? `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=64`
+    : '';
 
   return (
     <div className="bg-surface border border-border-subtle rounded-xl p-4 sm:p-5 shadow-sm hover:shadow-md transition-all flex gap-4 group">
@@ -55,7 +57,7 @@ export const LinkCard: React.FC<Props> = ({ link, usersMap, onDelete, onUpvote }
               rel="noopener noreferrer"
               className="flex items-center gap-2 group/link"
             >
-              <img loading="lazy" decoding="async" src={faviconUrl} alt="" className="w-5 h-5 rounded-sm bg-white" />
+              {faviconUrl && <img loading="lazy" decoding="async" src={faviconUrl} alt="" className="w-5 h-5 rounded-sm bg-white flex-shrink-0" />}
               <h3 className="font-bold text-lg text-main group-hover/link:text-primary transition-colors leading-tight line-clamp-1">
                 {link.title}
               </h3>
