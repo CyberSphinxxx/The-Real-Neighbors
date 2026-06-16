@@ -151,7 +151,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
   const { isAuthenticated, isLoading, setLoading, setUser, logout } = useAuthStore();
 
   useEffect(() => {
+    let isActive = true;
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      if (!isActive) return;
+
       if (!firebaseUser || !firebaseUser.email) {
         logout();
         setLoading(false);
@@ -261,7 +265,10 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
       }
     });
 
-    return () => unsubscribe();
+    return () => {
+      isActive = false;
+      unsubscribe();
+    };
   }, [setLoading, setUser, logout]);
 
   const [shouldRenderLoading, setShouldRenderLoading] = useState(isLoading);
