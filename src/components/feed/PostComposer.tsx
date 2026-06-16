@@ -11,6 +11,7 @@ import { Botbot_SYSTEM_PROMPT } from '../../lib/botbotPersonality';
 import type { Post, User } from '../../types';
 import { getAvatarColor } from '../../utils/avatarColor';
 import { MobileBottomSheet } from '../ui/MobileBottomSheet';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 interface PostComposerProps {
   composerRef?: React.RefObject<HTMLTextAreaElement | null>;
@@ -201,11 +202,19 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
     return () => clearTimeout(timer);
   }, [imageUrlInput]);
 
+  const { confirm } = useConfirm();
   const hasContent = content.trim().length > 0 || !!linkMeta || (!!imageUrl && !imagePreviewError);
 
-  const handleCloseModal = () => {
+  const handleCloseModal = async () => {
     if (hasContent) {
-      if (!window.confirm('Discard post?')) return;
+      const confirmed = await confirm({
+        title: 'Discard Post?',
+        message: 'Your draft will be lost.',
+        confirmText: 'Discard',
+        cancelText: 'Keep Editing',
+        isDanger: true,
+      });
+      if (!confirmed) return;
     }
     setIsModalOpen(false);
     setContent('');
