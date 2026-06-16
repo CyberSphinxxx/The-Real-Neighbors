@@ -57,8 +57,10 @@ export function calculateAgeTurning(birthdate: string): number {
   if (!birthdate) return 0;
   const [year, month, day] = birthdate.split('-').map(Number);
   const today = new Date();
+  const todayMidnight = new Date(today);
+  todayMidnight.setHours(0, 0, 0, 0);
   let nextBday = new Date(today.getFullYear(), month - 1, day);
-  if (nextBday.getTime() < today.setHours(0, 0, 0, 0)) {
+  if (nextBday.getTime() < todayMidnight.getTime()) {
     return today.getFullYear() + 1 - year;
   }
   return today.getFullYear() - year;
