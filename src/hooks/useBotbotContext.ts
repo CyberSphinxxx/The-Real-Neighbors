@@ -38,11 +38,22 @@ export function useBotbotContext() {
       // 2. Fetch recent posts
       const postsQ = query(collection(db, 'posts'), orderBy('createdAt', 'desc'), limit(10));
       const postsSnap = await getDocs(postsQ);
-      const recentPosts = postsSnap.docs.map(d => ({
-        authorName: d.data().authorName || 'Unknown',
-        content: d.data().content || '',
-        createdAt: d.data().createdAt || new Date().toISOString()
-      }));
+      const recentPosts = postsSnap.docs.map(d => {
+        const data = d.data();
+        let created = data.createdAt;
+        if (typeof created === 'number') {
+          created = new Date(created).toISOString();
+        } else if (created?.toDate) {
+          created = created.toDate().toISOString();
+        } else if (!created) {
+          created = new Date().toISOString();
+        }
+        return {
+          authorName: data.authorName || 'Unknown',
+          content: data.content || '',
+          createdAt: created
+        };
+      });
 
       // 3. Fetch upcoming events
       const nowIso = new Date().toISOString();
