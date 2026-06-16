@@ -23,7 +23,6 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
   const [posts, setPosts] = useState<RedditPost[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
-  const [afterTokens, setAfterTokens] = useState<Record<string, string>>({}); // subreddit -> after
 
   // Initialize subreddits
   const subreddits = user?.subreddits?.length ? user.subreddits : DEFAULT_SUBREDDITS;
@@ -36,170 +35,147 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
   }, [user]);
 
 
+  const parseRssEntry = (entry: Element, parser: DOMParser, subreddit: string): RedditPost => {
+    const entryId = entry.querySelector("id")?.textContent || '';
+    const id = entryId.replace('t3_', '');
+    const title = entry.querySelector("title")?.textContent || '';
+    const authorName = entry.querySelector("author > name")?.textContent || '';
+    const author = authorName.replace('/u/', '');
+    const category = entry.querySelector("category")?.getAttribute("term") || subreddit;
+    const link = entry.querySelector("link")?.getAttribute("href") || '';
+    const updated = entry.querySelector("updated")?.textContent || '';
+
+    const contentHtml = entry.querySelector("content")?.textContent || '';
+    const contentDoc = parser.parseFromString(contentHtml, "text/html");
+
+    let postUrl = link;
+    let thumbnail = '';
+
+    const imgTags = Array.from(contentDoc.querySelectorAll("img"));
+    if (imgTags.length > 0) {
+       thumbnail = imgTags[0].getAttribute("src") || '';
+    }
+
+    const aTags = Array.from(contentDoc.querySelectorAll("a"));
+    for (const a of aTags) {
+      const href = a.getAttribute("href");
+      if (href && href.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i)) {
+        postUrl = href;
+        break;
+      }
+    }
+    if (postUrl === link && thumbnail) {
+      postUrl = thumbnail;
+    }
+
+    const isRedditMedia = !!postUrl.match(/\.(jpg|jpeg|png|gif|webp)(\?|$)/i);
+    const selftext = contentDoc.body.textContent || '';
+
+    return {
+      id,
+      title,
+      author,
+      subreddit: category,
+      selftext: selftext.substring(0, 500),
+      url: postUrl,
+      is_video: false,
+      is_reddit_media_domain: isRedditMedia,
+      thumbnail: thumbnail || (isRedditMedia ? postUrl : 'self'),
+      score: 0,
+      num_comments: 0,
+      created_utc: new Date(updated).getTime() / 1000 || Date.now() / 1000,
+      permalink: link.replace('https://www.reddit.com', ''),
+    };
+  };
+
+  const fetchSingleSubreddit = async (sub: string): Promise<RedditPost[]> => {
+    const url = `/api/reddit?path=/r/${sub}/.rss&limit=10`;
+    const res = await fetch(url);
+    if (!res.ok) return [];
+    const text = await res.text();
+    const parser = new DOMParser();
+    const xmlDoc = parser.parseFromString(text, "text/xml");
+    const entries = Array.from(xmlDoc.querySelectorAll("entry"));
+    return entries.slice(0, 10).map(entry => parseRssEntry(entry, parser, sub));
+  };
+
   const fetchRedditPosts = async (subreddit: string, isLoadMore = false) => {
     if (!user) return;
-    
+
     // Cache Check
+    const cacheKey = subreddit === 'All' ? 'All' : subreddit;
     if (!isLoadMore) {
-      if (subreddit === 'All') {
-        let allFresh = true;
-        let cachedAll: RedditPost[] = [];
-        for (const sub of subreddits) {
-          const c = getCached(sub);
-          if (c) cachedAll = [...cachedAll, ...c];
-          else allFresh = false;
-        }
-        if (cachedAll.length > 0) {
-          cachedAll.sort((a, b) => b.created_utc - a.created_utc);
-          setPosts(cachedAll);
-          if (allFresh) return; // Stale-while-revalidate if not fresh
-        } else {
-          setIsLoading(true);
-        }
-      } else {
-        const c = getCached(subreddit);
-        if (c) {
-          setPosts(c);
-          setIsLoading(false);
-          // If less than 2 minutes old, skip re-fetch entirely
-          // Wait, getCached returns null if older than 5 minutes.
-          // Let's rely on that or add stale-while-revalidate.
-          // The prompt says: "In the background: if cache is older than 2 minutes, still refetch silently"
-          // We can check Date.now() against cache later if we expose entry, but getCached only returns fresh (< 5min).
-          // For simplicity, we'll just fetch in background if not isLoadMore.
-        } else {
-          setIsLoading(true);
-        }
+      const c = getCached(cacheKey);
+      if (c) {
+        setPosts(c);
+        setIsLoading(false);
+        return;
       }
-    } else {
-      setIsLoading(true);
     }
 
     setError('');
+    setIsLoading(true);
 
     try {
-      const subsToFetch = subreddit === 'All' ? subreddits : [subreddit];
-      
-      const fetchPromises = subsToFetch.map(async (sub) => {
-        const afterToken = isLoadMore ? afterTokens[sub] : '';
-        const url = `/reddit-api/r/${sub}/.rss?limit=${subreddit === 'All' ? '10' : '25'}${afterToken ? `&after=${afterToken}` : ''}`;
+      let fetchedPosts: RedditPost[] = [];
+
+      if (subreddit === 'All') {
+        // Progressively load subreddits
+        if (!isLoadMore) setPosts([]);
+
+        for (const sub of subreddits) {
+          try {
+            const posts = await fetchSingleSubreddit(sub);
+            if (posts.length > 0) {
+              fetchedPosts.push(...posts);
+              
+              // Progressively update the UI!
+              setPosts(prev => {
+                const combined = isLoadMore ? [...prev, ...posts] : [...prev, ...posts];
+                // Deduplicate by ID
+                const uniqueMap = new Map(combined.map(p => [p.id, p]));
+                return Array.from(uniqueMap.values())
+                  .sort((a, b) => b.created_utc - a.created_utc)
+                  .slice(0, 50);
+              });
+            }
+          } catch (e) {
+            console.error(`Failed to fetch subreddit ${sub}`, e);
+          }
+          if (sub !== subreddits[subreddits.length - 1]) {
+            await new Promise(resolve => setTimeout(resolve, 500));
+          }
+        }
+        
+        fetchedPosts = fetchedPosts
+          .sort((a, b) => b.created_utc - a.created_utc)
+          .slice(0, 50);
+      } else {
+        const limit = '25';
+        const url = `/api/reddit?path=/r/${subreddit}/.rss&limit=${limit}`;
         const res = await fetch(url);
         if (!res.ok) {
-          throw new Error(`Failed to fetch r/${sub} (${res.status})`);
+          throw new Error(`Failed to fetch ${cacheKey} (${res.status})`);
         }
         const text = await res.text();
         const parser = new DOMParser();
-        const xml = parser.parseFromString(text, 'text/xml');
-        const entries = xml.querySelectorAll('entry');
-        
-        const posts: RedditPost[] = Array.from(entries).map((entry) => {
-          const id = entry.querySelector('id')?.textContent || '';
-          const title = entry.querySelector('title')?.textContent || '';
-          const author = entry.querySelector('author > name')?.textContent?.replace('/u/', '') || '';
-          const link = entry.querySelector('link')?.getAttribute('href') || '';
-          const content = entry.querySelector('content')?.textContent || '';
-          const updated = entry.querySelector('updated')?.textContent || '';
-          const category = entry.querySelector('category')?.getAttribute('label') || sub;
-          
-          const permalink = link.replace('https://www.reddit.com', '');
-          
-          const tempDiv = document.createElement('div');
-          tempDiv.innerHTML = content;
-          
-          let imageUrl = '';
-          const allLinks = tempDiv.querySelectorAll('a');
-          let hasVideo = false;
-          
-          for (const a of Array.from(allLinks)) {
-            const href = a.getAttribute('href') || '';
-            if (/\.(jpg|jpeg|png|gif|webp)(\?|$)/i.test(href) && href.includes('redd.it')) {
-              imageUrl = href;
-            }
-            // Heuristics for video detection in RSS:
-            if (href.includes('v.redd.it') || href.includes('youtube.com') || href.includes('youtu.be')) {
-              hasVideo = true;
-            }
-          }
-          
-          if (!imageUrl) {
-            const img = tempDiv.querySelector('img');
-            if (img) {
-              const src = img.getAttribute('src') || '';
-              if (/\.(jpg|jpeg|png|gif|webp)/i.test(src)) {
-                imageUrl = src;
-              }
-            }
-          }
-          
-          if (imageUrl.includes('preview.redd.it')) {
-            imageUrl = imageUrl.split('?')[0].replace('preview.redd.it', 'i.redd.it');
-          }
-          
-          // Another heuristic: look for [video] in the title or text
-          const selftextRaw = tempDiv.textContent?.trim() || '';
-          if (selftextRaw.toLowerCase().includes('[video]') || title.toLowerCase().includes('[video]')) {
-              hasVideo = true;
-          }
-          
-          const isImage = !!imageUrl;
-          
-          const selftext = selftextRaw
-            .replace(/submitted by\s+\/u\/\S+\s*/g, '')
-            .replace(/\[link\]/g, '')
-            .replace(/\[comments\]/g, '')
-            .trim()
-            .substring(0, 500);
-          
-          return {
-            id: id.split('/').pop() || id,
-            title,
-            author,
-            subreddit: category,
-            selftext: selftext !== title ? selftext : '',
-            url: isImage ? imageUrl : link,
-            is_video: hasVideo,
-            is_reddit_media_domain: isImage,
-            thumbnail: isImage ? imageUrl : 'self',
-            score: 0,
-            num_comments: 0,
-            created_utc: updated ? Math.floor(new Date(updated).getTime() / 1000) : Date.now() / 1000,
-            permalink,
-          };
+        const xmlDoc = parser.parseFromString(text, "text/xml");
+        const entries = Array.from(xmlDoc.querySelectorAll("entry"));
+        fetchedPosts = entries.slice(0, parseInt(limit)).map(entry => parseRssEntry(entry, parser, subreddit));
+      }
+
+      if (!isLoadMore) {
+        setCached(cacheKey, fetchedPosts);
+      }
+
+      if (subreddit !== 'All') {
+        setPosts(prev => {
+          if (!isLoadMore) return fetchedPosts;
+          const uniqueMap = new Map([...prev, ...fetchedPosts].map(p => [p.id, p]));
+          return Array.from(uniqueMap.values());
         });
+      }
 
-        // We don't get 'after' from RSS easily in the same way, but let's just clear it for now or rely on the old behavior
-        const after = '';
-
-        // Set cache if it's not a load more request and it's a specific sub (or All sub limits)
-        if (!isLoadMore && subreddit !== 'All') {
-          setCached(sub, posts);
-        }
-
-        return { sub, after, posts };
-      });
-
-      const results = await Promise.allSettled(fetchPromises);
-      
-      let allFetchedPosts: RedditPost[] = [];
-      const newAfterTokens = { ...afterTokens };
-
-      results.forEach(result => {
-        if (result.status === 'fulfilled') {
-          allFetchedPosts = [...allFetchedPosts, ...result.value.posts];
-          newAfterTokens[result.value.sub] = result.value.after;
-        } else {
-          console.error('Failed to fetch a subreddit:', result.reason);
-        }
-      });
-
-      allFetchedPosts.sort((a, b) => b.created_utc - a.created_utc);
-
-      setAfterTokens(newAfterTokens);
-      setPosts(prev => {
-        // If we used cache, just replace it with the fresh data (stale-while-revalidate)
-        if (!isLoadMore) return allFetchedPosts;
-        return [...prev, ...allFetchedPosts];
-      });
     } catch (err) {
       console.error(err);
       if (posts.length === 0) {
@@ -214,6 +190,7 @@ export const ExploreTab: React.FC<ExploreTabProps> = ({ onOpenPost }) => {
     if (subreddits.length > 0) {
       fetchRedditPosts(activeSub, false);
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeSub, subreddits.length]); 
 
   return (
