@@ -51,7 +51,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ threadId, threadType, plac
     if (!user) return;
 
     // Trigger typing indicator
-    setTypingStatus(threadId, user.id, true);
+    setTypingStatus(threadId, user.id, true, threadType);
 
     // Clear timeout if exists
     if (typingTimeoutRef.current) {
@@ -60,7 +60,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ threadId, threadType, plac
 
     // Set timeout to clear typing status
     typingTimeoutRef.current = setTimeout(() => {
-      setTypingStatus(threadId, user.id, false);
+      setTypingStatus(threadId, user.id, false, threadType);
     }, 2000);
   };
 
@@ -82,7 +82,7 @@ export const ChatInput: React.FC<ChatInputProps> = ({ threadId, threadType, plac
 
     // Clear typing status immediately
     if (typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current);
-    setTypingStatus(threadId, user.id, false);
+    setTypingStatus(threadId, user.id, false, threadType);
 
     const isImage = isImageUrl(messageText);
 
