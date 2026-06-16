@@ -11,6 +11,7 @@ export interface PresenceUser {
   handle?: string;
   avatarColor: string;
   avatarUrl?: string;
+  customTitle?: string;
   online: boolean;
   lastSeen: number | null;
   privacyPrefs?: {
@@ -37,6 +38,7 @@ export const useOnlineUsers = () => {
           handle: u.handle,
           avatarColor: getAvatarColor(u.displayName),
           avatarUrl: u.avatarUrl,
+          customTitle: u.customTitle,
           online: false,
           lastSeen: null,
           privacyPrefs: u.privacyPrefs
