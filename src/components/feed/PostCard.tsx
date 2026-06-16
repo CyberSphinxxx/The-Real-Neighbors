@@ -81,21 +81,24 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   const [isExpiringSoon, setIsExpiringSoon] = useState(false);
   const [isExpiredLocally, setIsExpiredLocally] = useState(false);
   const [shouldUnmount, setShouldUnmount] = useState(false);
+  const postRef = useRef(post);
+  postRef.current = post;
 
   useEffect(() => {
     if (!post.expiresAt) return;
     const updateTimer = () => {
+      const currentPost = postRef.current;
       const now = Date.now();
-      const diff = post.expiresAt! - now;
+      const diff = currentPost.expiresAt! - now;
       if (diff <= 0) {
         setIsExpiredLocally(true);
         return;
       }
       setIsExpiringSoon(diff < 60 * 60 * 1000);
       
-      if (user && user.id === post.authorId) {
+      if (user && user.id === currentPost.authorId) {
         if (diff <= 30 * 60 * 1000) {
-          const notifiedKey = `expiry_notified_${post.id}`;
+          const notifiedKey = `expiry_notified_${currentPost.id}`;
           if (!localStorage.getItem(notifiedKey)) {
             localStorage.setItem(notifiedKey, 'true');
             import('../../lib/notifications').then(({ writeNotification }) => {
@@ -104,9 +107,9 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
                 fromUid: 'system',
                 fromName: 'System',
                 fromAvatarColor: 'var(--color-bg-elevated)',
-                postId: post.id,
+                postId: currentPost.id,
                 message: `Your timed post is expiring in 30 minutes`,
-                preview: post.content.trim().slice(0, 60),
+                preview: (currentPost.content || '').trim().slice(0, 60),
               }, 'expiry');
             });
           }
