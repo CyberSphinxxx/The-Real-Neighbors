@@ -30,7 +30,7 @@ const getCache = () => {
         return parsed.ranges || {};
       }
     }
-  } catch(e) {}
+  } catch(e) { /* localStorage read may fail if quota is exceeded or API unavailable */ }
   return {};
 };
 
@@ -42,7 +42,7 @@ const saveToCache = (rangeId: string, data: any) => {
       date: new Date().toDateString(),
       ranges: cache
     }));
-  } catch(e) {}
+  } catch(e) { /* localStorage write may fail if quota is exceeded or API unavailable */ }
 };
 
 export const FeedCatchUp: React.FC<FeedCatchUpProps> = ({ isModal = false, onClose }) => {
