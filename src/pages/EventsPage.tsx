@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useEventsStore } from '../stores/eventsStore';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 const CACHE_TTL = 2 * 60 * 1000;
 import type { Event } from '../types';
 import { EventCard } from '../components/events/EventCard';
@@ -34,9 +36,8 @@ export const EventsPage: React.FC = () => {
         return;
       }
       try {
-        const { collection, getDocs } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        const snap = await getDocs(collection(db, 'events'));
+        const q = query(collection(db, 'events'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as Event));
         if (isMounted) {
           setEvents(data);
