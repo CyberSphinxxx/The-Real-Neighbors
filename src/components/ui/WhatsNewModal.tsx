@@ -4,6 +4,7 @@ import { marked } from 'marked';
 import { useNavigate } from 'react-router-dom';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
 import { formatReleaseDate } from '../../lib/github';
+import DOMPurify from 'dompurify';
 import { MobileBottomSheet } from './MobileBottomSheet';
 
 export const WhatsNewModal: React.FC = () => {
@@ -47,7 +48,9 @@ export const WhatsNewModal: React.FC = () => {
     navigate('/settings', { state: { tab: 'about' } });
   };
 
-  const parsedBody = latestRelease.body ? marked.parse(latestRelease.body) : '';
+  // marked.parse can return a promise in v13 with async plugins. Use async: false.
+  const rawHtml = latestRelease.body ? marked.parse(latestRelease.body, { async: false }) : '';
+  const parsedBody = typeof rawHtml === 'string' ? DOMPurify.sanitize(rawHtml) : '';
 
   const modalContent = (
     <>
