@@ -56,6 +56,6 @@ export const seedAdminUser = async (email: string) => {
 };
 
 // Optional: expose to window for easy browser console execution during setup
-if (typeof window !== 'undefined') {
+if (typeof window !== 'undefined' && import.meta.env.DEV) {
   (window as any).seedAdminUser = seedAdminUser;
 }
