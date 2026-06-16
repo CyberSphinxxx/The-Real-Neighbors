@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { subscribeToCollection, addDoc, getDoc, updateDoc } from '../../lib/firestore';
-import { orderBy } from 'firebase/firestore';
+import { addDoc, getDoc, updateDoc, subscribeToCollection } from '../../lib/firestore';
+import { orderBy, arrayUnion, arrayRemove, increment } from 'firebase/firestore';
+import { writeNotification } from '../../lib/notifications';
 import { formatTimeAgo } from '../../utils/date';
 import type { Comment, User } from '../../types';
 import { Loader2, Send, Heart, Reply, X, Bot } from 'lucide-react';
@@ -184,11 +185,9 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
   const handleToggleLike = async (commentId: string, isLiked: boolean) => {
     if (!user) return;
     try {
-      import('firebase/firestore').then(({ arrayUnion, arrayRemove }) => {
-        updateDoc(`posts/${postId}/comments`, [commentId], {
-          likes: isLiked ? arrayRemove(user.id) : arrayUnion(user.id)
-        }).catch(console.error);
-      });
+      updateDoc(`posts/${postId}/comments`, [commentId], {
+        likes: isLiked ? arrayRemove(user.id) : arrayUnion(user.id)
+      }).catch(console.error);
     } catch (e) {
       console.error(e);
     }
@@ -235,40 +234,33 @@ export const CommentSection: React.FC<CommentSectionProps> = ({ postId, allUsers
         createdAt: Date.now(),
         ...(savedReplyTo ? { parentId: savedReplyTo.id } : {})
       };
-      await addDoc<Omit<Comment, 'id'>>(`posts/${postId}/comments`, newComment as any);
-      import('firebase/firestore').then(({ increment }) => {
-        updateDoc('users', [user.id], { commentCount: increment(1) }).catch(console.error);
-      });
+      await addDoc<Omit<Comment, 'id'>>(`posts/${postId}/comments`, newComment);
+      updateDoc('users', [user.id], { commentCount: increment(1) }).catch(console.error);
       
       // Handle notifications
-      import('../../lib/notifications').then(async ({ writeNotification }) => {
-        // We need the post to get the authorId
-        import('../../lib/firestore').then(async ({ getDoc }) => {
-          const post = await getDoc<any>('posts', [postId]);
-          if (post && post.authorId !== user.id) {
-            writeNotification(post.authorId, {
-              type: 'comment',
-              fromUid: user.id,
-              fromName: user.displayName,
-              fromAvatarColor: user.accentColor || '#3b82f6',
-              postId,
-              message: `${user.displayName} commented on your post`,
-              preview: newCommentContent.slice(0, 60),
-            }, 'comments');
-          }
-        });
+      const post = await getDoc<any>('posts', [postId]);
+      if (post && post.authorId !== user.id) {
+        writeNotification(post.authorId, {
+          type: 'comment',
+          fromUid: user.id,
+          fromName: user.displayName,
+          fromAvatarColor: user.accentColor || '#3b82f6',
+          postId,
+          message: `${user.displayName} commented on your post`,
+          preview: newCommentContent.slice(0, 60),
+        }, 'comments');
+      }
 
-        savedMentions.forEach(mentionedUid => {
-          writeNotification(mentionedUid, {
-            type: 'mention',
-            fromUid: user.id,
-            fromName: user.displayName,
-            fromAvatarColor: user.accentColor || '#3b82f6',
-            postId,
-            message: `${user.displayName} mentioned you in a comment`,
-            preview: newCommentContent.slice(0, 60),
-          }, 'mentions');
-        });
+      savedMentions.forEach(mentionedUid => {
+        writeNotification(mentionedUid, {
+          type: 'mention',
+          fromUid: user.id,
+          fromName: user.displayName,
+          fromAvatarColor: user.accentColor || '#3b82f6',
+          postId,
+          message: `${user.displayName} mentioned you in a comment`,
+          preview: newCommentContent.slice(0, 60),
+        }, 'mentions');
       });
 
     } catch (error) {
