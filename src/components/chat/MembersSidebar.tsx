@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { X } from 'lucide-react';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
-import { useAuthStore } from '../../stores/authStore';
-import { subscribeToCollection } from '../../lib/firestore';
+
 import { getAvatarColor } from '../../utils/avatarColor';
-import type { User } from '../../types';
+import type { PresenceUser } from '../../hooks/useOnlineUsers';
 
 interface MembersSidebarProps {
   onCloseMobile: () => void;
@@ -13,45 +12,13 @@ interface MembersSidebarProps {
 
 export const MembersSidebar: React.FC<MembersSidebarProps> = ({ onCloseMobile }) => {
   const navigate = useNavigate();
-  const { user: currentUser } = useAuthStore();
-  const { onlineUsers } = useOnlineUsers();
-  const [allUsers, setAllUsers] = React.useState<User[]>([]);
+  const { onlineUsers, offlineUsers } = useOnlineUsers();
 
-  React.useEffect(() => {
-    const unsub = subscribeToCollection<User>('users', (data) => {
-      setAllUsers(data);
-    });
-    return () => unsub();
-  }, []);
-
-  const { online, offline } = useMemo(() => {
-    const onlineIds = new Set(onlineUsers.map(u => u.uid));
-    
-    // Also include current user as online if they exist
-    if (currentUser) onlineIds.add(currentUser.id);
-
-    const onlineList: User[] = [];
-    const offlineList: User[] = [];
-
-    allUsers.forEach(u => {
-      if (onlineIds.has(u.id)) {
-        onlineList.push(u);
-      } else {
-        offlineList.push(u);
-      }
-    });
-
-    return {
-      online: onlineList.sort((a, b) => a.displayName.localeCompare(b.displayName)),
-      offline: offlineList.sort((a, b) => a.displayName.localeCompare(b.displayName))
-    };
-  }, [allUsers, onlineUsers, currentUser]);
-
-  const renderUser = (u: User, isOnline: boolean) => (
+  const renderUser = (u: PresenceUser, isOnline: boolean) => (
     <button
-      key={u.id}
+      key={u.uid}
       onClick={() => {
-        navigate(`/profile/${u.handle || u.id}`);
+        navigate(`/profile/${u.handle || u.uid}`);
         onCloseMobile();
       }}
       className="w-full flex items-center gap-3 px-2 py-1.5 rounded-md hover:bg-elevated transition-colors group"
@@ -107,24 +74,24 @@ export const MembersSidebar: React.FC<MembersSidebarProps> = ({ onCloseMobile })
 
       {/* User List */}
       <div className="flex-1 overflow-y-auto custom-scrollbar p-3 space-y-6">
-        {online.length > 0 && (
+        {onlineUsers.length > 0 && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold text-faint uppercase tracking-wider px-2 mb-2">
-              Online — {online.length}
+              Online — {onlineUsers.length}
             </h3>
             <div className="space-y-0.5">
-              {online.map(u => renderUser(u, true))}
+              {onlineUsers.map(u => renderUser(u, true))}
             </div>
           </div>
         )}
 
-        {offline.length > 0 && (
+        {offlineUsers.length > 0 && (
           <div className="space-y-1">
             <h3 className="text-xs font-semibold text-faint uppercase tracking-wider px-2 mb-2">
-              Offline — {offline.length}
+              Offline — {offlineUsers.length}
             </h3>
             <div className="space-y-0.5">
-              {offline.map(u => renderUser(u, false))}
+              {offlineUsers.map(u => renderUser(u, false))}
             </div>
           </div>
         )}
