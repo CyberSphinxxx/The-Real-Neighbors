@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { getDocs, query, collection, where, orderBy, limit } from 'firebase/firestore';
+import { getDocs, query, collection, where, limit } from 'firebase/firestore';
 import { db } from '../../lib/firebase';
 import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT } from '../../lib/botbotPersonality';
@@ -36,13 +36,24 @@ export const RoastMode: React.FC<Props> = ({ users }) => {
       const targetUser = users.find(u => u.id === targetUserId);
       const name = targetUser?.displayName || 'this member';
 
-      // Fetch context
-      const postsQ = query(collection(db, 'posts'), where('authorId', '==', targetUserId), orderBy('createdAt', 'desc'), limit(5));
-      const watchQ = query(collection(db, 'watchlists'), where('userId', '==', targetUserId), where('status', '==', 'finished'), limit(5));
+      // Fetch context (avoiding compound queries that require custom indexes)
+      const postsQ = query(collection(db, 'posts'), where('authorId', '==', targetUserId), limit(20));
+      const watchQ = query(collection(db, 'watchlists'), where('userId', '==', targetUserId), limit(20));
       
       const [pSnap, wSnap] = await Promise.all([getDocs(postsQ), getDocs(watchQ)]);
-      const posts = pSnap.docs.map(d => (d.data() as Post).content).filter(Boolean);
-      const watch = wSnap.docs.map(d => (d.data() as WatchlistEntry).title);
+      
+      const posts = pSnap.docs
+        .map(d => d.data() as Post)
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+        .slice(0, 5)
+        .map(p => p.content)
+        .filter(Boolean);
+        
+      const watch = wSnap.docs
+        .map(d => d.data() as WatchlistEntry)
+        .filter(w => w.status === 'finished')
+        .slice(0, 5)
+        .map(w => w.title);
 
       const userPrompt = `You are Botbot. Roast ${name} in Taglish.
 Intensity level: ${intensity}
