@@ -5,17 +5,36 @@ export default async function handler(req, res) {
 
   // Basic CORS/Origin check
   const origin = req.headers.origin || req.headers.referer || '';
-  const isLocalhost = origin.includes('localhost') || origin.includes('127.0.0.1');
   const isVercel = origin.includes('vercel.app');
-  // You can add your actual production domain here (e.g., origin.includes('therealneighbors.com'))
 
   if (process.env.NODE_ENV === 'production' && !isVercel) {
-     console.warn(`Blocked API request from unauthorized origin: ${origin}`);
-     // We allow localhost in dev, but block weird origins in production
-     // For safety, let's keep it lenient if no origin is provided in dev, but strictly Vercel/localhost for now
+    return res.status(403).json({ error: 'Blocked API request from unauthorized origin.' });
   }
 
-  const API_KEY = process.env.VITE_DEEPSEEK_API_KEY || process.env.DEEPSEEK_API_KEY;
+  // Verify Firebase Auth Token
+  const authHeader = req.headers.authorization;
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return res.status(401).json({ error: 'Missing or invalid Authorization header' });
+  }
+  const idToken = authHeader.split('Bearer ')[1];
+  const firebaseApiKey = process.env.FIREBASE_API_KEY;
+
+  if (firebaseApiKey) {
+    try {
+      const verifyRes = await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:lookup?key=${firebaseApiKey}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ idToken })
+      });
+      if (!verifyRes.ok) {
+        return res.status(401).json({ error: 'Invalid Firebase ID token' });
+      }
+    } catch (e) {
+      return res.status(500).json({ error: 'Failed to verify auth token' });
+    }
+  }
+
+  const API_KEY = process.env.DEEPSEEK_API_KEY;
 
   if (!API_KEY) {
     return res.status(500).json({ error: 'DeepSeek API Key is missing on the server' });
