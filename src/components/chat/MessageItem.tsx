@@ -3,6 +3,7 @@ import { Reply, Smile, Edit2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { deleteMessage, addReaction } from '../../lib/chat';
 import { getAvatarColor } from '../../utils/avatarColor';
+import { useConfirm } from '../../contexts/ConfirmContext';
 import type { ChatMessage } from '../../types';
 
 interface MessageItemProps {
@@ -17,6 +18,7 @@ interface MessageItemProps {
 
 export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, threadType, isGrouped, onReply, seenByAvatar, authorAvatarUrl }) => {
   const { user } = useAuthStore();
+  const { confirm } = useConfirm();
   const [showActions, setShowActions] = useState(false);
   const [optimisticReactions, setOptimisticReactions] = useState(message.reactions || {});
   const isAuthor = user?.id === message.authorId;
@@ -26,9 +28,15 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
   }, [message.reactions]);
 
   const handleDelete = async () => {
-    if (window.confirm('Are you sure you want to delete this message?')) {
-      await deleteMessage(threadId, message.id, threadType);
-    }
+    const isConfirmed = await confirm({
+      title: 'Delete Message?',
+      message: "This action can't be undone.",
+      isDanger: true,
+      confirmText: 'Delete',
+      cancelText: 'Cancel'
+    });
+    if (!isConfirmed) return;
+    await deleteMessage(threadId, message.id, threadType);
   };
 
   const formatTime = (timestamp: number) => {
@@ -41,23 +49,24 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
 
     const prevReactions = { ...optimisticReactions };
     const newReactions = { ...optimisticReactions };
-
-    let hadReaction = false;
+    
+    // Deep copy arrays
     Object.keys(newReactions).forEach(key => {
-      if (key === emoji && newReactions[key].includes(user.id)) {
-        hadReaction = true;
-      }
-      newReactions[key] = newReactions[key].filter(uid => uid !== user.id);
+      newReactions[key] = [...newReactions[key]];
     });
 
-    if (!hadReaction) {
-      if (!newReactions[emoji]) newReactions[emoji] = [];
-      newReactions[emoji].push(user.id);
+    if (!newReactions[emoji]) {
+      newReactions[emoji] = [];
     }
 
-    Object.keys(newReactions).forEach(key => {
-      if (newReactions[key].length === 0) delete newReactions[key];
-    });
+    if (newReactions[emoji].includes(user.id)) {
+      newReactions[emoji] = newReactions[emoji].filter(uid => uid !== user.id);
+      if (newReactions[emoji].length === 0) {
+        delete newReactions[emoji];
+      }
+    } else {
+      newReactions[emoji].push(user.id);
+    }
 
     setOptimisticReactions(newReactions);
 
@@ -146,6 +155,7 @@ export const MessageItem: React.FC<MessageItemProps> = ({ message, threadId, thr
             {Object.entries(optimisticReactions).map(([emoji, users]) => (
               <button 
                 key={emoji}
+                onClick={() => handleQuickReact(emoji)}
                 className={`px-1.5 py-0.5 rounded text-xs flex items-center gap-1 border ${users.includes(user?.id || '') ? 'bg-primary/10 border-primary/30 text-primary' : 'bg-surface border-border-subtle text-muted hover:bg-elevated'}`}
               >
                 <span>{emoji}</span>
