@@ -36,13 +36,14 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
     const rawImage = getMetaContent('og:image') || getMetaContent('twitter:image') || '';
     const image = rawImage && (rawImage.startsWith('https://') || rawImage.startsWith('http://')) ? rawImage : undefined;
 
-    return {
+    const result: LinkMetadata = {
       url,
       title: title.trim(),
-      description: description.trim(),
-      image: image || undefined,
-      youtubeId
+      description: description.trim()
     };
+    if (image) result.image = image;
+    if (youtubeId) result.youtubeId = youtubeId;
+    return result;
   } catch (error) {
     if (youtubeId) {
       return {
