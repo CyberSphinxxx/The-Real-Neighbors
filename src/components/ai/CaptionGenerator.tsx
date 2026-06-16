@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Sparkles, Image as ImageIcon, Copy, Send, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -21,6 +21,17 @@ export const CaptionGenerator: React.FC = () => {
   const [isGenerating, setIsGenerating] = useState(false);
   const [captions, setCaptions] = useState<string[]>([]);
   const [selectedCaptionIndex, setSelectedCaptionIndex] = useState<number | null>(null);
+  const [showSkeleton, setShowSkeleton] = useState(false);
+
+  useEffect(() => {
+    let timer: ReturnType<typeof setTimeout>;
+    if (isGenerating && captions.length === 0) {
+      timer = setTimeout(() => setShowSkeleton(true), 300);
+    } else {
+      setShowSkeleton(false);
+    }
+    return () => clearTimeout(timer);
+  }, [isGenerating, captions.length]);
 
   const handleGenerate = async (isRetry = false) => {
     if (!description.trim() || isGenerating) return;
@@ -156,7 +167,7 @@ Rules:
         </button>
       </div>
 
-      {isGenerating && captions.length === 0 && (
+      {showSkeleton && (
         <div className="flex flex-col gap-3">
           {[1, 2, 3].map(i => (
             <div key={i} className="bg-surface rounded-xl border border-border-subtle p-4 h-24 animate-pulse" />
