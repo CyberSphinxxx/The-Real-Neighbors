@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { Select } from '../components/ui/Select';
 import { useAuthStore } from '../stores/authStore';
+import { useSettingsStore } from '../stores/settingsStore';
 import { updateDoc } from '../lib/firestore';
 import { useTheme, type ThemeName } from '../hooks/useTheme';
 import { getAvatarColor } from '../utils/avatarColor';
@@ -18,6 +19,7 @@ import { useWhatsNewStore } from '../stores/whatsNewStore';
 import { formatReleaseDate } from '../lib/github';
 import type { GitHubRelease } from '../lib/github';
 import { marked } from 'marked';
+import DOMPurify from 'dompurify';
 import { CreatorCard } from '../components/settings/about/CreatorCard';
 import { BarkadaRules } from '../components/settings/about/BarkadaRules';
 import { TechStackGrid } from '../components/settings/about/TechStackGrid';
@@ -25,7 +27,8 @@ import { AppStatsCard } from '../components/settings/about/AppStatsCard';
 
 const ReleaseAccordion: React.FC<{ release: GitHubRelease; isLatest: boolean }> = ({ release, isLatest }) => {
   const [isExpanded, setIsExpanded] = useState(isLatest);
-  const parsedBody = release.body ? marked.parse(release.body) : '';
+  const rawHtml = release.body ? marked.parse(release.body, { async: false }) : '';
+  const parsedBody = rawHtml ? DOMPurify.sanitize(rawHtml as string) : '';
 
   return (
     <div className="bg-elevated rounded-xl border border-border-subtle overflow-hidden mb-3 hover:border-primary/30 transition-colors">
@@ -55,7 +58,7 @@ const ReleaseAccordion: React.FC<{ release: GitHubRelease; isLatest: boolean }> 
           {parsedBody ? (
             <div 
               className="release-notes mt-2 border-t border-border-subtle pt-4"
-              dangerouslySetInnerHTML={{ __html: parsedBody as string }}
+              dangerouslySetInnerHTML={{ __html: parsedBody }}
             />
           ) : (
             <p className="text-muted text-sm mt-2 border-t border-border-subtle pt-4">No release notes for this version.</p>
@@ -91,13 +94,12 @@ export const SettingsPage: React.FC = () => {
 
   // Appearance State
   const { currentTheme, setTheme } = useTheme();
-  const [bgPattern, setBgPattern] = useState(localStorage.getItem('bg-pattern') || 'none');
+  const { bgPattern, setBgPattern, fontSize, setFontSize } = useSettingsStore();
   const [bgAnimation, setBgAnimation] = useState(localStorage.getItem('bg-animation') || 'none');
   const [bgAmount, setBgAmount] = useState(localStorage.getItem('bg-amount') || '3');
   const [bgOpacity, setBgOpacity] = useState(localStorage.getItem('bg-opacity') || '50');
   const [bgSpeed, setBgSpeed] = useState(localStorage.getItem('bg-speed') || '3');
   const [bgAngle, setBgAngle] = useState(localStorage.getItem('bg-angle') || '0');
-  const [fontSize, setFontSize] = useState(localStorage.getItem('font-size') || '14px');
 
   // WhatsNew State
   const { allReleases, latestRelease, isLoading: whatsNewLoading, openManually: openWhatsNew } = useWhatsNewStore();
@@ -219,8 +221,6 @@ export const SettingsPage: React.FC = () => {
 
   const handlePatternChange = (pattern: string) => {
     setBgPattern(pattern);
-    localStorage.setItem('bg-pattern', pattern);
-    window.dispatchEvent(new Event('bg-pattern-changed'));
   };
 
   const handleAnimationChange = (animation: string) => {
@@ -237,8 +237,6 @@ export const SettingsPage: React.FC = () => {
 
   const handleFontSizeChange = (size: string) => {
     setFontSize(size);
-    localStorage.setItem('font-size', size);
-    window.dispatchEvent(new Event('font-size-changed'));
   };
 
   const handleFeedPrefChange = async (key: string, value: string | boolean) => {
