@@ -44,7 +44,7 @@ async function checkRateLimit(): Promise<void> {
     if (error instanceof Error && error.message === "Daily limit reached") {
       throw new AIError("Daily AI limit reached (500/500)! Try again tomorrow.");
     }
-    console.warn("Allowing request to proceed despite rate limit check failure.");
+    throw new AIError("Could not verify rate limit. Please try again.");
   }
 }
 
@@ -62,10 +62,12 @@ export async function callDeepSeek(
   const maxTokens = options?.maxTokens ?? 1000;
 
   try {
+    const token = await auth.currentUser?.getIdToken();
     const response = await fetch('/api/deepseek', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
@@ -109,10 +111,12 @@ export async function callDeepSeekStream(
   }
 
   try {
+    const token = await auth.currentUser?.getIdToken();
     const response = await fetch('/api/deepseek', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {})
       },
       body: JSON.stringify({
         model: 'deepseek-chat',
@@ -174,7 +178,7 @@ export async function callDeepSeekStream(
          const parsed = JSON.parse(data);
          const content = parsed.choices[0]?.delta?.content;
          if (content) onChunk(content);
-       } catch (e) {}
+       } catch (e) { /* Ignore parse errors for incomplete SSE chunks */ }
     }
     onDone();
   } catch (error) {
