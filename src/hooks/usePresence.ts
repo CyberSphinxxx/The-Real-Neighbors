@@ -1,13 +1,12 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { rtdb } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { getAvatarColor } from '../utils/avatarColor';
 
-let lastWriteTime = 0;
-
 export const usePresence = () => {
   const { user } = useAuthStore();
+  const lastWriteTimeRef = useRef(0);
 
   useEffect(() => {
     if (!user) return;
@@ -36,11 +35,11 @@ export const usePresence = () => {
       if (snap.val() === true) {
         // 1. Set onDisconnect handler
         onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).catch(console.error);
-        
+
         // 2. Immediately write online status if last write was > 60s ago
         const now = Date.now();
-        if (now - lastWriteTime > 60000) {
-          lastWriteTime = now;
+        if (now - lastWriteTimeRef.current > 60000) {
+          lastWriteTimeRef.current = now;
           set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
         }
       }
