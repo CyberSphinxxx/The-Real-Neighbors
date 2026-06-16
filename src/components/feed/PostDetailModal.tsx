@@ -433,7 +433,7 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
   };
 
   const innerContent = (
-    <div className={`relative w-full ${isMobile ? 'flex flex-col h-full overflow-y-auto custom-scrollbar' : 'h-full max-w-7xl md:h-[90vh] md:rounded-xl overflow-hidden flex-row shadow-2xl bg-black animate-in zoom-in-95 duration-200 z-10'}`}>
+    <div className={`relative w-full ${isMobile ? 'flex flex-col h-full overflow-y-auto custom-scrollbar' : 'h-full max-w-7xl md:h-[90vh] md:rounded-xl overflow-hidden flex flex-row shadow-2xl bg-black animate-in zoom-in-95 duration-200 z-10'}`}>
         
         {/* LEFT PANEL */}
         <div 
