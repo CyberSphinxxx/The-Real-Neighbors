@@ -32,6 +32,7 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, allUsers }
   const [detailInitialTab, setDetailInitialTab] = useState<'details' | 'comments'>('details');
   const [showMenu, setShowMenu] = useState(false);
   const [isUpdatingReaction, setIsUpdatingReaction] = useState(false);
+  const [imageFailed, setImageFailed] = useState(false);
 
   const handleToggleReaction = async (e: React.MouseEvent, emoji: string) => {
     e.stopPropagation();
@@ -116,21 +117,23 @@ export const PlaylistCard: React.FC<PlaylistCardProps> = ({ playlist, allUsers }
         className="group relative bg-surface rounded-2xl border border-border-subtle shadow-sm overflow-hidden cursor-pointer transition-all duration-150 hover:shadow-md hover:-translate-y-0.5 hover:border-primary/30 flex flex-col h-full"
       >
         {/* Cover Image Area */}
-        <div className="relative w-full aspect-square bg-elevated overflow-hidden flex-shrink-0">
-          <img 
-            src={playlist.thumbnailUrl} 
-            alt={playlist.title} 
+        <div className="relative w-full aspect-square bg-elevated overflow-hidden flex-shrink-0 flex items-center justify-center">
+          {imageFailed ? (
+            <div className="text-muted">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle>
+              </svg>
+            </div>
+          ) : (
+          <img
+            src={playlist.thumbnailUrl}
+            alt={playlist.title}
             loading="lazy"
             decoding="async"
             className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
-            onError={(e) => {
-              e.currentTarget.style.display = 'none';
-              e.currentTarget.parentElement?.classList.add('flex', 'items-center', 'justify-center');
-              if (e.currentTarget.parentElement) {
-                e.currentTarget.parentElement.innerHTML = '<div class="text-muted"><svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18V5l12-2v13"></path><circle cx="6" cy="18" r="3"></circle><circle cx="18" cy="16" r="3"></circle></svg></div>';
-              }
-            }}
+            onError={() => setImageFailed(true)}
           />
+          )}
           
           {/* Gradient Overlay for bottom atmosphere */}
           <div 
