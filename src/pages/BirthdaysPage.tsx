@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { updateDoc } from '../lib/firestore';
 import { useBirthdaysStore } from '../stores/birthdaysStore';
+import { collection, getDocs, query, orderBy } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 const CACHE_TTL = 2 * 60 * 1000;
 import { getDaysUntilBirthday, calculateAgeTurning, isBirthdayToday } from '../utils/date';
 import type { User } from '../types';
@@ -29,9 +31,8 @@ export const BirthdaysPage: React.FC = () => {
         return;
       }
       try {
-        const { collection, getDocs } = await import('firebase/firestore');
-        const { db } = await import('../lib/firebase');
-        const snap = await getDocs(collection(db, 'users'));
+        const q = query(collection(db, 'users'), orderBy('createdAt', 'desc'));
+        const snap = await getDocs(q);
         const data = snap.docs.map(doc => ({ id: doc.id, ...doc.data() } as User));
         if (isMounted) {
           setUsers(data);
@@ -75,14 +76,14 @@ export const BirthdaysPage: React.FC = () => {
           angle: 60,
           spread: 55,
           origin: { x: 0 },
-          colors: ['#var(--color-primary)', '#ffffff']
+          colors: ['#8b5cf6', '#ffffff']
         });
         confetti({
           particleCount: 5,
           angle: 120,
           spread: 55,
           origin: { x: 1 },
-          colors: ['#var(--color-primary)', '#ffffff']
+          colors: ['#8b5cf6', '#ffffff']
         });
 
         if (Date.now() < end) {
@@ -139,7 +140,7 @@ export const BirthdaysPage: React.FC = () => {
           <div className="relative">
             <input 
               type="checkbox" 
-              className="sr-only"
+              style={{ display: 'none' }}
               checked={currentUser?.privacyPrefs?.showBirthYear !== false}
               onChange={() => { if (currentUser) handleToggleAge(currentUser); }}
             />
