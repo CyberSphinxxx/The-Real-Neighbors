@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare, Bot, Gamepad2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection } from '../../lib/firestore';
+import { orderBy, limit } from 'firebase/firestore';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
 import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
 
@@ -37,28 +38,32 @@ export const Sidebar: React.FC = () => {
   useEffect(() => {
     if (!user) return;
 
-    const unsubEvents = subscribeToCollection<Event>('events', (data) => {
-      if (data.length > 0) {
-        const latest = Math.max(...data.map(d => new Date(d.createdAt).getTime()));
-        setLatestDates(prev => ({ ...prev, events: new Date(latest).toISOString() }));
-      }
-    });
+    // Use static import
+    let isMounted = true;
+    let unsubEvents = () => {};
+    let unsubWatchlist = () => {};
+    let unsubLinks = () => {};
 
-    const unsubWatchlist = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
-      const othersData = data.filter(d => d.userId !== user.id);
-      if (othersData.length > 0) {
-        const latest = Math.max(...othersData.map(d => new Date(d.createdAt).getTime()));
-        setLatestDates(prev => ({ ...prev, watchlist: new Date(latest).toISOString() }));
-      }
-    });
+    if (isMounted) {
+      unsubEvents = subscribeToCollection<Event>('events', (data) => {
+        if (data.length > 0) {
+          setLatestDates(prev => ({ ...prev, events: new Date(data[0].createdAt).toISOString() }));
+        }
+      }, orderBy('createdAt', 'desc'), limit(1));
 
-    const unsubLinks = subscribeToCollection<SavedLink>('links', (data) => {
-      if (data.length > 0) {
-        const latest = Math.max(...data.map(d => new Date(d.createdAt).getTime()));
-        setLatestDates(prev => ({ ...prev, links: new Date(latest).toISOString() }));
-      }
-    });
+      unsubWatchlist = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
+        const othersData = data.filter(d => d.userId !== user.id);
+        if (othersData.length > 0) {
+          setLatestDates(prev => ({ ...prev, watchlist: new Date(othersData[0].createdAt).toISOString() }));
+        }
+      }, orderBy('createdAt', 'desc'), limit(5));
 
+      unsubLinks = subscribeToCollection<SavedLink>('links', (data) => {
+        if (data.length > 0) {
+          setLatestDates(prev => ({ ...prev, links: new Date(data[0].createdAt).toISOString() }));
+        }
+      }, orderBy('createdAt', 'desc'), limit(1));
+    }
     const unsubUsers = subscribeToCollection<User>('users', (data) => {
       const today = new Date();
       today.setHours(0,0,0,0);
@@ -76,6 +81,7 @@ export const Sidebar: React.FC = () => {
     });
 
     return () => {
+      isMounted = false;
       unsubEvents();
       unsubWatchlist();
       unsubLinks();
