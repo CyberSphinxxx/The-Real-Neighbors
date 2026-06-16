@@ -14,18 +14,17 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
     // Basic URL validation
     new URL(url);
     
-    // Use allorigins as a free CORS proxy
-    const proxyUrl = `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`;
+    // Use local Vercel proxy
+    const proxyUrl = `/api/link-preview?url=${encodeURIComponent(url)}`;
     const response = await fetch(proxyUrl);
     
     if (!response.ok) throw new Error('Proxy fetch failed');
     
-    const data = await response.json();
-    if (!data.contents) throw new Error('No contents');
+    const htmlText = await response.text();
 
     // Parse the HTML
     const parser = new DOMParser();
-    const doc = parser.parseFromString(data.contents, 'text/html');
+    const doc = parser.parseFromString(htmlText, 'text/html');
 
     const getMetaContent = (property: string) => {
       const el = doc.querySelector(`meta[property="${property}"], meta[name="${property}"]`);
@@ -34,7 +33,8 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
 
     const title = getMetaContent('og:title') || getMetaContent('twitter:title') || doc.title || url;
     const description = getMetaContent('og:description') || getMetaContent('twitter:description') || getMetaContent('description') || '';
-    const image = getMetaContent('og:image') || getMetaContent('twitter:image');
+    const rawImage = getMetaContent('og:image') || getMetaContent('twitter:image') || '';
+    const image = rawImage && (rawImage.startsWith('https://') || rawImage.startsWith('http://')) ? rawImage : undefined;
 
     return {
       url,
