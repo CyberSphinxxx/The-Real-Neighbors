@@ -1,98 +1,49 @@
-import { defineConfig, loadEnv } from 'vite'
+import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
+import fs from 'fs'
+import path from 'path'
 
-export default defineConfig(({ mode }) => {
-  const env = loadEnv(mode, process.cwd(), '');
+const vercelApiPlugin = () => ({
+  name: 'vercel-api-fallback',
+  configureServer(server: any) {
+    server.middlewares.use(async (req: any, res: any, next: any) => {
+      if (req.url?.startsWith('/api/')) {
+        try {
+          const urlObj = new URL(req.url, 'http://localhost');
+          const filePath = path.resolve(process.cwd(), '.' + urlObj.pathname + '.js');
+          
+          if (fs.existsSync(filePath)) {
+            if (req.method === 'POST') {
+              const buffers = [];
+              for await (const chunk of req) buffers.push(chunk);
+              try { req.body = JSON.parse(Buffer.concat(buffers).toString() || '{}'); } catch(e){}
+            }
+            
+            req.query = Object.fromEntries(urlObj.searchParams);
+            res.status = (code: any) => { res.statusCode = code; return res; };
+            res.json = (data: any) => { res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(data)); };
+            res.send = (data: any) => res.end(data);
+
+            const moduleUrl = 'file://' + filePath + '?t=' + Date.now();
+            const module = await import(moduleUrl);
+            await module.default(req, res);
+            return;
+          }
+        } catch (e) {
+          console.error('Local API Plugin Error:', e);
+        }
+      }
+      next();
+    });
+  }
+});
+
+export default defineConfig(() => {
   return {
   plugins: [
+    vercelApiPlugin(),
     react(),
-    {
-      name: 'api-mock',
-      configureServer(server) {
-        // Body parser for JSON
-        server.middlewares.use(async (req, res, next) => {
-          if (req.url === '/api/deepseek' && req.method === 'POST') {
-            let body = '';
-            req.on('data', chunk => { body += chunk.toString(); });
-            req.on('end', async () => {
-              try {
-                const parsedBody = JSON.parse(body);
-                const apiKey = env.VITE_DEEPSEEK_API_KEY || 'MISSING_KEY';
-                
-                let response;
-                let retries = 2;
-                while (retries >= 0) {
-                  try {
-                    response = await fetch('https://api.deepseek.com/chat/completions', {
-                      method: 'POST',
-                      headers: {
-                        'Content-Type': 'application/json',
-                        'Authorization': `Bearer ${apiKey}`,
-                      },
-                      body: JSON.stringify(parsedBody),
-                    });
-                    break;
-                  } catch (err: any) {
-                    if (retries === 0) throw err;
-                    retries--;
-                    await new Promise(r => setTimeout(r, 1000));
-                  }
-                }
-                
-                if (!response) throw new Error("Fetch failed completely");
-                
-                if (parsedBody.stream) {
-                  if (!response.ok) {
-                    const text = await response.text();
-                    let data;
-                    try {
-                      data = JSON.parse(text);
-                    } catch (err) {
-                      data = { error: { message: `DeepSeek API Error (${response.status}): ${text.substring(0, 100)}` } };
-                    }
-                    res.setHeader('Content-Type', 'application/json');
-                    res.statusCode = response.status;
-                    res.end(JSON.stringify(data));
-                    return;
-                  }
-
-                  if (!response.body) throw new Error('No response body');
-                  res.setHeader('Content-Type', 'text/event-stream');
-                  res.setHeader('Cache-Control', 'no-cache');
-                  res.setHeader('Connection', 'keep-alive');
-                  
-                  const reader = response.body.getReader();
-                  const decoder = new TextDecoder();
-                  while (true) {
-                    const { done, value } = await reader.read();
-                    if (done) break;
-                    res.write(decoder.decode(value));
-                  }
-                  res.end();
-                } else {
-                  const text = await response.text();
-                  let data;
-                  try {
-                    data = JSON.parse(text);
-                  } catch (err) {
-                    data = { error: { message: `DeepSeek API Error (${response.status}): ${text.substring(0, 100)}` } };
-                  }
-                  res.setHeader('Content-Type', 'application/json');
-                  res.statusCode = response.status;
-                  res.end(JSON.stringify(data));
-                }
-              } catch (e: any) {
-                res.statusCode = 500;
-                res.end(JSON.stringify({ error: { message: `Vite Proxy Error: ${e.message || String(e)}` } }));
-              }
-            });
-          } else {
-            next();
-          }
-        });
-      }
-    },
     VitePWA({
       registerType: 'autoUpdate',
       includeAssets: ['icon.svg', 'offline.html'],
@@ -133,22 +84,6 @@ export default defineConfig(({ mode }) => {
         ]
       }
     })
-  ],
-  server: {
-    proxy: {
-      '/reddit-api': {
-        target: 'https://www.reddit.com',
-        changeOrigin: true,
-        rewrite: (path: string) => path.replace(/^\/reddit-api/, ''),
-        configure: (proxy) => {
-          proxy.on('proxyReq', (proxyReq) => {
-            proxyReq.setHeader('User-Agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
-            proxyReq.setHeader('Accept', 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8');
-            proxyReq.setHeader('Accept-Language', 'en-US,en;q=0.5');
-          });
-        },
-      }
-    }
-  }
+  ]
   };
 });
