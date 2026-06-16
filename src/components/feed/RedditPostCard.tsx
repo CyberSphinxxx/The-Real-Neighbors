@@ -56,7 +56,7 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
         comments: [],
         sharedRedditPost: post,
       };
-      await addDoc('posts', newPost as any);
+      await addDoc<Omit<Post, 'id'>>('posts', newPost);
       toast.success('Shared to feed!');
       setShowShareModal(false);
     } catch (error) {
@@ -132,7 +132,7 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
               {hasEnteredView ? (
                 <iframe
                   src={`https://www.redditmedia.com/mediaembed/${post.id.replace('t3_', '')}?autoplay=0`}
-                  sandbox="allow-scripts allow-same-origin allow-popups"
+                  sandbox="allow-scripts allow-popups"
                   style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }}
                   scrolling="no"
                   allowFullScreen
