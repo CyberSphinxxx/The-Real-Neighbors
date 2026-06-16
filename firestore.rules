@@ -82,18 +82,20 @@ service cloud.firestore {
       // Event notes subcollection
       match /notes/{noteId} {
         allow read: if isAuthenticated();
-        allow create, update, delete: if isAuthenticated();
+        allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+        allow update: if isAuthenticated() && resource.data.authorId == request.auth.uid;
+        allow delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
       }
     }
     
     // 6. links (Link Saver)
     //    - Any authenticated user can read and create.
-    //    - Any authenticated user can update (for upvotes).
+    //    - Creators or admins can update.
     //    - Creators or admins can delete.
     match /links/{linkId} {
       allow read: if isAuthenticated();
       allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.savedBy == request.auth.uid);
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.savedBy == request.auth.uid);
     }
     
@@ -139,8 +141,7 @@ service cloud.firestore {
     // 10. groupStats
     match /groupStats/{statId} {
       allow read: if isAuthenticated();
-      // Any authenticated user can update the streak when they post
-      allow write: if isAuthenticated(); 
+      allow write: if isAdmin();
     }
 
     // 11. polls
@@ -148,23 +149,27 @@ service cloud.firestore {
       allow read: if isAuthenticated();
       // Any authenticated user can create polls
       allow create: if isAuthenticated();
-      // Users can vote (update polls). In a real app we'd validate the update structure,
-      // but for now we allow authenticated users to update it.
-      allow update: if isAuthenticated();
+      // Users can vote by updating only the votes field
+      allow update: if isAuthenticated() && (
+        isAdmin() ||
+        resource.data.authorId == request.auth.uid ||
+        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['votes'])
+      );
       allow delete: if isAdmin();
     }
 
     // 12. birthdayMessages
     match /birthdayMessages/{boardId} {
       allow read: if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.authorId == request.auth.uid;
+      allow update, delete: if isAuthenticated() && resource.data.authorId == request.auth.uid;
     }
 
     // 13. playlists
     match /playlists/{playlistId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update: if isAuthenticated();
+      allow create: if isAuthenticated() && request.resource.data.addedBy == request.auth.uid;
+      allow update: if isAuthenticated() && (isAdmin() || resource.data.addedBy == request.auth.uid || request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions', 'ratings']));
       allow delete: if isAuthenticated() && (isAdmin() || resource.data.addedBy == request.auth.uid);
       
       // comments subcollection for playlists
@@ -183,8 +188,9 @@ service cloud.firestore {
     // 14. channels and messages
     match /channels/{channelId} {
       allow read: if isAuthenticated();
-      allow create: if isAuthenticated();
-      allow update, delete: if isAuthenticated();
+      allow create: if isAdmin();
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
       
       match /messages/{messageId} {
         allow read: if isAuthenticated();
