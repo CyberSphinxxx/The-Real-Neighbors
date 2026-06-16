@@ -7,9 +7,11 @@ import { useNavigate } from 'react-router-dom';
 import { formatTimeAgo } from '../../utils/date';
 import { orderBy, limit } from 'firebase/firestore';
 import { MobileBottomSheet } from '../ui/MobileBottomSheet';
+import { useConfirm } from '../../contexts/ConfirmContext';
 
 export const NotificationBell: React.FC = () => {
   const { user } = useAuthStore();
+  const { confirm } = useConfirm();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [isOpen, setIsOpen] = useState(false);
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
@@ -67,7 +69,13 @@ export const NotificationBell: React.FC = () => {
 
   const handleClearAll = async () => {
     if (!user) return;
-    if (!window.confirm('Clear all notifications?')) return;
+    const confirmed = await confirm({
+      title: 'Clear Notifications?',
+      message: 'This will mark all notifications as read.',
+      confirmText: 'Clear',
+      cancelText: 'Cancel'
+    });
+    if (!confirmed) return;
     try {
       const { writeBatch, doc } = await import('firebase/firestore');
       const { db } = await import('../../lib/firebase');
