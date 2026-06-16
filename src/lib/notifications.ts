@@ -1,6 +1,8 @@
-import { getDoc } from './firestore';
+// getDoc removed
 import type { User, Notification } from '../types';
 import { useAuthStore } from '../stores/authStore';
+import { collection, getDocs, writeBatch, doc } from 'firebase/firestore';
+import { db } from './firebase';
 
 // Batching queue
 type QueuedNotification = {
@@ -11,6 +13,19 @@ type QueuedNotification = {
 let notificationQueue: QueuedNotification[] = [];
 let batchTimer: ReturnType<typeof setTimeout> | null = null;
 
+let _cachedUsers: User[] | null = null;
+let _cachedUsersTime = 0;
+
+const getCachedUsers = async () => {
+  if (_cachedUsers && Date.now() - _cachedUsersTime < 60000) {
+    return _cachedUsers;
+  }
+  const snap = await getDocs(collection(db, 'users'));
+  _cachedUsers = snap.docs.map(d => ({ id: d.id, ...d.data() } as User));
+  _cachedUsersTime = Date.now();
+  return _cachedUsers;
+};
+
 const commitBatch = async () => {
   if (notificationQueue.length === 0) return;
 
@@ -18,17 +33,17 @@ const commitBatch = async () => {
   notificationQueue = [];
 
   try {
-    const { writeBatch, doc, collection } = await import('firebase/firestore');
-    const { db } = await import('./firebase');
-
-    const batch = writeBatch(db);
-    queueCopy.forEach(({ path, data }) => {
-      // Create a new doc reference with auto ID
-      const docRef = doc(collection(db, path));
-      batch.set(docRef, data);
-    });
-
-    await batch.commit();
+    // Firestore batch limit is 500 writes; chunk into 450 to stay safe
+    const CHUNK_SIZE = 450;
+    for (let i = 0; i < queueCopy.length; i += CHUNK_SIZE) {
+      const chunk = queueCopy.slice(i, i + CHUNK_SIZE);
+      const batch = writeBatch(db);
+      chunk.forEach(({ path, data }) => {
+        const docRef = doc(collection(db, path));
+        batch.set(docRef, data);
+      });
+      await batch.commit();
+    }
   } catch (error) {
     console.error('Failed to commit notification batch', error);
   }
@@ -61,7 +76,8 @@ export const writeNotification = async (
 
   try {
     // Check target user's notification preferences
-    const targetUser = await getDoc<User>('users', [targetUid]);
+    const users = await getCachedUsers();
+    const targetUser = users.find(u => u.id === targetUid);
     if (targetUser && prefKey) {
       const prefs = targetUser.notificationPrefs || {};
       if (prefs[prefKey] === false) {
@@ -87,17 +103,15 @@ export const broadcastNotification = async (
   excludeUid?: string
 ) => {
   try {
-    const { collection, getDocs } = await import('firebase/firestore');
-    const { db } = await import('./firebase');
-    const usersSnap = await getDocs(collection(db, 'users'));
+    const users = await getCachedUsers();
     
-    usersSnap.forEach(docSnap => {
-      const uid = docSnap.id;
-      if (uid === excludeUid) return;
-      
-      const targetUser = docSnap.data() as User;
+    // Process users in batches to avoid blocking
+    for (const targetUser of users) {
+      const uid = targetUser.id;
+      if (uid === excludeUid) continue;
+
       const prefs = targetUser.notificationPrefs || {};
-      
+
       if (prefs[prefKey] !== false) {
         const newNotification: Omit<Notification, 'id'> = {
           ...data,
@@ -106,7 +120,7 @@ export const broadcastNotification = async (
         };
         queueWrite(`users/${uid}/notifications`, newNotification);
       }
-    });
+    }
   } catch (error) {
     console.error('Failed to broadcast notification', error);
   }
