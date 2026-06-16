@@ -130,6 +130,7 @@ export const FeedPage: React.FC = () => {
       // Keep displaying what's already rendered (plus any pinned posts, which bypass the buffer)
       const updatedPostsToRender = rawPosts.filter(p => currentRenderedIds.has(p.id) || p.isPinned);
       setPosts(updatedPostsToRender);
+      renderedPostIdsRef.current = new Set(updatedPostsToRender.map(p => p.id));
     } else {
       setPendingNewPostsCount(0);
       setPosts(rawPosts);
