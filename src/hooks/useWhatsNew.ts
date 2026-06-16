@@ -13,11 +13,11 @@ export function useWhatsNew() {
     hasFetched.current = true;
 
     async function checkReleases() {
-      store.setReleasesData({ ...store, isLoading: true });
+      useWhatsNewStore.setState({ isLoading: true });
 
       const latest = await fetchLatestRelease();
       if (!latest) {
-        store.setReleasesData({
+        useWhatsNewStore.setState({
           latestRelease: null,
           allReleases: [],
           shouldShow: false,
@@ -29,9 +29,8 @@ export function useWhatsNew() {
       const lastSeenTag = localStorage.getItem('whatsNew_lastSeenTag');
       const shouldShow = lastSeenTag !== latest.tagName;
 
-      store.setReleasesData({
+      useWhatsNewStore.setState({
         latestRelease: latest,
-        allReleases: store.allReleases,
         shouldShow,
         isLoading: false,
       });
@@ -48,7 +47,7 @@ export function useWhatsNew() {
               fromAvatarColor: 'var(--color-primary)',
               message: `Version ${latest.tagName} is now live! Check out what's new.`,
             }).catch(err => console.error('Failed to create release notification:', err));
-            
+
             localStorage.setItem('whatsNew_notifiedTag', latest.tagName);
           }
         }
