@@ -119,10 +119,11 @@ export const sendMessage = async (threadId: string, message: Omit<ChatMessage, '
 export const updateMessage = async (threadId: string, messageId: string, updates: Partial<ChatMessage>, threadType: 'channels' | 'dms' = 'channels') => {
   const collectionPath = threadType === 'channels' ? `channels/${threadId}/messages` : `dms/${threadId}/messages`;
   const messageRef = doc(db, collectionPath, messageId);
-  return updateDoc(messageRef, {
-    ...updates,
-    isEdited: true
-  });
+  const dataToUpdate: any = { ...updates };
+  if ('content' in updates) {
+    dataToUpdate.isEdited = true;
+  }
+  return updateDoc(messageRef, dataToUpdate);
 };
 
 export const deleteMessage = async (threadId: string, messageId: string, threadType: 'channels' | 'dms' = 'channels') => {
@@ -161,8 +162,8 @@ export const addReaction = async (threadId: string, messageId: string, emoji: st
 // TYPING INDICATORS (RTDB)
 // ========================
 
-export const setTypingStatus = (threadId: string, userId: string, isTyping: boolean) => {
-  const typingRef = ref(rtdb, `typing/${threadId}/${userId}`);
+export const setTypingStatus = (threadId: string, userId: string, isTyping: boolean, threadType: 'channels' | 'dms' = 'channels') => {
+  const typingRef = ref(rtdb, `typing/${threadType}/${threadId}/${userId}`);
   if (isTyping) {
     set(typingRef, {
       isTyping: true,
@@ -174,8 +175,8 @@ export const setTypingStatus = (threadId: string, userId: string, isTyping: bool
   }
 };
 
-export const subscribeToTypingStatus = (threadId: string, callback: (typingUsers: Record<string, any>) => void) => {
-  const typingRef = ref(rtdb, `typing/${threadId}`);
+export const subscribeToTypingStatus = (threadId: string, callback: (typingUsers: Record<string, any>) => void, threadType: 'channels' | 'dms' = 'channels') => {
+  const typingRef = ref(rtdb, `typing/${threadType}/${threadId}`);
   return onValue(typingRef, (snapshot) => {
     const val = snapshot.val();
     callback(val || {});
