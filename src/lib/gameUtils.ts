@@ -179,11 +179,25 @@ export async function submitScore(
   // Doing it synchronously here is okay since it's fire-and-forget, but for real app we'd do it as a cloud function.
   // We'll leave the batch cleanup out for brevity or add it if strictly required. Let's add it.
   try {
+    const { startAfter, writeBatch } = await import('firebase/firestore');
     const activityQuery = query(collection(db, 'gameActivity'), orderBy('createdAt', 'desc'), limit(50));
     const activityDocs = await getDocs(activityQuery);
-    if (activityDocs.size >= 50) {
-      // It's getting large, this requires complex logic to find docs beyond 50. 
-      // Cloud function is better. I will skip the strict client-side cleanup for now to avoid errors.
+    
+    if (activityDocs.size === 50) {
+      const lastDoc = activityDocs.docs[49];
+      const olderQuery = query(
+        collection(db, 'gameActivity'), 
+        orderBy('createdAt', 'desc'), 
+        startAfter(lastDoc), 
+        limit(20) // Delete up to 20 old docs per play to catch up gradually
+      );
+      const olderDocs = await getDocs(olderQuery);
+      
+      if (!olderDocs.empty) {
+        const batch = writeBatch(db);
+        olderDocs.docs.forEach(d => batch.delete(d.ref));
+        await batch.commit();
+      }
     }
   } catch (e) {
     console.error('Error cleaning up activity:', e);
