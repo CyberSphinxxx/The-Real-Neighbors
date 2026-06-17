@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
 import { callDeepSeek } from '../../lib/deepseek';
 import { Botbot_SYSTEM_PROMPT, getBotbotContextPrompt } from '../../lib/botbotPersonality';
@@ -19,11 +19,14 @@ export const VibeCheckWidget: React.FC = () => {
   const { fetchContext } = useBotbotContext();
   const [data, setData] = useState<VibeCheckResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const isGeneratingRef = useRef(false);
+  const initialized = useRef(false);
 
   const getTodayDateString = () => new Date().toISOString().split('T')[0];
 
   const generateVibeCheck = useCallback(async () => {
-    if (isGenerating) return;
+    if (isGeneratingRef.current) return;
+    isGeneratingRef.current = true;
     setIsGenerating(true);
     
     try {
@@ -89,12 +92,19 @@ Rules:
     } catch (error) {
       console.error('Error generating vibe check:', error);
     } finally {
+      isGeneratingRef.current = false;
       setIsGenerating(false);
     }
-  }, [isGenerating, user, fetchContext]);
+  }, [user, fetchContext]);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user) {
+      initialized.current = false;
+      return;
+    }
+    
+    if (initialized.current) return;
+    initialized.current = true;
     
     const fetchGlobalVibeCheck = async () => {
       try {
