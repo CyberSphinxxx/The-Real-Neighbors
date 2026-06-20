@@ -31,7 +31,7 @@ export const LiveLeaderboard: React.FC<LiveLeaderboardProps> = ({ currentScore, 
     const all = [...filteredScores, currentEntry];
     all.sort((a, b) => b.score - a.score);
     
-    return all.slice(0, 10); // Keep top 10
+    return all; // Do not slice so the user is always visible even if below top 10
   }, [currentScore, leaderboardScores, user]);
 
   if (!user) return null;

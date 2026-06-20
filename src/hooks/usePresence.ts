@@ -36,12 +36,8 @@ export const usePresence = () => {
         // 1. Set onDisconnect handler
         onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).catch(console.error);
 
-        // 2. Immediately write online status if last write was > 60s ago
-        const now = Date.now();
-        if (now - lastWriteTimeRef.current > 60000) {
-          lastWriteTimeRef.current = now;
-          set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
-        }
+        // 2. Immediately write online status
+        set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
       }
     });
 
