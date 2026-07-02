@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { MessageSquare, ExternalLink, ArrowUp, Share2 } from 'lucide-react';
-import { subscribeToCollection, addDoc } from '../../lib/firestore';
+import { addDoc } from '../../lib/firestore';
 import { useAuthStore } from '../../stores/authStore';
 import toast from 'react-hot-toast';
 import { formatTimeAgo } from '../../utils/date';
-import type { RedditPost, Comment, Post } from '../../types';
+import type { RedditPost, Post } from '../../types';
 import { ShareRedditPostModal } from './ShareRedditPostModal';
 
 interface RedditPostCardProps {
@@ -36,11 +36,22 @@ export const RedditPostCard: React.FC<RedditPostCardProps> = ({ post, onOpenPost
   }, [post.is_video, hasEnteredView]);
 
   useEffect(() => {
-    const unsubscribe = subscribeToCollection<Comment>(
-      `redditPosts/${post.id}/comments`,
-      (data) => setOurCommentCount(data.length)
-    );
-    return () => unsubscribe();
+    let isMounted = true;
+    const fetchCommentCount = async () => {
+      try {
+        const { collection, getCountFromServer } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const coll = collection(db, `redditPosts/${post.id}/comments`);
+        const snapshot = await getCountFromServer(coll);
+        if (isMounted) {
+          setOurCommentCount(snapshot.data().count);
+        }
+      } catch (e) {
+        console.error('Failed to fetch comment count', e);
+      }
+    };
+    fetchCommentCount();
+    return () => { isMounted = false; };
   }, [post.id]);
 
   const handleShareSubmit = async (caption: string) => {

@@ -36,7 +36,7 @@ export const SubredditManager: React.FC<SubredditManagerProps> = ({ onClose, sub
     setError('');
 
     try {
-      const res = await fetch(`/reddit-api/r/${sub}/.json?limit=1`);
+      const res = await fetch(`/api/reddit?path=/r/${sub}/.rss&limit=1`);
       
       if (!res.ok) {
         setError('Subreddit not found or NSFW');
