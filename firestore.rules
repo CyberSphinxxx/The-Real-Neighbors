@@ -141,7 +141,7 @@ service cloud.firestore {
     // 10. groupStats
     match /groupStats/{statId} {
       allow read: if isAuthenticated();
-      allow write: if isAdmin();
+      allow write: if isAuthenticated();
     }
 
     // 11. polls

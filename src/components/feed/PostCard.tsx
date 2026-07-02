@@ -40,6 +40,7 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   const [showShareModal, setShowShareModal] = useState(false);
   const [showReactors, setShowReactors] = useState(false);
   const [showSeenBy, setShowSeenBy] = useState(false);
+  const [hidePicker, setHidePicker] = useState(false);
 
   useEffect(() => {
     setOptimisticReactions(post.reactions || {});
@@ -936,14 +937,18 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
         {/* Bottom Row: Action Buttons */}
         <div className="flex items-center justify-between border-t border-border-subtle pt-1 gap-1" style={{ borderColor: hasBg ? 'rgba(255,255,255,0.2)' : 'var(--color-border)' }}>
           {/* Like Button with Hover Menu */}
-          <div className="relative group flex-1">
+          <div className="relative group flex-1" onMouseLeave={() => setHidePicker(false)}>
             {/* Hover Menu with invisible bridge to prevent losing hover state */}
-            <div className="absolute bottom-full left-0 pb-2 hidden group-hover:block z-50">
+            <div className={`absolute bottom-full left-0 pb-2 hidden ${!hidePicker ? 'group-hover:block' : ''} z-50`}>
               <div className="flex items-center gap-1 border border-border-subtle rounded-full shadow-xl p-1 animate-in slide-in-from-bottom-2 fade-in duration-200" style={{ background: hasBg ? 'var(--color-bg-base)' : 'var(--color-bg-surface)' }}>
                 {REACTIONS.map((r) => (
                   <button
                     key={r.emoji}
-                    onClick={(e) => { e.stopPropagation(); handleToggleReaction(r.emoji); }}
+                    onClick={(e) => { 
+                      e.stopPropagation(); 
+                      handleToggleReaction(r.emoji); 
+                      setHidePicker(true);
+                    }}
                     className="w-8 h-8 flex items-center justify-center text-xl hover:scale-125 transition-transform origin-bottom"
                     title={r.label}
                   >

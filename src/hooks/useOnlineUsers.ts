@@ -49,11 +49,15 @@ export const useOnlineUsers = () => {
         const p = rtdbPresence[uid];
         if (allUsersMap.has(uid)) {
           const u = allUsersMap.get(uid)!;
-          u.online = p.online;
+          u.online = p.connections ? Object.keys(p.connections).length > 0 : !!p.online;
           if (p.lastSeen) u.lastSeen = p.lastSeen;
           if (p.avatarColor) u.avatarColor = p.avatarColor;
         } else {
-          allUsersMap.set(uid, { uid, ...p });
+          allUsersMap.set(uid, { 
+            uid, 
+            ...p, 
+            online: p.connections ? Object.keys(p.connections).length > 0 : !!p.online 
+          });
         }
       });
 

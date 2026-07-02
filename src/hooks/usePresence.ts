@@ -1,50 +1,49 @@
-import { useEffect, useRef } from 'react';
-import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database';
+import { useEffect } from 'react';
+import { ref, onValue, set, onDisconnect, serverTimestamp, push, remove } from 'firebase/database';
 import { rtdb } from '../lib/firebase';
 import { useAuthStore } from '../stores/authStore';
 import { getAvatarColor } from '../utils/avatarColor';
 
 export const usePresence = () => {
   const { user } = useAuthStore();
-  const lastWriteTimeRef = useRef(0);
 
   useEffect(() => {
     if (!user) return;
 
     const uid = user.id;
-    const userStatusDatabaseRef = ref(rtdb, `presence/${uid}`);
+    const myConnectionsRef = ref(rtdb, `presence/${uid}/connections`);
+    const lastSeenRef = ref(rtdb, `presence/${uid}/lastSeen`);
     const connectedRef = ref(rtdb, '.info/connected');
 
     const avatarColor = getAvatarColor(user.displayName);
-
-    const isOfflineForDatabase = {
-      online: false,
-      lastSeen: serverTimestamp(),
-      displayName: user.displayName,
-      avatarColor,
-    };
-
-    const isOnlineForDatabase = {
-      online: true,
-      lastSeen: serverTimestamp(),
-      displayName: user.displayName,
-      avatarColor,
-    };
+    let currentConnectionRef: any = null;
 
     const unsubscribe = onValue(connectedRef, (snap) => {
       if (snap.val() === true) {
-        // 1. Set onDisconnect handler
-        onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).catch(console.error);
+        // 1. Add this device to connections list
+        const con = push(myConnectionsRef);
+        currentConnectionRef = con;
 
-        // 2. Immediately write online status
-        set(userStatusDatabaseRef, isOnlineForDatabase).catch(console.error);
+        // 2. When I disconnect, remove this device
+        onDisconnect(con).remove().then(() => {
+          // 3. Immediately write online status for this connection
+          set(con, true).catch(console.error);
+
+          // Update basic presence info
+          set(ref(rtdb, `presence/${uid}/displayName`), user.displayName).catch(console.error);
+          set(ref(rtdb, `presence/${uid}/avatarColor`), avatarColor).catch(console.error);
+        }).catch(console.error);
+
+        // 4. When I disconnect, update lastSeen
+        onDisconnect(lastSeenRef).set(serverTimestamp()).catch(console.error);
       }
     });
 
     return () => {
       unsubscribe();
-      // We rely on onDisconnect to handle offline status when the user actually disconnects,
-      // preventing React StrictMode from incorrectly setting offline on component remount.
+      if (currentConnectionRef) {
+        remove(currentConnectionRef).catch(console.error);
+      }
     };
   }, [user]);
 };
