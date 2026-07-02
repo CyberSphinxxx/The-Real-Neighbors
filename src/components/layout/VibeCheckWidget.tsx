@@ -1,8 +1,5 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { Sparkles, RefreshCw } from 'lucide-react';
-import { callDeepSeek } from '../../lib/deepseek';
-import { Botbot_SYSTEM_PROMPT, getBotbotContextPrompt } from '../../lib/botbotPersonality';
-import { useBotbotContext } from '../../hooks/useBotbotContext';
 import { useAuthStore } from '../../stores/authStore';
 import { getDoc, setDoc } from '../../lib/firestore';
 
@@ -14,9 +11,21 @@ interface VibeCheckResult {
   generatedAt: string;
 }
 
+const PREDEFINED_VIBES: Omit<VibeCheckResult, 'generatedAt'>[] = [
+  { score: 9.5, mood: "Peak Energy ⚡", description: "The group chat is on fire today. Pure chaos in the best way possible.", forecast: "Someone is going to drop a legendary meme." },
+  { score: 8.0, mood: "Chill Mode 😌", description: "Everyone is taking it easy. Good vibes, relaxed energy.", forecast: "Random deep talks late at night." },
+  { score: 6.5, mood: "Ghost Town 👻", description: "Where is everybody? The silence is deafening.", forecast: "Someone will reply 'slr' 5 hours late." },
+  { score: 7.5, mood: "Gaming Arc 🎮", description: "Locking in. The competitive spirit is high today.", forecast: "Rage quit incoming in 3... 2... 1..." },
+  { score: 8.5, mood: "Yapping Session 🗣️", description: "Non-stop chika and storytelling. We have so much to say.", forecast: "A voice note longer than a podcast." },
+  { score: 9.0, mood: "Food Cravings 🍕", description: "Everyone is just talking about what to eat.", forecast: "Someone is definitely ordering fast food right now." },
+  { score: 5.0, mood: "Brain Fried 🧠", description: "Pagod na ang lahat. Single brain cell functioning.", forecast: "Typo strings and confused replies." },
+  { score: 8.8, mood: "Productive Era 📈", description: "Wait, are we actually doing our tasks? Rare W.", forecast: "Someone will flex their completed task." },
+  { score: 7.0, mood: "Nostalgia Trip 🕰️", description: "Looking back at old photos and inside jokes.", forecast: "Prepare for 'miss u guys' messages." },
+  { score: 9.8, mood: "Hype Train 🚂", description: "Maximum excitement! We're planning something big.", forecast: "Plans will be made (and hopefully not cancelled)." }
+];
+
 export const VibeCheckWidget: React.FC = () => {
   const { user } = useAuthStore();
-  const { fetchContext } = useBotbotContext();
   const [data, setData] = useState<VibeCheckResult | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const isGeneratingRef = useRef(false);
@@ -30,53 +39,15 @@ export const VibeCheckWidget: React.FC = () => {
     setIsGenerating(true);
     
     try {
-      const contextData = await fetchContext();
-      const systemPrompt = Botbot_SYSTEM_PROMPT + '\n\n' + getBotbotContextPrompt(contextData);
+      // Simulate slight delay for effect
+      await new Promise(resolve => setTimeout(resolve, 800));
 
-      const prompt = `Analyze the current vibe of our friend group based on the recent activity and give a vibe check report.
-
-Respond with ONLY a JSON object in this exact format, no other text:
-{
-  "score": 7.5,
-  "mood": "Gaming Arc 🎮",
-  "description": "Two sentences max about the current group energy.",
-  "forecast": "One funny prediction for what will happen today."
-}
-
-Rules:
-- score is a number from 1.0 to 10.0 (one decimal)
-- mood is a short label with ONE relevant emoji at the end
-- description is casual Taglish, max 2 sentences
-- forecast is funny and specific, references the group's actual activity
-- Return ONLY valid JSON, no markdown, no explanation`;
-
-      const response = await callDeepSeek([
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: prompt }
-      ]);
+      const randomVibe = PREDEFINED_VIBES[Math.floor(Math.random() * PREDEFINED_VIBES.length)];
       
-      let parsed: VibeCheckResult;
-      try {
-        // Strip markdown backticks if present
-        let jsonStr = response.content;
-        if (jsonStr.startsWith('```json')) {
-          jsonStr = jsonStr.replace(/^```json/, '').replace(/```$/, '');
-        } else if (jsonStr.startsWith('```')) {
-          jsonStr = jsonStr.replace(/^```/, '').replace(/```$/, '');
-        }
-        parsed = JSON.parse(jsonStr.trim());
-      } catch (e) {
-        console.error('Failed to parse vibe check JSON:', e);
-        parsed = {
-          score: 7.0,
-          mood: "Chill Mode 😌",
-          description: "Ayaw i-analyze ng Botbot ngayon. Try again.",
-          forecast: "Baka may mag-post ng meme mamaya.",
-          generatedAt: new Date().toISOString()
-        };
-      }
-      
-      parsed.generatedAt = new Date().toISOString();
+      const parsed: VibeCheckResult = {
+        ...randomVibe,
+        generatedAt: new Date().toISOString()
+      };
       setData(parsed);
       
       if (user) {
@@ -95,7 +66,7 @@ Rules:
       isGeneratingRef.current = false;
       setIsGenerating(false);
     }
-  }, [user, fetchContext]);
+  }, [user]);
 
   useEffect(() => {
     if (!user) {
