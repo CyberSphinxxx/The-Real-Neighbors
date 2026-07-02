@@ -346,6 +346,11 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
         const commentsSnap = await getDocs(query(commentsRef));
         await Promise.all(commentsSnap.docs.map(d => firestoreDeleteDoc(d.ref)));
         await firestoreDeleteDoc(doc(db, 'posts', post.id));
+        
+        import('../../lib/notifications').then(({ deleteNotificationsForPost }) => {
+          deleteNotificationsForPost(post.id);
+        });
+        
         import('react-hot-toast').then(({ default: toast }) => toast.success('Post deleted.'));
         onClose();
       } catch (error) {

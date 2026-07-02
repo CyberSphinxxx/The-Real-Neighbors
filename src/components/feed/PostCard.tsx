@@ -371,6 +371,11 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
 
         // Delete post document
         await firestoreDeleteDoc(doc(db, 'posts', post.id));
+        
+        import('../../lib/notifications').then(({ deleteNotificationsForPost }) => {
+          deleteNotificationsForPost(post.id);
+        });
+
         toast.success('Post deleted.');
       } catch (error) {
         console.error('Error deleting post:', error);

@@ -125,3 +125,35 @@ export const broadcastNotification = async (
     console.error('Failed to broadcast notification', error);
   }
 };
+
+export const deleteNotificationsForPost = async (postId: string) => {
+  try {
+    const { collection, getDocs, writeBatch, query, where } = await import('firebase/firestore');
+    const users = await getCachedUsers();
+    
+    let batch = writeBatch(db);
+    let operationCount = 0;
+    
+    for (const u of users) {
+      const notifsQuery = query(collection(db, `users/${u.id}/notifications`), where('postId', '==', postId));
+      const snap = await getDocs(notifsQuery);
+      
+      for (const d of snap.docs) {
+        batch.delete(d.ref);
+        operationCount++;
+        
+        if (operationCount >= 450) {
+          await batch.commit();
+          batch = writeBatch(db);
+          operationCount = 0;
+        }
+      }
+    }
+    
+    if (operationCount > 0) {
+      await batch.commit();
+    }
+  } catch (error) {
+    console.error('Failed to delete notifications for post', error);
+  }
+};
