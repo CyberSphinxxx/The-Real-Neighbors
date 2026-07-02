@@ -21,4 +21,4 @@ export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export const db = getFirestore(app);
 // presence/ is publicly readable for the login page online count. All other RTDB paths remain restricted.
-export const rtdb = getDatabase(app);
+export const rtdb = getDatabase(app, import.meta.env.VITE_FIREBASE_DATABASE_URL);
