@@ -46,8 +46,16 @@ export const usePresence = () => {
       unsubscribe();
       if (currentConnectionRef) {
         onDisconnect(currentConnectionRef).cancel().catch(console.error);
-        remove(currentConnectionRef).catch(console.error);
-        set(lastSeenRef, serverTimestamp()).catch(console.error);
+        
+        // Check if user is still authenticated before attempting to clean up
+        // to avoid "permission_denied" warnings in the console when logging out.
+        // If they are logging out, the server's onDisconnect will handle the cleanup.
+        import('../lib/firebase').then(({ auth }) => {
+          if (auth.currentUser) {
+            remove(currentConnectionRef).catch(console.error);
+            set(lastSeenRef, serverTimestamp()).catch(console.error);
+          }
+        });
       }
     };
   }, [user?.id, user?.displayName]); // Only re-run if ID or displayName changes
