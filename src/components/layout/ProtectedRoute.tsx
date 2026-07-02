@@ -147,8 +147,8 @@ interface ProtectedRouteProps {
   children: React.ReactNode;
 }
 
-export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
-  const { isAuthenticated, isLoading, setLoading, setUser, logout } = useAuthStore();
+export const GlobalAuthListener: React.FC = () => {
+  const { setLoading, setUser, logout } = useAuthStore();
 
   useEffect(() => {
     let isActive = true;
@@ -271,6 +271,11 @@ export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
     };
   }, [setLoading, setUser, logout]);
 
+  return null;
+};
+
+export const ProtectedRoute: React.FC<ProtectedRouteProps> = ({ children }) => {
+  const { isAuthenticated, isLoading } = useAuthStore();
   const [shouldRenderLoading, setShouldRenderLoading] = useState(isLoading);
   const [isExiting, setIsExiting] = useState(false);
 

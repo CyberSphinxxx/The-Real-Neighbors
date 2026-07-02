@@ -2,7 +2,6 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { signInWithPopup } from 'firebase/auth';
 import { auth, googleProvider } from '../lib/firebase';
-import { getDoc } from '../lib/firestore';
 import VanillaTilt from 'vanilla-tilt';
 import gsap from 'gsap';
 import { useTextScramble } from '../hooks/useTextScramble';
@@ -12,6 +11,7 @@ import {
   Shield, Users, Sparkles, ChevronRight, AlertCircle,
   User as UserIcon, MessageSquare, Tv
 } from 'lucide-react';
+import { useAuthStore } from '../stores/authStore';
 
 interface Sparkle {
   x: number;
@@ -60,6 +60,22 @@ export const LoginPage: React.FC = () => {
 
   const scrambledTitle = useTextScramble('The Real Neighbors', 300);
   const { displayText, isTyping } = useTypewriter({ texts: TAGLINES });
+
+  const { isAuthenticated, isLoading } = useAuthStore();
+  
+  useEffect(() => {
+    if (isAuthenticated) {
+      navigate('/');
+    }
+  }, [isAuthenticated, navigate]);
+
+  // If the global auth listener finishes but we are still not authenticated (e.g. access denied)
+  // we should reset the submit button state so they aren't stuck loading forever.
+  useEffect(() => {
+    if (isSubmitting && !isLoading && !isAuthenticated) {
+      setIsSubmitting(false);
+    }
+  }, [isLoading, isAuthenticated, isSubmitting]);
 
 
 
@@ -240,26 +256,16 @@ export const LoginPage: React.FC = () => {
     setIsSubmitting(true);
     setErrorMsg('');
     try {
-      const result = await signInWithPopup(auth, googleProvider);
-      
-      const allowedEmailDoc = await getDoc<any>('allowedEmails', [result.user.email!]);
-      if (!allowedEmailDoc) {
-        await auth.signOut();
-        setErrorMsg("Access denied. Contact the admin.");
-        setIsSubmitting(false);
-        return;
-      }
-
-      navigate('/');
+      await signInWithPopup(auth, googleProvider);
+      // Let GlobalAuthListener handle the redirection and allowedEmails check!
     } catch (err) {
+      setIsSubmitting(false);
       const error = err as { code?: string, message?: string };
       let msg = 'An error occurred during sign in.';
       if (error?.code === 'auth/popup-closed-by-user') msg = 'Sign in was cancelled.';
       else if (error?.code === 'auth/user-disabled') msg = 'This account has been disabled.';
       else if (error?.message) msg = error.message;
       setErrorMsg(msg);
-    } finally {
-      setIsSubmitting(false);
     }
   };
 

@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AppShell } from './components/layout/AppShell';
-import { ProtectedRoute } from './components/layout/ProtectedRoute';
+import { ProtectedRoute, GlobalAuthListener } from './components/layout/ProtectedRoute';
 import FeedPage from './pages/FeedPage';
 import React, { Suspense } from 'react';
 import { PageSkeleton } from './components/ui/PageSkeleton';
@@ -29,6 +29,7 @@ const HiraganaPage = React.lazy(() => import('./pages/games/HiraganaPage'));
 function App() {
   return (
     <Router>
+      <GlobalAuthListener />
       <GlobalStyleManager />
       <Suspense fallback={<PageSkeleton />}><Routes>
         <Route path="/login" element={<LoginPage />} />
