@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import type { Event, User } from '../../types';
 import { ChevronLeft, ChevronRight, Cake, Palmtree, Gamepad2, Plane, Monitor, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -38,14 +39,12 @@ export const SharedCalendar: React.FC = () => {
   });
   
   const [events, setEvents] = useState<Event[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
 
   useEffect(() => {
     const unsubEvents = subscribeToCollection<Event>('events', setEvents);
-    const unsubUsers = subscribeToCollection<User>('users', setUsers);
     return () => {
       unsubEvents();
-      unsubUsers();
     };
   }, []);
 

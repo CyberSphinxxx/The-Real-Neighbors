@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { useLinksStore } from '../../stores/linksStore';
 const CACHE_TTL = 2 * 60 * 1000;
 import type { User, YoutubeQueueItem } from '../../types';
@@ -10,7 +11,7 @@ import { Plus, PlaySquare, Loader2 } from 'lucide-react';
 
 export const WatchTogetherTab: React.FC = () => {
   const { queue, fetchedAt, setQueue } = useLinksStore();
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
 
@@ -34,12 +35,6 @@ export const WatchTogetherTab: React.FC = () => {
       }
     };
     fetchQueue();
-    
-    const unsubUsers = subscribeToCollection<User>('users', setUsers);
-
-    return () => {
-      unsubUsers();
-    };
   }, []);
 
   const usersMap = useMemo(() => {

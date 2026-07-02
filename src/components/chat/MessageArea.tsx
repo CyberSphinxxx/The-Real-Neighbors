@@ -2,6 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { Hash, Circle } from 'lucide-react';
 import { subscribeToMessages, subscribeToTypingStatus, updateDMSeenReceipt } from '../../lib/chat';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { getAvatarColor } from '../../utils/avatarColor';
@@ -27,19 +28,15 @@ export const MessageArea: React.FC<MessageAreaProps> = ({ threadType, threadId, 
   const [otherUser, setOtherUser] = useState<User | null>(null);
   const { onlineUsers } = useOnlineUsers();
 
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
 
   useEffect(() => {
-    const unsub = subscribeToCollection<User>('users', (data) => {
-      setUsers(data);
-      if (threadType === 'dms' && dm && user) {
-        const otherUserId = dm.participants.find(id => id !== user.id);
-        const other = data.find(u => u.id === otherUserId);
-        setOtherUser(other || null);
-      }
-    });
-    return () => unsub();
-  }, [threadType, dm, user]);
+    if (threadType === 'dms' && dm && user && users.length > 0) {
+      const otherUserId = dm.participants.find(id => id !== user.id);
+      const other = users.find(u => u.id === otherUserId);
+      setOtherUser(other || null);
+    }
+  }, [threadType, dm, user, users]);
 
   const isOtherUserOnline = otherUser && onlineUsers.some(u => u.uid === otherUser.id);
 

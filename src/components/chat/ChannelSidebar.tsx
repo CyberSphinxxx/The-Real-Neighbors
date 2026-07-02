@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Hash, X } from 'lucide-react';
-import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { getAvatarColor } from '../../utils/avatarColor';
@@ -25,12 +25,7 @@ export const ChannelSidebar: React.FC<ChannelSidebarProps> = ({
   const navigate = useNavigate();
   const { user: currentUser } = useAuthStore();
   const { onlineUsers } = useOnlineUsers();
-  const [users, setUsers] = React.useState<User[]>([]);
-
-  React.useEffect(() => {
-    const unsub = subscribeToCollection<User>('users', (data) => setUsers(data));
-    return () => unsub();
-  }, []);
+  const { users } = useUsers();
 
   const onlineIds = useMemo(() => new Set(onlineUsers.map(u => u.uid)), [onlineUsers]);
 

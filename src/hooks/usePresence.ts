@@ -24,6 +24,9 @@ export const usePresence = () => {
         const con = push(myConnectionsRef);
         currentConnectionRef = con;
 
+        // Clean up legacy online flag from previous system
+        set(ref(rtdb, `presence/${uid}/online`), null).catch(console.error);
+
         // 2. When I disconnect, remove this device
         onDisconnect(con).remove().then(() => {
           // 3. Immediately write online status for this connection
@@ -42,7 +45,9 @@ export const usePresence = () => {
     return () => {
       unsubscribe();
       if (currentConnectionRef) {
+        onDisconnect(currentConnectionRef).cancel().catch(console.error);
         remove(currentConnectionRef).catch(console.error);
+        set(lastSeenRef, serverTimestamp()).catch(console.error);
       }
     };
   }, [user]);

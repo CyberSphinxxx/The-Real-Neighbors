@@ -3,6 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom';
 import { Home, Tv, Calendar, Cake, Link as LinkIcon, Settings, UserCircle, Music2 as Music2Icon, MessageSquare, Bot, Gamepad2 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { orderBy, limit } from 'firebase/firestore';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
 import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
@@ -13,6 +14,7 @@ export const Sidebar: React.FC = () => {
   const [lastVisited, setLastVisited] = useState<Record<string, string>>({});
   const [latestDates, setLatestDates] = useState<Record<string, string>>({});
   const [hasUpcomingBirthdays, setHasUpcomingBirthdays] = useState(false);
+  const { users } = useUsers();
   const { shouldShow: hasNewRelease } = useWhatsNewStore();
 
   useEffect(() => {
@@ -64,30 +66,33 @@ export const Sidebar: React.FC = () => {
         }
       }, orderBy('createdAt', 'desc'), limit(1));
     }
-    const unsubUsers = subscribeToCollection<User>('users', (data) => {
-      const today = new Date();
-      today.setHours(0,0,0,0);
-      const nextWeek = new Date(today);
-      nextWeek.setDate(today.getDate() + 7);
-      
-      const hasUpcoming = data.some(u => {
-        if (!u.birthdate) return false;
-        const [_, month, day] = u.birthdate.split('-');
-        const bdayThisYear = new Date(today.getFullYear(), parseInt(month)-1, parseInt(day));
-        if (bdayThisYear < today) bdayThisYear.setFullYear(today.getFullYear() + 1);
-        return bdayThisYear >= today && bdayThisYear <= nextWeek;
-      });
-      setHasUpcomingBirthdays(hasUpcoming);
-    });
 
     return () => {
       isMounted = false;
       unsubEvents();
       unsubWatchlist();
       unsubLinks();
-      unsubUsers();
     };
   }, [user]);
+
+  useEffect(() => {
+    if (!users.length) return;
+    
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const nextWeek = new Date(today);
+    nextWeek.setDate(today.getDate() + 7);
+    
+    const hasUpcoming = users.some(u => {
+      if (!u.birthdate) return false;
+      const [_, month, day] = u.birthdate.split('-');
+      const bday = new Date(today.getFullYear(), parseInt(month)-1, parseInt(day));
+      if (bday < today) bday.setFullYear(today.getFullYear() + 1);
+      return bday >= today && bday <= nextWeek;
+    });
+
+    setHasUpcomingBirthdays(hasUpcoming);
+  }, [users]);
 
   const groups = [
     {

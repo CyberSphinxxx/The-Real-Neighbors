@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { subscribeToCollection } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { getDaysUntilBirthday, isBirthdayToday } from '../../utils/date';
 import type { User } from '../../types';
 import { Cake } from 'lucide-react';
@@ -9,17 +9,16 @@ import { getAvatarColor } from '../../utils/avatarColor';
 const BirthdayWidgetComponent: React.FC = () => {
   const [upcoming, setUpcoming] = useState<User[]>([]);
 
-  useEffect(() => {
-    const unsubscribe = subscribeToCollection<User>('users', (users) => {
-      const withBirthdays = users.filter(u => !!u.birthdate && u.privacyPrefs?.showBirthday !== false);
-      const sorted = withBirthdays.sort((a, b) =>
-        getDaysUntilBirthday(a.birthdate!) - getDaysUntilBirthday(b.birthdate!)
-      );
-      setUpcoming(sorted.slice(0, 3));
-    });
+  const { users } = useUsers();
 
-    return () => unsubscribe();
-  }, []);
+  useEffect(() => {
+    if (!users.length) return;
+    const withBirthdays = users.filter(u => !!u.birthdate && u.privacyPrefs?.showBirthday !== false);
+    const sorted = withBirthdays.sort((a, b) =>
+      getDaysUntilBirthday(a.birthdate!) - getDaysUntilBirthday(b.birthdate!)
+    );
+    setUpcoming(sorted.slice(0, 3));
+  }, [users]);
 
   if (upcoming.length === 0) return null;
 
