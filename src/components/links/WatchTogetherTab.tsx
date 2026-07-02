@@ -1,9 +1,8 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { subscribeToCollection } from '../../lib/firestore';
 import { useUsers } from '../../hooks/useUsers';
 import { useLinksStore } from '../../stores/linksStore';
 const CACHE_TTL = 2 * 60 * 1000;
-import type { User, YoutubeQueueItem } from '../../types';
+import type { YoutubeQueueItem } from '../../types';
 import { YoutubePlayer } from './YoutubePlayer';
 import { YoutubeQueue } from './YoutubeQueue';
 import { AddVideoModal } from './AddVideoModal';

@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { subscribeToCollection, deleteDoc, updateDoc } from '../../lib/firestore';
+import { deleteDoc, updateDoc } from '../../lib/firestore';
 import { useUsers } from '../../hooks/useUsers';
 import { useLinksStore } from '../../stores/linksStore';
 const CACHE_TTL = 2 * 60 * 1000;
-import type { User, SavedLink } from '../../types';
+import type { SavedLink } from '../../types';
 import { LinkCard } from './LinkCard';
 import { Select } from '../ui/Select';
 import { SaveLinkModal } from './SaveLinkModal';
@@ -14,7 +14,7 @@ import toast from 'react-hot-toast';
 import { useConfirm } from '../../contexts/ConfirmContext';
 
 export const LinksTab: React.FC = () => {
-  const { user } = useAuthStore();
+  const { user: currentUser } = useAuthStore();
   const { links, fetchedAt, setLinks } = useLinksStore();
   const { users } = useUsers();
   const [isLoading, setIsLoading] = useState(true);

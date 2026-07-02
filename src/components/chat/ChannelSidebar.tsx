@@ -5,7 +5,7 @@ import { useUsers } from '../../hooks/useUsers';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';
 import { getAvatarColor } from '../../utils/avatarColor';
-import type { Channel, DirectMessage, User } from '../../types';
+import type { Channel, DirectMessage } from '../../types';
 
 interface ChannelSidebarProps {
   channels: Channel[];

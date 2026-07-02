@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { subscribeToCollection } from '../../lib/firestore';
 import { useUsers } from '../../hooks/useUsers';
-import type { Event, User } from '../../types';
+import type { Event } from '../../types';
 import { ChevronLeft, ChevronRight, Cake, Palmtree, Gamepad2, Plane, Monitor, Star } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 

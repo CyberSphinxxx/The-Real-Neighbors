@@ -1,7 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { Hash, Circle } from 'lucide-react';
 import { subscribeToMessages, subscribeToTypingStatus, updateDMSeenReceipt } from '../../lib/chat';
-import { subscribeToCollection } from '../../lib/firestore';
 import { useUsers } from '../../hooks/useUsers';
 import { useAuthStore } from '../../stores/authStore';
 import { useOnlineUsers } from '../../hooks/useOnlineUsers';

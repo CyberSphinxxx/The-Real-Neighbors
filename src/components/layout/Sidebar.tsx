@@ -6,7 +6,7 @@ import { subscribeToCollection } from '../../lib/firestore';
 import { useUsers } from '../../hooks/useUsers';
 import { orderBy, limit } from 'firebase/firestore';
 import { useWhatsNewStore } from '../../stores/whatsNewStore';
-import type { Event, WatchlistEntry, SavedLink, User } from '../../types';
+import type { Event, WatchlistEntry, SavedLink } from '../../types';
 
 export const Sidebar: React.FC = () => {
   const { user } = useAuthStore();
