@@ -20,71 +20,86 @@ export interface PresenceUser {
   };
 }
 
+let cachedOnlineUsers: PresenceUser[] = [];
+let cachedOfflineUsers: PresenceUser[] = [];
+const listeners = new Set<() => void>();
+let isSubscribed = false;
+
 export const useOnlineUsers = () => {
-  const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>([]);
-  const [offlineUsers, setOfflineUsers] = useState<PresenceUser[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<PresenceUser[]>(cachedOnlineUsers);
+  const [offlineUsers, setOfflineUsers] = useState<PresenceUser[]>(cachedOfflineUsers);
 
   useEffect(() => {
-    let firestoreUsers: User[] = [];
-    let rtdbPresence: Record<string, any> = {};
-
-    const updateUsers = () => {
-      const allUsersMap = new Map<string, PresenceUser>();
-
-      firestoreUsers.forEach(u => {
-        allUsersMap.set(u.id, {
-          uid: u.id,
-          displayName: u.displayName,
-          handle: u.handle,
-          avatarColor: getAvatarColor(u.displayName),
-          avatarUrl: u.avatarUrl,
-          customTitle: u.customTitle,
-          online: false,
-          lastSeen: null,
-          privacyPrefs: u.privacyPrefs
-        });
-      });
-
-      Object.keys(rtdbPresence).forEach(uid => {
-        const p = rtdbPresence[uid];
-        if (allUsersMap.has(uid)) {
-          const u = allUsersMap.get(uid)!;
-          u.online = p.connections ? Object.keys(p.connections).length > 0 : !!p.online;
-          if (p.lastSeen) u.lastSeen = p.lastSeen;
-          if (p.avatarColor) u.avatarColor = p.avatarColor;
-        } else {
-          allUsersMap.set(uid, { 
-            uid, 
-            ...p, 
-            online: p.connections ? Object.keys(p.connections).length > 0 : !!p.online 
-          });
-        }
-      });
-
-      const allUsers = Array.from(allUsersMap.values());
-      const online = allUsers.filter((u) => u.online && u.privacyPrefs?.showOnlineStatus !== false);
-      const offline = allUsers
-        .filter((u) => !u.online || u.privacyPrefs?.showOnlineStatus === false)
-        .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
-
-      setOnlineUsers(online);
-      setOfflineUsers(offline);
+    const updateLocalState = () => {
+      setOnlineUsers(cachedOnlineUsers);
+      setOfflineUsers(cachedOfflineUsers);
     };
 
-    const unsubFirestore = subscribeToCollection<User>('users', (data) => {
-      firestoreUsers = data;
-      updateUsers();
-    });
+    listeners.add(updateLocalState);
+    updateLocalState(); // sync immediately
 
-    const presenceRef = ref(rtdb, 'presence');
-    const unsubRTDB = onValue(presenceRef, (snapshot) => {
-      rtdbPresence = snapshot.val() || {};
-      updateUsers();
-    });
+    if (!isSubscribed) {
+      isSubscribed = true;
+      let firestoreUsers: User[] = [];
+      let rtdbPresence: Record<string, any> = {};
+
+      const updateUsers = () => {
+        const allUsersMap = new Map<string, PresenceUser>();
+
+        firestoreUsers.forEach(u => {
+          allUsersMap.set(u.id, {
+            uid: u.id,
+            displayName: u.displayName,
+            handle: u.handle,
+            avatarColor: getAvatarColor(u.displayName),
+            avatarUrl: u.avatarUrl,
+            customTitle: u.customTitle,
+            online: false,
+            lastSeen: null,
+            privacyPrefs: u.privacyPrefs
+          });
+        });
+
+        Object.keys(rtdbPresence).forEach(uid => {
+          const p = rtdbPresence[uid];
+          if (allUsersMap.has(uid)) {
+            const u = allUsersMap.get(uid)!;
+            u.online = p.connections ? Object.keys(p.connections).length > 0 : false;
+            if (p.lastSeen) u.lastSeen = p.lastSeen;
+            if (p.avatarColor) u.avatarColor = p.avatarColor;
+          } else {
+            allUsersMap.set(uid, { 
+              uid, 
+              ...p, 
+              online: p.connections ? Object.keys(p.connections).length > 0 : false 
+            });
+          }
+        });
+
+        const allUsers = Array.from(allUsersMap.values());
+        cachedOnlineUsers = allUsers.filter((u) => u.online && u.privacyPrefs?.showOnlineStatus !== false);
+        cachedOfflineUsers = allUsers
+          .filter((u) => !u.online || u.privacyPrefs?.showOnlineStatus === false)
+          .sort((a, b) => (b.lastSeen || 0) - (a.lastSeen || 0));
+
+        // Notify all subscribers
+        listeners.forEach(l => l());
+      };
+
+      subscribeToCollection<User>('users', (data) => {
+        firestoreUsers = data;
+        updateUsers();
+      });
+
+      const presenceRef = ref(rtdb, 'presence');
+      onValue(presenceRef, (snapshot) => {
+        rtdbPresence = snapshot.val() || {};
+        updateUsers();
+      });
+    }
 
     return () => {
-      unsubFirestore();
-      unsubRTDB();
+      listeners.delete(updateLocalState);
     };
   }, []);
 
