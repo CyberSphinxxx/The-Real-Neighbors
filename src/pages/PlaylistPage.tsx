@@ -1,11 +1,12 @@
 import { useState, useEffect, useMemo, useRef } from 'react';
 import { subscribeToCollection } from '../lib/firestore';
+import { useUsers } from '../hooks/useUsers';
 import { Select } from '../components/ui/Select';
 import { PlaylistCard } from '../components/playlist/PlaylistCard';
 import { AddPlaylistModal } from '../components/playlist/AddPlaylistModal';
 import { Plus, Search, Shuffle, Music2, Loader2, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
-import type { Playlist, User } from '../types';
+import type { Playlist } from '../types';
 
 const SUBTITLES = [
   "Kanta tayo! 🎶",
@@ -34,7 +35,7 @@ const GENRES = [
 
 export default function PlaylistPage() {
   const [playlists, setPlaylists] = useState<Playlist[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
   const [isLoading, setIsLoading] = useState(true);
   
   const [subtitle] = useState(() => SUBTITLES[Math.floor(Math.random() * SUBTITLES.length)]);
@@ -67,9 +68,6 @@ export default function PlaylistPage() {
 
   useEffect(() => {
     let isMounted = true;
-    const unsubUsers = subscribeToCollection<User>('users', (data) => {
-      if (isMounted) setUsers(data);
-    });
     const unsubPlaylists = subscribeToCollection<Playlist>('playlists', (data) => {
       if (isMounted) {
         setPlaylists(data);
@@ -79,7 +77,6 @@ export default function PlaylistPage() {
 
     return () => {
       isMounted = false;
-      unsubUsers();
       unsubPlaylists();
     };
   }, []);

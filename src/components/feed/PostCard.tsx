@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuthStore } from '../../stores/authStore';
-import { getDoc, updateDoc, addDoc, subscribeToCollection } from '../../lib/firestore';
+import { getDoc, updateDoc, addDoc } from '../../lib/firestore';
+import { useUsers } from '../../hooks/useUsers';
 import { formatTimeAgo } from '../../utils/date';
 import { CommentSection } from './CommentSection';
 import { MobileBottomSheet } from '../ui/MobileBottomSheet';
@@ -32,6 +33,7 @@ const REACTIONS = [
 
 const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers }) => {
   const { user } = useAuthStore();
+  const { users } = useUsers();
   const { onlineUsers } = useOnlineUsers();
   const [author, setAuthor] = useState<User | null>(null);
   const [optimisticReactions, setOptimisticReactions] = useState(post.reactions || {});
@@ -195,24 +197,39 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
   useEffect(() => {
     let isMounted = true;
     const fetchAuthor = async () => {
+      // First try to find from the passed allUsers (if available) or the global users hook cache
+      const userList = (allUsers && allUsers.length > 0) ? allUsers : users;
+      if (userList && userList.length > 0) {
+        const u = userList.find(u => u.id === post.authorId);
+        if (u) {
+          if (isMounted) setAuthor(u);
+          return;
+        }
+      }
+      
+      // Fallback if not found in cache
       const u = await getDoc<User>('users', [post.authorId]);
       if (isMounted) setAuthor(u);
     };
     fetchAuthor();
     
-    // Subscribe to comments subcollection for accurate real-time count
-    const unsubscribeComments = subscribeToCollection<Comment>(
-      `posts/${post.id}/comments`,
-      (data) => {
-        if (isMounted) setCommentCount(data.length);
+    // Fetch initial comment count without lingering real-time subscription
+    const fetchCommentCount = async () => {
+      try {
+        const { collection, getCountFromServer } = await import('firebase/firestore');
+        const { db } = await import('../../lib/firebase');
+        const snapshot = await getCountFromServer(collection(db, `posts/${post.id}/comments`));
+        if (isMounted) setCommentCount(snapshot.data().count);
+      } catch (err) {
+        console.error('Failed to fetch comment count', err);
       }
-    );
+    };
+    fetchCommentCount();
     
     return () => { 
       isMounted = false; 
-      unsubscribeComments();
     };
-  }, [post.authorId, post.id]);
+  }, [post.authorId, post.id, allUsers, users]);
 
   const isAdmin = user?.role === 'admin';
   const avatarBg = author ? getAvatarColor(author.displayName) : 'var(--color-primary)';

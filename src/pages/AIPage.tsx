@@ -9,8 +9,7 @@ import { WatchlistPicks } from '../components/ai/WatchlistPicks';
 import { PlaylistMatcher } from '../components/ai/PlaylistMatcher';
 import { EventPlanner } from '../components/ai/EventPlanner';
 import { RoastMode } from '../components/ai/RoastMode';
-import { subscribeToCollection } from '../lib/firestore';
-import type { User } from '../types';
+import { useUsers } from '../hooks/useUsers';
 
 const tools = [
   { id: 'chat', label: 'Chat', icon: MessageCircle },
@@ -26,12 +25,7 @@ const tools = [
 export default function AIPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [activeTool, setActiveTool] = useState(searchParams.get('tool') || 'chat');
-  const [users, setUsers] = useState<User[]>([]);
-
-  useEffect(() => {
-    const unsub = subscribeToCollection<User>('users', setUsers);
-    return () => unsub();
-  }, []);
+  const { users } = useUsers();
 
   useEffect(() => {
     const tool = searchParams.get('tool');

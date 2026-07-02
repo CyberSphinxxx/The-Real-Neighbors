@@ -5,10 +5,10 @@ import { useAuthStore } from '../stores/authStore';
 import { getAvatarColor } from '../utils/avatarColor';
 
 export const usePresence = () => {
-  const { user } = useAuthStore();
+  const user = useAuthStore(state => state.user);
 
   useEffect(() => {
-    if (!user) return;
+    if (!user?.id) return;
 
     const uid = user.id;
     const myConnectionsRef = ref(rtdb, `presence/${uid}/connections`);
@@ -27,15 +27,15 @@ export const usePresence = () => {
         // Clean up legacy online flag from previous system
         set(ref(rtdb, `presence/${uid}/online`), null).catch(console.error);
 
-        // 2. When I disconnect, remove this device
-        onDisconnect(con).remove().then(() => {
-          // 3. Immediately write online status for this connection
-          set(con, true).catch(console.error);
+        // 2. Immediately write online status for this connection
+        set(con, true).catch(console.error);
 
-          // Update basic presence info
-          set(ref(rtdb, `presence/${uid}/displayName`), user.displayName).catch(console.error);
-          set(ref(rtdb, `presence/${uid}/avatarColor`), avatarColor).catch(console.error);
-        }).catch(console.error);
+        // 3. When I disconnect, remove this device
+        onDisconnect(con).remove().catch(console.error);
+
+        // Update basic presence info
+        set(ref(rtdb, `presence/${uid}/displayName`), user.displayName).catch(console.error);
+        set(ref(rtdb, `presence/${uid}/avatarColor`), avatarColor).catch(console.error);
 
         // 4. When I disconnect, update lastSeen
         onDisconnect(lastSeenRef).set(serverTimestamp()).catch(console.error);
@@ -50,5 +50,5 @@ export const usePresence = () => {
         set(lastSeenRef, serverTimestamp()).catch(console.error);
       }
     };
-  }, [user]);
+  }, [user?.id, user?.displayName]); // Only re-run if ID or displayName changes
 };

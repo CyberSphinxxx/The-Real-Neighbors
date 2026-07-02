@@ -25,6 +25,7 @@ import { PostCard } from '../components/feed/PostCard';
 import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { TopMoviesSelector } from '../components/profile/TopMoviesSelector';
 import { subscribeToCollection } from '../lib/firestore';
+import { useUsers } from '../hooks/useUsers';
 import { initializeDM } from '../lib/chat';
 import { useNavigate } from 'react-router-dom';
 
@@ -45,7 +46,7 @@ const ProfilePage: React.FC = () => {
   // Data State
   const [userPosts, setUserPosts] = useState<Post[]>([]);
   const [openPost, setOpenPost] = useState<Post | null>(null);
-  const [allUsers, setAllUsers] = useState<User[]>([]);
+  const { users: allUsers } = useUsers();
 
   // Edit State
   const [editData, setEditData] = useState<Partial<User>>({});
@@ -80,13 +81,6 @@ const ProfilePage: React.FC = () => {
     };
     
     fetchUser();
-    
-    // Fetch all users for mentions/seenBy in PostCard
-    import('firebase/firestore').then(({ collection, getDocs }) => {
-      getDocs(collection(db, 'users')).then(snap => {
-        if (isMounted) setAllUsers(snap.docs.map(d => ({ id: d.id, ...d.data() }) as User));
-      });
-    });
 
     const handleClickOutside = (event: MouseEvent) => {
       if (menuRef.current && !menuRef.current.contains(event.target as Node)) {

@@ -8,13 +8,13 @@ import { PostDetailModal } from '../components/feed/PostDetailModal';
 import { ExploreTab } from '../components/feed/ExploreTab';
 import { FilterBottomSheet } from '../components/feed/FilterBottomSheet';
 import { FeedCatchUp } from '../components/ai/FeedCatchUp';
-import { subscribeToCollection } from '../lib/firestore';
 import { Users, Filter, Sparkles } from 'lucide-react';
 import { getAvatarColor } from '../utils/avatarColor';
 import { useAuthStore } from '../stores/authStore';
 import { useFeedTabStore } from '../stores/feedTabStore';
 import { usePostStore } from '../stores/postStore';
-import type { Post, User, RedditPost } from '../types';
+import { useUsers } from '../hooks/useUsers';
+import type { Post, RedditPost } from '../types';
 
 const FILTER_TYPES = ['All', 'Videos', 'Images', 'Colored', 'Links'];
 
@@ -57,7 +57,7 @@ export const FeedPage: React.FC = () => {
 
   const [rawPosts, setRawPosts] = useState<Post[]>([]);
   const [posts, setPosts] = useState<Post[]>([]);
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
   const [isLoading, setIsLoading] = useState(true);
   const [openPost, setOpenPost] = useState<Post | RedditPost | null>(null);
   const [showCatchUpModal, setShowCatchUpModal] = useState(false);
@@ -250,11 +250,6 @@ export const FeedPage: React.FC = () => {
       setRawPosts(prev => prev.filter(p => !p.expiresAt || p.expiresAt > now));
     }, 60000);
 
-    const unsubscribeUsers = subscribeToCollection<User>(
-      'users',
-      (data) => setUsers(data)
-    );
-
     const handleOpenPostModal = (e: CustomEvent) => {
       const postId = e.detail;
       import('../lib/firestore').then(({ getDoc }) => {
@@ -303,7 +298,6 @@ export const FeedPage: React.FC = () => {
       unsubscribeNewPosts();
       unsubscribePinned();
       clearInterval(interval);
-      unsubscribeUsers();
       window.removeEventListener('openPostModal', handleOpenPostModal as EventListener);
       window.removeEventListener('focusComposer', handleFocusComposer);
       window.removeEventListener('scrollToPoll', handleScrollToPoll);

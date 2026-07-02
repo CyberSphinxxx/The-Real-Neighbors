@@ -2,7 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuthStore } from '../stores/authStore';
 import { subscribeToCollection, deleteDoc } from '../lib/firestore';
 import { useWatchlistStore } from '../stores/watchlistStore';
-import type { User, WatchlistEntry } from '../types';
+import { useUsers } from '../hooks/useUsers';
+import type { WatchlistEntry } from '../types';
 import { UserWatchlist } from '../components/watchlist/UserWatchlist';
 import { GroupConsensusView } from '../components/watchlist/GroupConsensusView';
 import { AddWatchlistEntryModal } from '../components/watchlist/AddWatchlistEntryModal';
@@ -16,7 +17,7 @@ import { Select } from '../components/ui/Select';
 
 export const WatchlistPage: React.FC = () => {
   const { user: currentUser } = useAuthStore();
-  const [users, setUsers] = useState<User[]>([]);
+  const { users } = useUsers();
   const { entries, setEntries } = useWatchlistStore();
   const [activeTab, setActiveTab] = useState<string>('all');
   const [activeTypeFilter, setActiveTypeFilter] = useState<'all' | 'movie' | 'tv' | 'anime'>('all');
@@ -37,7 +38,6 @@ export const WatchlistPage: React.FC = () => {
   }, [currentUser, isLoading]);
 
   useEffect(() => {
-    const unsubUsers = subscribeToCollection<User>('users', (data) => setUsers(data));
     
     const unsubWatchlists = subscribeToCollection<WatchlistEntry>('watchlists', (data) => {
       setEntries(data);
@@ -45,7 +45,6 @@ export const WatchlistPage: React.FC = () => {
     });
 
     return () => {
-      unsubUsers();
       unsubWatchlists();
     };
   // eslint-disable-next-line react-hooks/exhaustive-deps
