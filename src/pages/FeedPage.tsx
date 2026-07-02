@@ -61,6 +61,7 @@ export const FeedPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [openPost, setOpenPost] = useState<Post | RedditPost | null>(null);
   const [showCatchUpModal, setShowCatchUpModal] = useState(false);
+  const [pendingPost, setPendingPost] = useState<Post | null>(null);
 
   // Pagination State
   const [lastVisible, setLastVisible] = useState<any>(null);
@@ -288,6 +289,26 @@ export const FeedPage: React.FC = () => {
       });
     };
 
+    const handlePostSubmitting = (e: CustomEvent) => {
+      setPendingPost(e.detail);
+      const container = document.getElementById('main-scroll-container');
+      if (container) container.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    const handlePostSubmitSuccess = (e: CustomEvent) => {
+      setPendingPost(null);
+      const newPost = e.detail;
+      setRawPosts(prev => {
+        const existing = new Map(prev.map(p => [p.id, p]));
+        existing.set(newPost.id, newPost);
+        return Array.from(existing.values());
+      });
+    };
+
+    const handlePostSubmitError = () => {
+      setPendingPost(null);
+    };
+
     window.addEventListener('openPostModal', handleOpenPostModal as EventListener);
     window.addEventListener('focusComposer', handleFocusComposer);
     window.addEventListener('scrollToPoll', handleScrollToPoll);
@@ -303,6 +324,9 @@ export const FeedPage: React.FC = () => {
       window.removeEventListener('scrollToPoll', handleScrollToPoll);
       window.removeEventListener('optimisticDeletePost', handleOptimisticDelete as EventListener);
       window.removeEventListener('optimisticRestorePost', handleOptimisticRestore as EventListener);
+      window.removeEventListener('postSubmitting', handlePostSubmitting as EventListener);
+      window.removeEventListener('postSubmitSuccess', handlePostSubmitSuccess as EventListener);
+      window.removeEventListener('postSubmitError', handlePostSubmitError);
     };
   }, [activeType, activeMember, sortBy]);
 
@@ -626,6 +650,17 @@ export const FeedPage: React.FC = () => {
           </div>
         ) : (
           <div className="animate-in fade-in slide-in-from-bottom-4 duration-500 flex flex-col gap-4">
+            {pendingPost && (
+              <div className="opacity-70 pointer-events-none relative">
+                <div className="absolute inset-0 z-10 flex items-center justify-center bg-surface/20 rounded-xl">
+                  <div className="bg-primary/90 text-on-primary px-4 py-2 rounded-full font-bold flex items-center gap-2 shadow-lg backdrop-blur-md">
+                    <span className="animate-spin block w-4 h-4 border-2 border-on-primary border-t-transparent rounded-full"></span> Posting...
+                  </div>
+                </div>
+                <PostCard post={pendingPost} onOpenPost={() => {}} allUsers={users} />
+              </div>
+            )}
+            
             {isVirtual ? (
               <div
                 style={{

@@ -314,8 +314,9 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
     ? post.is_reddit_media_domain || !!post.url?.match(/\.(jpeg|jpg|gif|png|webp)$/i)
     : !!post.imageUrl;
   const isYoutube = isRedditPost ? false : !!post.linkMeta?.youtubeId;
+  const isFacebookVideo = isRedditPost ? false : !!post.linkMeta?.isFacebookVideo;
   const isRedditVideo = isRedditPost && post.is_video;
-  const isPlainText = !isImage && !isYoutube && !hasBg && !isRedditVideo;
+  const isPlainText = !isImage && !isYoutube && !hasBg && !isRedditVideo && !isFacebookVideo;
 
   const totalReactionsCount = REACTIONS.reduce((acc, r) => acc + (post.reactions?.[r.emoji]?.length || 0), 0);
   const reactionSummary = REACTIONS.filter(r => (post.reactions?.[r.emoji]?.length || 0) > 0)
@@ -482,7 +483,21 @@ export const PostDetailModal: React.FC<PostDetailModalProps> = ({ post, isReddit
             </div>
           )}
 
-          {hasBg && !isImage && !isYoutube && (
+          {isFacebookVideo && (
+            <div className="w-full h-full p-4 flex flex-col justify-center items-center animate-in zoom-in-95 duration-200">
+              <iframe
+                src={`https://www.facebook.com/plugins/video.php?href=${encodeURIComponent(post.linkMeta!.url)}&show_text=false&width=560`}
+                className="w-full max-w-[560px] border-0 bg-transparent rounded-lg"
+                style={{ height: 'min(800px, 100%)', minHeight: '500px' }}
+                scrolling="no"
+                frameBorder="0"
+                allowFullScreen={true}
+                allow="autoplay; clipboard-write; encrypted-media; picture-in-picture; web-share"
+              ></iframe>
+            </div>
+          )}
+
+          {hasBg && !isImage && !isYoutube && !isFacebookVideo && (
             <div className="text-center p-8 flex flex-col items-center justify-center animate-in zoom-in-95 duration-200">
               <p className="text-white text-3xl md:text-4xl font-heading font-bold max-w-[480px] break-words" style={{ textShadow: '0 2px 8px rgba(0,0,0,0.3)' }}>
                 {renderContentWithMentions(post.content, allUsers)}

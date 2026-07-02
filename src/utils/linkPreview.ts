@@ -4,11 +4,13 @@ export interface LinkMetadata {
   description: string;
   image?: string;
   youtubeId?: string;
+  isFacebookVideo?: boolean;
 }
 
 export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null> {
   const ytMatch = url.match(/(?:youtube\.com\/(?:[^\/]+\/.+\/|(?:v|e(?:mbed)?)\/|.*[?&]v=)|youtu\.be\/)([^"&?\/\s]{11})/i);
   const youtubeId = ytMatch ? ytMatch[1] : undefined;
+  const isFacebookVideo = url.match(/(?:facebook\.com\/(?:reel|watch|.*\/videos)\/|fb\.watch\/)/i) !== null;
 
   try {
     // Basic URL validation
@@ -43,6 +45,7 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
     };
     if (image) result.image = image;
     if (youtubeId) result.youtubeId = youtubeId;
+    if (isFacebookVideo) result.isFacebookVideo = true;
     return result;
   } catch (error) {
     if (youtubeId) {
@@ -51,6 +54,14 @@ export async function fetchLinkPreview(url: string): Promise<LinkMetadata | null
         title: 'YouTube Video',
         description: '',
         youtubeId
+      };
+    }
+    if (isFacebookVideo) {
+      return {
+        url,
+        title: 'Facebook Video',
+        description: '',
+        isFacebookVideo: true
       };
     }
     console.error("Failed to fetch link preview:", error);

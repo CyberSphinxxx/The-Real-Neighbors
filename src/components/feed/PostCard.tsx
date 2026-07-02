@@ -866,6 +866,23 @@ const PostCardComponent: React.FC<PostCardProps> = ({ post, onOpenPost, allUsers
                 </div>
               </div>
             </div>
+          ) : post.linkMeta.isFacebookVideo ? (
+            <div 
+              className="w-full relative pt-[100%] sm:pt-[56.25%] bg-black group cursor-pointer"
+              onClick={() => onOpenPost?.(post)}
+            >
+              <img 
+                src={post.linkMeta.image || 'https://upload.wikimedia.org/wikipedia/commons/b/b8/YouTube_play_button_icon_%282013%E2%80%932017%29.svg'} // Using a generic play button placeholder if no image
+                alt="Facebook video thumbnail" 
+                className="absolute top-0 left-0 w-full h-full object-cover opacity-80 group-hover:opacity-100 transition-opacity" 
+                onError={(e) => { e.currentTarget.style.display = 'none'; }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="w-16 h-16 bg-black/60 rounded-full flex items-center justify-center backdrop-blur-sm group-hover:bg-[#1877F2] transition-colors shadow-lg">
+                   <Play className="text-white ml-1" size={32} />
+                </div>
+              </div>
+            </div>
           ) : (
             <a
               href={post.linkMeta.url}

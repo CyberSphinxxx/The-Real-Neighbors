@@ -260,7 +260,20 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
       if (selectedDuration) newPost.expiresAt = Date.now() + selectedDuration;
       if (mentions.length > 0) newPost.mentions = mentions;
 
+      // Dispatch optimistic UI event
+      window.dispatchEvent(
+        new CustomEvent('postSubmitting', {
+          detail: { ...newPost, id: 'temp-' + Date.now() },
+        })
+      );
+
       const postId = await addDoc<Omit<Post, 'id'>>('posts', newPost);
+      
+      window.dispatchEvent(
+        new CustomEvent('postSubmitSuccess', {
+          detail: { ...newPost, id: postId },
+        })
+      );
       
       import('../../lib/notifications').then(({ broadcastNotification, writeNotification }) => {
         broadcastNotification({
@@ -354,6 +367,7 @@ export const PostComposer: React.FC<PostComposerProps> = ({ composerRef, allUser
     } catch (error) {
       console.error('Error creating post:', error);
       toast.error('Failed to create post');
+      window.dispatchEvent(new CustomEvent('postSubmitError'));
     } finally {
       setIsSubmitting(false);
     }
