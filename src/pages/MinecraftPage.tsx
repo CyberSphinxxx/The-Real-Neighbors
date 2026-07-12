@@ -22,14 +22,11 @@ export const MinecraftPage: React.FC = () => {
           <div className="space-y-4">
             <div>
               <h3 className="font-semibold text-main">Q: What is the server IP?</h3>
-              <p className="text-muted mt-1 leading-relaxed">A: You can connect to the server using our central domain: <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">play.therealneighbors.online</span>.</p>
-              <div className="mt-3 bg-surface border border-border-subtle rounded-lg p-3 text-sm text-muted shadow-sm">
-                <strong className="text-main">Backup Addresses:</strong> If the main domain is ever unavailable, use these original direct addresses:
-                <ul className="list-disc list-inside mt-2 space-y-1">
-                  <li><strong>Java:</strong> <span className="font-mono">how-dept.gl.joinmc.link</span></li>
-                  <li><strong>Bedrock:</strong> IP <span className="font-mono">147.185.221.32</span> | Port <span className="font-mono">50909</span></li>
-                </ul>
-              </div>
+              <p className="text-muted mt-1 leading-relaxed">A: You can connect to the server using our custom domains!</p>
+              <ul className="list-disc list-inside mt-2 space-y-2 text-muted">
+                <li><strong>Java Edition:</strong> <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">play.therealneighbors.online</span></li>
+                <li><strong>Bedrock Edition:</strong> <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">bedrock.therealneighbors.online</span> (Port: <span className="font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">50909</span>)</li>
+              </ul>
             </div>
 
             <div>
@@ -37,8 +34,8 @@ export const MinecraftPage: React.FC = () => {
               <div className="text-muted mt-1 leading-relaxed space-y-2">
                 <p>A: Yes! We have full cross-play enabled.</p>
                 <ul className="list-disc list-inside ml-2 space-y-1">
-                  <li><strong>Java Edition Players:</strong> Simply enter the IP <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">play.therealneighbors.online</span> (or <span className="font-mono">how-dept.gl.joinmc.link</span>) and join.</li>
-                  <li><strong>Bedrock Edition Players:</strong> Add a new server, enter the IP <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">play.therealneighbors.online</span> (or <span className="font-mono">147.185.221.32</span>), and set the Port to <span className="font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">50909</span>.</li>
+                  <li><strong>Java Edition Players:</strong> Simply enter the address <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">play.therealneighbors.online</span> and join.</li>
+                  <li><strong>Bedrock Edition Players:</strong> Add a new server, enter the Server Address <span className="text-primary font-mono bg-primary/10 px-2 py-0.5 rounded">bedrock.therealneighbors.online</span>, and set the Port to <span className="font-mono text-primary bg-primary/10 px-1.5 py-0.5 rounded">50909</span>.</li>
                 </ul>
               </div>
             </div>
